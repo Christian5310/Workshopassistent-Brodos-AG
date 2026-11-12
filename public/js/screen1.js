@@ -253,7 +253,9 @@ function zeige({ protokoll, status, tag }) {
   letzterZyklus = status.letzterZyklus;
   ladeTage();
   tagwahl.disabled = an;
-  $("#tag-info").textContent = an ? "Zum Wechseln erst den Assistenten ausschalten." : "";
+  $("#tag-info").textContent = an ? "" : "";
+  tagwahl.title = an ? "Zum Wechseln erst den Assistenten ausschalten." : "";
+  $("#arbeit").textContent = status.arbeit ?? (an && quelle === "mikro" ? "Aufnahme läuft. Der erste Abschnitt wird nach 20 Sekunden gesendet, danach jede Minute." : "");
 
   schalter.textContent = an ? "Assistent ist an" : "Assistent ist aus";
   schalter.classList.toggle("aktiv", an);

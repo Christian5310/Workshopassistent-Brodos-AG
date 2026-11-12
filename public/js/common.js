@@ -14,14 +14,34 @@ export function el(tag, klasse = "", text = "") {
   return e;
 }
 
-/** Hält die Ansicht live: Server-Sent Events, der Browser verbindet sich nach Abbrüchen selbst neu. */
+/**
+ * Hält die Ansicht live über Server-Sent Events.
+ * Browser erlauben nur etwa sechs gleichzeitige Verbindungen pro Adresse. Damit viele offene Broki-Live-Tabs
+ * (Assistent, Agenten, Regie, Admin, Archiv …) sich nicht gegenseitig blockieren, hält immer nur EIN Tab die
+ * Verbindung zum Server und gibt die Updates über einen BroadcastChannel an die anderen Tabs weiter.
+ */
 export function verbinde(beiUpdate) {
-  const quelle = new EventSource("/api/events");
-  quelle.onmessage = (ereignis) => {
-    const stand = JSON.parse(ereignis.data);
+  const anwenden = (stand) => {
     for (const [rolle, { name }] of Object.entries(stand.agenten ?? {})) ROLLEN[rolle].name = name; // Namen aus der Admin-Ansicht
     beiUpdate(stand);
   };
+  const direkt = () => {
+    const quelle = new EventSource("/api/events"); // verbindet sich nach Abbrüchen selbst neu
+    quelle.onmessage = (ereignis) => {
+      const stand = JSON.parse(ereignis.data);
+      kanal?.postMessage(stand);
+      anwenden(stand);
+    };
+  };
+
+  let kanal = null;
+  if (!("locks" in navigator) || !("BroadcastChannel" in window)) return direkt(); // ältere Browser: jede Ansicht für sich
+
+  kanal = new BroadcastChannel("broki-live-updates");
+  kanal.onmessage = (ereignis) => anwenden(ereignis.data);
+  fetch("/api/state").then((a) => a.json()).then(anwenden).catch(() => {}); // Startzustand, bis das erste Update kommt
+  // Wer die Sperre bekommt, hält die Verbindung – bis der Tab geschlossen wird; dann übernimmt der nächste.
+  navigator.locks.request("broki-live-verbindung", () => new Promise(() => direkt()));
 }
 
 export async function sende(pfad, daten = {}, methode = "POST") {

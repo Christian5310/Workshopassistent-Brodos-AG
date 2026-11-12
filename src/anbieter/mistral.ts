@@ -25,7 +25,7 @@ export class MistralTranskriptQuelle implements TranskriptQuelle {
       method: "POST",
       headers: { Authorization: `Bearer ${config.stt.schluessel}` },
       body: formular,
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.timeout(30_000),
     });
     if (!antwort.ok) throw new Error(`Mistral-Transkription: HTTP ${antwort.status} ${(await antwort.text()).slice(0, 300)}`);
     const daten = (await antwort.json()) as { text?: string };

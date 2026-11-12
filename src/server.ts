@@ -14,6 +14,8 @@ const anbieter = erstelleAnbieter();
 let aufnahme = false;
 let chatStatus: ChatStatus = "bereit";
 let hinweis: string | null = null;
+let arbeit: string | null = null;
+const zeigeArbeit = (text: string | null) => { arbeit = text; senden(); };
 let zyklusTimer: NodeJS.Timeout | null = null;
 let zyklusLaeuft = false;
 let pausiertUm = 0;
@@ -33,7 +35,7 @@ function schnappschuss(): Schnappschuss {
       consultant: { name: admin.einstellungen.agenten.consultant.name },
     },
     chat: store.daten.chat,
-    status: { aufnahme, quelle, letzterZyklus: store.daten.letzterZyklus, zyklusSekunden, mock: config.mock, chat: chatStatus, hinweis },
+    status: { aufnahme, quelle, letzterZyklus: store.daten.letzterZyklus, zyklusSekunden, mock: config.mock, chat: chatStatus, hinweis, arbeit },
   };
 }
 
@@ -49,12 +51,14 @@ function protokolliere(text: string, ergebnis: string, ok = true): void {
   diagnose.push({ zeit: Date.now(), text, ergebnis, ok });
   if (diagnose.length > 40) diagnose.shift();
   console.log(`[${new Date().toLocaleTimeString("de-DE")}] Abschnitt (${text.length} Zeichen) → ${ergebnis}`);
+  arbeit = `Letzter Abschnitt (${new Date().toLocaleTimeString("de-DE")}): ${ergebnis}`;
 }
 
 /** Ein neuer Transkript-Abschnitt: anhängen, Protokollstand vom LLM aktualisieren lassen, validieren. */
 async function verarbeiteAbschnitt(text: string): Promise<void> {
   const punkt = store.daten.protokoll.agenda.find((a) => a.status === "läuft")?.id ?? "";
   store.daten.transkript.push({ zeit: Date.now(), text, agendapunkt: punkt });
+  zeigeArbeit("Transkript ist da, To-dos werden ausgewertet …"); // Transkript erscheint sofort, die Auswertung folgt
   try {
     const antwort = await anbieter.sprachmodell.chronist(store.daten.protokoll, text);
     const geprueft = ProtokollSchema.safeParse(antwort);
@@ -103,6 +107,7 @@ function starten(): void {
   if (aufnahme) return;
   aufnahme = true;
   hinweis = null;
+  arbeit = null;
   if (quelle === "timer") {
     zyklusTimer = setInterval(() => void zyklus(), zyklusSekunden * 1000);
     void zyklus(); // erster Abschnitt sofort, damit die Demo nicht mit Warten beginnt
@@ -146,8 +151,10 @@ app.post("/api/audio-chunk", express.raw({ type: "audio/*", limit: "8mb" }), (re
   if (!Buffer.isBuffer(audio) || audio.length < 1000) return void res.status(400).json({ fehler: "Kein Audio empfangen." });
   const mime = String(req.headers["content-type"] ?? "audio/webm");
 
+  console.log(`[${new Date().toLocaleTimeString("de-DE")}] Audio-Abschnitt empfangen (${Math.round(audio.length / 1024)} kB, ${mime})`);
   warteschlange = warteschlange.then(async () => {
     try {
+      zeigeArbeit("Abschnitt empfangen, wird transkribiert …");
       const text = await anbieter.transkript.transkribiere(audio, "protokoll", mime);
       if (text === null) return pausieren("Mock-Skript ist zu Ende. Für einen neuen Durchlauf in der Regie die Daten löschen.");
       if (text.trim()) { hinweis = null; return await verarbeiteAbschnitt(text.trim()); }
@@ -182,7 +189,8 @@ app.post("/api/regie/text", (req, res) => {
     else aktuell = aktuell ? `${aktuell} ${satz}` : satz;
   }
   if (aktuell) abschnitte.push(aktuell);
-  for (const a of abschnitte) warteschlange = warteschlange.then(() => verarbeiteAbschnitt(a));
+  // Ein Fehler darf die Warteschlange nicht dauerhaft blockieren
+  for (const a of abschnitte) warteschlange = warteschlange.then(() => verarbeiteAbschnitt(a)).catch((f) => protokolliere(a, `Fehler bei der Verarbeitung: ${f}`, false));
   res.status(202).json({ ok: true, abschnitte: abschnitte.length });
 });
 

@@ -54,7 +54,8 @@ export class Aufnahme {
     this.#pegelStart();
     // Bildschirm wach halten, damit der Laptop mitten im Workshop nicht einschläft.
     navigator.wakeLock?.request("screen").then((s) => (this.#sperre = s)).catch(() => {});
-    this.#neuerSchnipsel(sekunden);
+    // Der erste Schnipsel ist kurz, damit nach dem Einschalten schnell sichtbar wird, dass alles funktioniert.
+    this.#neuerSchnipsel(sekunden, Math.min(20, sekunden));
   }
 
   /** Beendet die Aufnahme; der angebrochene Schnipsel wird noch hochgeladen. */
@@ -77,7 +78,7 @@ export class Aufnahme {
 
   // Jeder Schnipsel ist eine eigene, vollständige Aufnahme (stop + neuer Rekorder).
   // Mit einem durchlaufenden Rekorder wären nur die ersten Daten abspielbar, weil nur sie den Datei-Kopf enthalten.
-  #neuerSchnipsel(sekunden) {
+  #neuerSchnipsel(sekunden, dieser = sekunden) {
     if (!this.laeuft) return;
     const format = FORMATE.find((f) => MediaRecorder.isTypeSupported(f));
     const rekorder = new MediaRecorder(this.#strom, { ...(format ? { mimeType: format } : {}), audioBitsPerSecond: 32000 });
@@ -88,15 +89,17 @@ export class Aufnahme {
       if (blob.size > 1000) {
         const upload = this.#hochladen(blob).finally(() => this.#offen.delete(upload));
         this.#offen.add(upload);
+      } else if (this.laeuft) {
+        this.beiFehler("Die Aufnahme war leer: Der Browser liefert keine Audiodaten. Bitte Mikrofon im Browser prüfen und Seite neu laden.");
       }
     });
     rekorder.start();
     this.#rekorder = rekorder;
-    this.naechsterVersand = Date.now() + sekunden * 1000;
+    this.naechsterVersand = Date.now() + dieser * 1000;
     this.#wechsel = setTimeout(() => {
       this.#neuerSchnipsel(sekunden); // erst den neuen starten, dann den alten beenden: keine Lücke
       rekorder.stop();
-    }, sekunden * 1000);
+    }, dieser * 1000);
   }
 
   async #hochladen(blob, versuch = 1) {

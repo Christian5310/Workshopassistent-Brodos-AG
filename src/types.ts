@@ -73,5 +73,7 @@ export interface Schnappschuss {
     mock: boolean;
     chat: ChatStatus;
     hinweis: string | null;
+    /** Was gerade mit dem letzten Abschnitt passiert bzw. zuletzt passiert ist (für die Anzeige) */
+    arbeit: string | null;
   };
 }
