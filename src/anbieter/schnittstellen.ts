@@ -1,4 +1,4 @@
-import type { Adressat, ChatNachricht, Protokoll, Rolle } from "../types.ts";
+import type { Adressat, ChatNachricht, Protokoll } from "../types.ts";
 
 /**
  * Transkriptquelle – tauschbar (Mock, Mistral Voxtral, später ggf. Datei-Upload/Teams).
@@ -20,5 +20,5 @@ export interface ChatKontext {
 export interface Sprachmodell {
   /** Liefert den aktualisierten Protokollstand als ungeprüftes JSON; validiert wird beim Aufrufer. */
   chronist(stand: Protokoll, abschnitt: string): Promise<unknown>;
-  expertenrunde(kontext: ChatKontext): Promise<{ von: Rolle; text: string }[]>;
+  expertenrunde(kontext: ChatKontext): Promise<{ von: string; text: string }[]>;
 }

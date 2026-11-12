@@ -1,195 +1,260 @@
 import { el, figur, sende } from "./common.js";
 
 const $ = (id) => document.querySelector(id);
-const ROLLEN = ["sales", "bpm", "consultant"];
-let standard = null;
-let ungespeichert = false;
+const hole = async (pfad) => (await fetch(pfad)).json();
+const datumKurz = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("de-DE");
+const heute = () => new Date().toLocaleDateString("sv-SE");
 
-const melde = (text) => ($("#meldung").textContent = text);
+// ── Bausteine für die aufklappbaren Einträge ──
+function feld(beschriftung, eingabe, hilfe = "") {
+  const rahmen = el("div", "feld");
+  const label = el("label", "", beschriftung);
+  eingabe.id ||= `f-${Math.random().toString(36).slice(2, 9)}`;
+  label.htmlFor = eingabe.id;
+  rahmen.append(label);
+  if (hilfe) rahmen.append(el("p", "", hilfe));
+  rahmen.append(eingabe);
+  return rahmen;
+}
+function eingabe(typ, wert, attribute = {}) {
+  const e = el(typ === "textarea" ? "textarea" : "input");
+  if (typ !== "textarea") e.type = typ;
+  e.value = wert;
+  Object.assign(e, attribute);
+  return e;
+}
+/** Aufklappbarer Eintrag mit Titel, Zusatzinfo und Inhalt. */
+function eintrag({ titel, info, vorne, offen }) {
+  const d = el("details", "eintrag");
+  d.open = offen;
+  const kopf = el("summary");
+  if (vorne) kopf.append(vorne);
+  kopf.append(el("span", "titel", titel), el("span", "info", info));
+  const inhalt = el("div", "eintrag-inhalt");
+  d.append(kopf, inhalt);
+  return { d, inhalt };
+}
+function aktionen(speichern, loeschen) {
+  const reihe = el("div", "reihe");
+  const meldung = el("span", "meldung");
+  meldung.setAttribute("role", "status");
+  const s = el("button", "", "Speichern");
+  s.type = "button";
+  s.addEventListener("click", async () => {
+    try {
+      meldung.textContent = "Speichert …";
+      await speichern();
+    } catch (fehler) {
+      meldung.textContent = fehler.message;
+    }
+  });
+  reihe.append(s);
+  if (loeschen) {
+    const l = el("button", "zweit", "Löschen");
+    l.type = "button";
+    l.addEventListener("click", () => loeschen().catch((f) => (meldung.textContent = f.message)));
+    reihe.append(l);
+  }
+  reihe.append(meldung);
+  return reihe;
+}
 
-function fuelle(e) {
-  $("#briefing").value = e.briefing;
-  $("#begriffe").value = e.begriffe;
-  $("#promptAssistent").value = e.promptAssistent;
-  $("#promptAgenten").value = e.promptAgenten;
-  $("#promptZusammenfassung").value = e.promptZusammenfassung;
-  $("#maxTodos").value = e.maxTodosProZyklus;
-  const ziel = $("#agenten");
-  ziel.replaceChildren();
-  for (const rolle of ROLLEN) {
-    const karte = el("div", `agent ${rolle}`);
-    const name = el("input");
-    name.type = "text";
-    name.id = `name-${rolle}`;
-    name.maxLength = 40;
-    name.required = true;
-    name.value = e.agenten[rolle].name;
-    name.setAttribute("aria-label", "Name");
-    const text = el("textarea");
-    text.id = `beschreibung-${rolle}`;
-    text.rows = 5;
-    text.value = e.agenten[rolle].beschreibung;
-    text.setAttribute("aria-label", "Rollenbeschreibung");
-    text.rows = 4;
-    const kopf = el("div", "agentkopf");
-    kopf.append(figur(rolle), name);
+// ── Meetings ──
+let offenesMeeting = null; // ID des aufgeklappten Meetings bzw. "neu"
+let gespeichert = null; // ID, bei der kurz "Gespeichert" stehen soll
 
-    // Wissensdatei: Text einfügen oder .md/.txt-Datei laden (bleibt im Browser, bis gespeichert wird)
-    const wissen = el("textarea", "mono");
-    wissen.id = `wissen-${rolle}`;
-    wissen.rows = 6;
-    wissen.maxLength = 300000;
-    wissen.placeholder = "Noch keine Wissensdatei. Text einfügen oder Datei laden.";
-    wissen.value = e.agenten[rolle].wissen;
-    wissen.setAttribute("aria-label", "Wissensdatei");
+async function zeigeMeetings() {
+  const meetings = await hole("/api/tage");
+  const liste = $("#meeting-liste");
+  liste.replaceChildren();
+  const alle = offenesMeeting === "neu" ? [{ id: "neu", name: "", datum: heute(), agenda: [], briefing: "", begriffe: "Brodos, Broki, Darling", neu: true }, ...meetings] : meetings;
+
+  for (const m of alle) {
+    const { d, inhalt } = eintrag({
+      titel: m.neu ? "Neues Meeting" : m.name,
+      info: m.neu ? "noch nicht gespeichert" : `${datumKurz(m.datum)}${m.aktiv ? " · aktiv" : ""} · ${m.agenda.length} Agendapunkte`,
+      offen: offenesMeeting === m.id,
+    });
+    d.addEventListener("toggle", () => { if (d.open) offenesMeeting = m.id; else if (offenesMeeting === m.id) offenesMeeting = null; });
+
+    const name = eingabe("text", m.name, { maxLength: 80, placeholder: "z. B. Sales Agentic Workshop" });
+    const datum = eingabe("date", m.datum);
+    const agenda = eingabe("textarea", m.agenda.join("\n"), { rows: 6 });
+    const briefing = eingabe("textarea", m.briefing, { rows: 6, placeholder: "Noch kein Hintergrundwissen hinterlegt." });
+    const begriffe = eingabe("textarea", m.begriffe, { rows: 2 });
+    const kopfzeile = el("div", "zweispaltig");
+    kopfzeile.append(feld("Name", name), feld("Datum", datum));
+
+    const daten = () => ({ name: name.value, datum: datum.value, agenda: agenda.value.split("\n").map((z) => z.trim()).filter(Boolean), briefing: briefing.value, begriffe: begriffe.value });
+    const speichern = async () => {
+      const id = m.neu ? (await sende("/api/tage", daten())).id : (await sende(`/api/tage/${m.id}`, daten(), "PUT"), m.id);
+      offenesMeeting = gespeichert = id;
+      await zeigeMeetings();
+    };
+    const loeschen = m.neu
+      ? async () => { offenesMeeting = null; await zeigeMeetings(); }
+      : async () => {
+          if (!confirm(`„${m.name}" mit Transkript, To-dos und Fragen wirklich unwiderruflich löschen?`)) return;
+          await sende(`/api/tage/${m.id}`, {}, "DELETE");
+          offenesMeeting = null;
+          await zeigeMeetings();
+        };
+    const leiste = aktionen(speichern, loeschen);
+    if (gespeichert === m.id) leiste.querySelector(".meldung").textContent = "Gespeichert. Auswählen kannst du das Meeting im Transkriptions-Assistenten.";
+
+    inhalt.append(
+      kopfzeile,
+      feld("Agenda", agenda, "Ein Punkt pro Zeile. Punkte mit unverändertem Titel behalten ihren Status."),
+      feld("Hintergrundwissen", briefing, "Kontext zu Brodos, Kunden, Produkten, Zielen. Die Spezial-Agenten bekommen diesen Text bei jeder Frage mit."),
+      feld("Fachbegriffe und Namen", begriffe, `Mit Komma getrennt. Die Transkription schreibt diese Wörter dann richtig, z. B. „DaaS+" statt „das Plus". Auch Namen der Teilnehmenden eintragen.`),
+      leiste,
+    );
+    liste.append(d);
+    if (m.neu) name.focus();
+  }
+  gespeichert = null;
+}
+$("#meeting-neu").addEventListener("click", () => { offenesMeeting = "neu"; zeigeMeetings(); });
+
+// ── Spezial-Agenten ──
+let offenerAgent = null;
+let agentGespeichert = null;
+let figuren = [];
+let farben = [];
+const FIGURNAMEN = { sales: "Figur 1 (kurze Haare, Krawatte)", bpm: "Figur 2 (Brille, Bob)", consultant: "Figur 3 (Locken, Bart)", kuerzel: "Kreis mit Anfangsbuchstaben" };
+
+async function zeigeAgenten() {
+  const { einstellungen } = await hole("/api/admin/einstellungen");
+  const liste = $("#agent-liste");
+  liste.replaceChildren();
+  const alle = offenerAgent === "neu" ? [{ id: "neu", name: "", beschreibung: "", wissen: "", figur: "kuerzel", farbe: farben[einstellungen.agenten.length % farben.length], neu: true }, ...einstellungen.agenten] : einstellungen.agenten;
+
+  for (const a of alle) {
+    const { d, inhalt } = eintrag({
+      titel: a.neu ? "Neuer Agent" : a.name,
+      info: a.neu ? "noch nicht gespeichert" : a.wissen.length ? `Wissen: ${a.wissen.length.toLocaleString("de-DE")} Zeichen` : "ohne Wissensdatei",
+      vorne: figur(a.neu ? { ...a, name: "Neu" } : a),
+      offen: offenerAgent === a.id,
+    });
+    d.addEventListener("toggle", () => { if (d.open) offenerAgent = a.id; else if (offenerAgent === a.id) offenerAgent = null; });
+
+    const name = eingabe("text", a.name, { maxLength: 40, placeholder: "z. B. Legal Counsel" });
+    const figurWahl = el("select");
+    for (const f of figuren) { const o = el("option", "", FIGURNAMEN[f] ?? f); o.value = f; figurWahl.append(o); }
+    figurWahl.value = a.figur;
+    const farbWahl = el("div", "farbwahl");
+    farbWahl.setAttribute("role", "radiogroup");
+    let farbe = a.farbe;
+    for (const f of farben) {
+      const k = el("button");
+      k.type = "button";
+      k.style.background = f;
+      k.setAttribute("role", "radio");
+      k.setAttribute("aria-label", `Farbe ${f}`);
+      k.setAttribute("aria-checked", String(f === farbe));
+      k.addEventListener("click", () => { farbe = f; for (const x of farbWahl.children) x.setAttribute("aria-checked", String(x === k)); });
+      farbWahl.append(k);
+    }
+    const prompt = eingabe("textarea", a.beschreibung, { rows: 7, maxLength: 8000, placeholder: "Wer ist der Agent? Welche Erfahrung hat er, worauf achtet er, wie antwortet er?" });
+
+    // Wissensdatei: Text einfügen oder .md/.txt-Dateien laden (bleibt im Browser, bis gespeichert wird)
+    const wissen = eingabe("textarea", a.wissen, { rows: 7, maxLength: 300000, className: "mono", placeholder: "Noch keine Wissensdatei. Text einfügen oder Datei laden." });
     const zaehler = el("span", "zaehler");
     const zaehle = () => (zaehler.textContent = wissen.value.length ? `${wissen.value.length.toLocaleString("de-DE")} Zeichen` : "leer");
     wissen.addEventListener("input", zaehle);
     zaehle();
-    const datei = el("input");
-    datei.type = "file";
-    datei.accept = ".md,.txt,text/markdown,text/plain";
-    datei.multiple = true;
-    datei.hidden = true;
+    const datei = eingabe("file", "", { accept: ".md,.txt,text/markdown,text/plain", multiple: true, hidden: true });
     datei.addEventListener("change", async () => {
       const texte = await Promise.all([...datei.files].map((f) => f.text()));
       const neu = [wissen.value.trim(), ...texte.map((t) => t.trim())].filter(Boolean).join("\n\n");
-      if (neu.length > 300000) return void melde("Die Wissensdatei ist zu groß (maximal 300.000 Zeichen pro Agent).");
+      if (neu.length > 300000) return void (zaehler.textContent = "Zu groß: höchstens 300.000 Zeichen pro Agent.");
       wissen.value = neu;
       datei.value = "";
-      wissen.dispatchEvent(new Event("input", { bubbles: true }));
+      zaehle();
     });
     const laden = el("button", "zweit klein", "Datei laden (.md)");
     laden.type = "button";
     laden.addEventListener("click", () => datei.click());
     const leeren = el("button", "zweit klein", "Leeren");
     leeren.type = "button";
-    leeren.addEventListener("click", () => {
-      wissen.value = "";
-      wissen.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    leeren.addEventListener("click", () => { wissen.value = ""; zaehle(); });
+    const wissenFeld = feld("Wissensdateien", wissen, "Fachwissen des Agenten. Wird nur mitgeschickt, wenn er gefragt ist. Mehrere Dateien werden aneinandergehängt.");
     const leiste = el("div", "wissenleiste");
-    leiste.append(el("b", "", "Wissen"), zaehler, laden, leeren, datei);
-    karte.append(kopf, text, leiste, wissen);
-    ziel.append(karte);
+    leiste.append(zaehler, laden, leeren, datei);
+    wissenFeld.insertBefore(leiste, wissen);
+
+    const daten = () => ({ name: name.value, beschreibung: prompt.value, wissen: wissen.value, figur: figurWahl.value, farbe });
+    const speichern = async () => {
+      const id = a.neu ? (await sende("/api/agenten", daten())).id : (await sende(`/api/agenten/${a.id}`, daten(), "PUT"), a.id);
+      offenerAgent = agentGespeichert = id;
+      await zeigeAgenten();
+    };
+    const loeschen = a.neu
+      ? async () => { offenerAgent = null; await zeigeAgenten(); }
+      : async () => {
+          if (!confirm(`Den Agenten „${a.name}" wirklich löschen? Frühere Antworten bleiben im Archiv lesbar.`)) return;
+          await sende(`/api/agenten/${a.id}`, {}, "DELETE");
+          offenerAgent = null;
+          await zeigeAgenten();
+        };
+    const knoepfe = aktionen(speichern, loeschen);
+    if (agentGespeichert === a.id) knoepfe.querySelector(".meldung").textContent = "Gespeichert. Gilt ab der nächsten Frage.";
+
+    const aussehen = el("div", "zweispaltig");
+    aussehen.append(feld("Figur", figurWahl), feld("Farbe", farbWahl));
+    inhalt.append(feld("Name", name), aussehen, feld("Prompt (Rolle)", prompt), wissenFeld, knoepfe);
+    liste.append(d);
+    if (a.neu) name.focus();
   }
+  agentGespeichert = null;
 }
+$("#agent-neu").addEventListener("click", () => { offenerAgent = "neu"; zeigeAgenten(); });
 
-function lies() {
-  return {
-    briefing: $("#briefing").value,
-    begriffe: $("#begriffe").value,
-    promptAssistent: $("#promptAssistent").value,
-    promptAgenten: $("#promptAgenten").value,
-    promptZusammenfassung: $("#promptZusammenfassung").value,
-    maxTodosProZyklus: Number($("#maxTodos").value),
-    agenten: Object.fromEntries(
-      ROLLEN.map((r) => [r, { name: $(`#name-${r}`).value, beschreibung: $(`#beschreibung-${r}`).value, wissen: $(`#wissen-${r}`).value }]),
-    ),
-  };
-}
+// ── Erweitert: Prompts und Obergrenze ──
+let standard = null;
+const melde = (text) => ($("#meldung").textContent = text);
 
-async function ladeVorschau() {
-  const { promptAgenten, zeichen } = await (await fetch("/api/admin/vorschau")).json();
-  $("#vorschau pre").textContent = promptAgenten;
-  $("#vorschau summary").textContent = `Vorschau: so bekommt ihn das Sprachmodell bei „Frage an alle" (${zeichen.toLocaleString("de-DE")} Zeichen, letzter gespeicherter Stand)`;
-}
-
-async function lade() {
-  const daten = await (await fetch("/api/admin/einstellungen")).json();
+async function ladeErweitert() {
+  const daten = await hole("/api/admin/einstellungen");
   standard = daten.standard;
-  fuelle(daten.einstellungen);
-  $("#hinweis").textContent = daten.mock
-    ? "Mock-Modus: Tage, Agenda, Namen und die To-do-Bremse wirken sofort. Prompts und Hintergrundwissen werden gespeichert, wirken aber erst, wenn ein echtes Sprachmodell angebunden ist."
-    : "";
+  figuren = daten.figuren;
+  farben = daten.farben;
+  const e = daten.einstellungen;
+  $("#promptAssistent").value = e.promptAssistent;
+  $("#promptAgenten").value = e.promptAgenten;
+  $("#promptZusammenfassung").value = e.promptZusammenfassung;
+  $("#maxTodos").value = e.maxTodosProZyklus;
+  $("#hinweis").textContent = daten.mock ? "Mock-Modus: Meetings, Agenten-Namen und die Obergrenze wirken sofort. Prompts, Hintergrundwissen und Wissensdateien werden gespeichert, wirken aber erst mit einem echten Sprachmodell." : "";
   ladeVorschau();
 }
-
-$("#formular").addEventListener("input", (ereignis) => {
-  if (ereignis.target.closest("#tage")) return; // Tage haben ihren eigenen Speichern-Knopf
-  ungespeichert = true;
-  melde("Ungespeicherte Änderungen");
-});
-
+async function ladeVorschau() {
+  const { promptAgenten, zeichen } = await hole("/api/admin/vorschau");
+  $("#vorschau pre").textContent = promptAgenten;
+  $("#vorschau summary").textContent = `Vorschau: so bekommt ihn das Sprachmodell bei „Frage an alle" im aktiven Meeting (${zeichen.toLocaleString("de-DE")} Zeichen)`;
+}
+$("#formular").addEventListener("input", () => melde("Ungespeicherte Änderungen"));
 $("#formular").addEventListener("submit", async (ereignis) => {
   ereignis.preventDefault();
   try {
-    await sende("/api/admin/einstellungen", lies(), "PUT");
-    ungespeichert = false;
-    melde(`Gespeichert um ${new Date().toLocaleTimeString("de-DE")}. Gilt ab dem nächsten Zyklus bzw. der nächsten Frage.`);
+    await sende(
+      "/api/admin/einstellungen",
+      { promptAssistent: $("#promptAssistent").value, promptAgenten: $("#promptAgenten").value, promptZusammenfassung: $("#promptZusammenfassung").value, maxTodosProZyklus: Number($("#maxTodos").value) },
+      "PUT",
+    );
+    melde(`Gespeichert um ${new Date().toLocaleTimeString("de-DE")}.`);
     ladeVorschau();
   } catch (fehler) {
     melde(fehler.message);
   }
 });
-
 for (const knopf of document.querySelectorAll("[data-standard]")) {
   knopf.addEventListener("click", () => {
-    const feld = knopf.dataset.standard;
     if (!confirm("Diesen Prompt auf den Standard zurücksetzen? Wirksam erst nach dem Speichern.")) return;
-    $(`#${feld}`).value = standard[feld];
-    ungespeichert = true;
+    $(`#${knopf.dataset.standard}`).value = standard[knopf.dataset.standard];
     melde("Ungespeicherte Änderungen");
   });
 }
 
-window.addEventListener("beforeunload", (ereignis) => {
-  if (ungespeichert) ereignis.preventDefault();
-});
-
-// ── Tage und Agenda ──
-let tage = [];
-const tagMelde = (text) => ($("#tag-meldung").textContent = text);
-const tagEingabe = () => ({
-  name: $("#tag-name").value,
-  datum: $("#tag-datum").value,
-  agenda: $("#tag-agenda").value.split("\n").map((z) => z.trim()).filter(Boolean),
-});
-function zeigeTag(id) {
-  const tag = tage.find((t) => t.id === id) ?? tage[0];
-  if (!tag) return;
-  $("#tag-wahl").value = tag.id;
-  $("#tag-name").value = tag.name;
-  $("#tag-datum").value = tag.datum;
-  $("#tag-agenda").value = tag.agenda.join("\n");
-}
-async function ladeTage(waehle) {
-  tage = await (await fetch("/api/tage")).json();
-  const wahl = $("#tag-wahl");
-  wahl.replaceChildren(
-    ...tage.map((t) => {
-      const o = el("option", "", `${new Date(`${t.datum}T12:00:00`).toLocaleDateString("de-DE")} · ${t.name}${t.aktiv ? " (aktiv)" : ""}`);
-      o.value = t.id;
-      return o;
-    }),
-  );
-  zeigeTag(waehle ?? tage.find((t) => t.aktiv)?.id);
-}
-$("#tag-wahl").addEventListener("change", () => { zeigeTag($("#tag-wahl").value); tagMelde(""); });
-$("#tag-speichern").addEventListener("click", async () => {
-  try {
-    const id = $("#tag-wahl").value;
-    await sende(`/api/tage/${id}`, tagEingabe(), "PUT");
-    await ladeTage(id);
-    tagMelde("Tag gespeichert.");
-  } catch (fehler) { tagMelde(fehler.message); }
-});
-$("#tag-neu").addEventListener("click", async () => {
-  try {
-    const { id } = await sende("/api/tage", tagEingabe());
-    await ladeTage(id);
-    tagMelde("Neuer Tag angelegt. Auswählen kannst du ihn im Transkriptions-Assistenten.");
-  } catch (fehler) { tagMelde(fehler.message); }
-});
-$("#tag-loeschen").addEventListener("click", async () => {
-  const tag = tage.find((t) => t.id === $("#tag-wahl").value);
-  if (!tag || !confirm(`„${tag.name}" mit Transkript, To-dos und Fragen wirklich unwiderruflich löschen?`)) return;
-  try {
-    await sende(`/api/tage/${tag.id}`, {}, "DELETE");
-    await ladeTage();
-    tagMelde("Tag gelöscht.");
-  } catch (fehler) { tagMelde(fehler.message); }
-});
-
-lade();
-ladeTage();
+await ladeErweitert();
+zeigeMeetings();
+zeigeAgenten();

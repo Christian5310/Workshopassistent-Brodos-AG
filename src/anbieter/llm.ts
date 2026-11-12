@@ -2,7 +2,7 @@ import { z } from "zod";
 import { config } from "../config.ts";
 import { einstellungen, promptAgentenFertig } from "../einstellungen.ts";
 import { store } from "../store.ts";
-import { ROLLEN, type Protokoll, type Rolle } from "../types.ts";
+import type { Protokoll } from "../types.ts";
 import type { ChatKontext, Sprachmodell } from "./schnittstellen.ts";
 
 type Nachricht = { role: "system" | "user" | "assistant"; content: string };
@@ -17,7 +17,7 @@ const FORMAT_STAND = `Format von STAND (genau diese Felder, IDs bestehender Eint
   "notizen": [{"agendapunkt": "A1", "text": "…"}]
 }`;
 
-const AntwortSchema = z.object({ antworten: z.array(z.object({ rolle: z.enum(ROLLEN), text: z.string().min(1) })).min(1) });
+const AntwortSchema = z.object({ antworten: z.array(z.object({ rolle: z.string(), text: z.string().min(1) })).min(1) });
 
 /**
  * Sprachmodell über eine OpenAI-kompatible Chat-Schnittstelle.
@@ -51,17 +51,17 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
     );
   }
 
-  async expertenrunde({ frage, an, verlauf, protokoll }: ChatKontext): Promise<{ von: Rolle; text: string }[]> {
-    const name = (r: Rolle) => einstellungen.agenten[r].name;
-    const gefragt = an === "alle" ? [...ROLLEN] : [an];
+  async expertenrunde({ frage, an, verlauf }: ChatKontext): Promise<{ von: string; text: string }[]> {
+    const gefragt = einstellungen.agenten.filter((a) => an === "alle" || a.id === an);
+    const name = (id: string) => einstellungen.agenten.find((a) => a.id === id)?.name ?? "Agent";
     const letzteMinuten = store.daten.transkript.slice(-5).map((t) => t.text).join("\n");
     const format =
       `Antworte ausschließlich als JSON: {"antworten": [{"rolle": "…", "text": "…"}]}. ` +
-      `Erlaubte Werte für "rolle": ${gefragt.map((r) => `"${r}" (${name(r)})`).join(", ")}. ` +
+      `Erlaubte Werte für "rolle": ${gefragt.map((a) => `"${a.id}" (${a.name})`).join(", ")}. ` +
       (an === "alle" ? "Genau eine Antwort pro Rolle, je 1–3 Sätze." : "Genau eine Antwort, höchstens 6 Sätze.") +
       ` Im "text" kein Rollenname und kein Markdown.`;
 
-    const nachrichten: Nachricht[] = [{ role: "system", content: `${promptAgentenFertig(protokoll, an)}\n\n${format}` }];
+    const nachrichten: Nachricht[] = [{ role: "system", content: `${promptAgentenFertig(store.daten, an)}\n\n${format}` }];
     for (const n of verlauf.slice(-20)) {
       nachrichten.push(n.von === "frage" ? { role: "user", content: n.text } : { role: "assistant", content: `${name(n.von)}: ${n.text}` });
     }
@@ -71,6 +71,6 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
     });
 
     const geprueft = AntwortSchema.parse(await this.#frage(nachrichten, 1200));
-    return geprueft.antworten.filter((a) => gefragt.includes(a.rolle)).map((a) => ({ von: a.rolle, text: a.text.trim() }));
+    return geprueft.antworten.filter((a) => gefragt.some((g) => g.id === a.rolle)).map((a) => ({ von: a.rolle, text: a.text.trim() }));
   }
 }

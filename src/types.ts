@@ -34,14 +34,15 @@ export const ProtokollSchema = z.object({
 });
 export type Protokoll = z.infer<typeof ProtokollSchema>;
 
-export const ROLLEN = ["sales", "bpm", "consultant"] as const;
-export type Rolle = (typeof ROLLEN)[number];
-export type Adressat = "alle" | Rolle;
+/** ID eines Spezial-Agenten (in der Admin-Ansicht frei anlegbar) oder "alle" */
+export type Adressat = string;
 
 export interface ChatNachricht {
   id: string;
-  /** "frage" = aus dem Raum, sonst die antwortende Experten-Rolle */
-  von: "frage" | Rolle;
+  /** "frage" = aus dem Raum, sonst die ID des antwortenden Spezial-Agenten */
+  von: string;
+  /** Name des Agenten zum Zeitpunkt der Antwort (bleibt lesbar, auch wenn der Agent später gelöscht wird) */
+  name?: string;
   an?: Adressat;
   text: string;
   zeit: number;
@@ -62,7 +63,7 @@ export interface Schnappschuss {
   tag: { id: string; name: string; datum: string };
   protokoll: Protokoll;
   /** Anzeigenamen der Spezial-Agenten (in der Admin-Ansicht einstellbar) */
-  agenten: Record<Rolle, { name: string }>;
+  agenten: { id: string; name: string; figur: string; farbe: string }[];
   chat: ChatNachricht[];
   status: {
     aufnahme: boolean;

@@ -1,7 +1,7 @@
-import { el, sende, verbinde, ROLLEN } from "./common.js";
+import { agentName, el, sende, verbinde } from "./common.js";
 
 const $ = (id) => document.querySelector(id);
-const datum = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("de-DE", { dateStyle: "medium" });
+const datum = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("de-DE", { dateStyle: "long" });
 const uhr = (zeit) => new Date(zeit).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 const hole = async (pfad) => (await fetch(pfad)).json();
 let gewaehlt = null;
@@ -9,60 +9,70 @@ let gewaehlt = null;
 verbinde(() => ladeListe()); // hält Zahlen und Namen aktuell, auch während eine Aufnahme läuft
 
 async function ladeListe() {
-  const tage = await hole("/api/tage");
+  const meetings = await hole("/api/tage");
   const liste = $("#eintraege");
   liste.replaceChildren();
-  for (const t of tage) {
-    const knopf = el("button", `zweit${t.id === gewaehlt ? " gewaehlt" : ""}`);
-    knopf.append(el("b", "", `${t.name}${t.aktiv ? " (aktiv)" : ""}`), el("span", "", `${datum(t.datum)} · ${t.todos} To-dos · ${t.fragen} Fragen · ${t.abschnitte} Transkript-Abschnitte`));
-    knopf.addEventListener("click", () => zeige(t.id));
+  for (const m of meetings) {
+    const knopf = el("button", `zweit${m.id === gewaehlt ? " gewaehlt" : ""}`);
+    knopf.append(el("b", "", `${m.name}${m.aktiv ? " (aktiv)" : ""}`), el("span", "", `${datum(m.datum)} · ${m.todos} To-dos · ${m.entscheidungen} Entscheidungen · ${m.fragen} Fragen`));
+    knopf.addEventListener("click", () => zeige(m.id));
     const li = el("li");
     li.append(knopf);
     liste.append(li);
   }
 }
 
-function abschnitt(titel, inhalt) {
-  const s = el("section", "teil");
-  s.append(el("h3", "", titel), inhalt);
-  return s;
-}
-
-/** Zusammenfassung (einfaches Markdown: Überschriften und Listen) als DOM – ohne innerHTML. */
-function zusammenfassung(markdown) {
-  const rahmen = el("div", "zusammenfassung");
-  let liste = null;
-  for (const zeile of markdown.split("\n")) {
-    if (zeile.startsWith("## ")) {
-      rahmen.append(el("h4", "", zeile.slice(3)));
-      liste = null;
-    } else if (zeile.startsWith("- ")) {
-      if (!liste) rahmen.append((liste = el("ul")));
-      const erledigt = zeile.startsWith("- [x] ");
-      liste.append(el("li", erledigt ? "erledigt" : "", zeile.replace(/^- (\[[ x]\] )?/, erledigt ? "✓ " : "")));
-    }
-  }
-  return rahmen;
-}
-
-function link(text, href, klasse = "knopf") {
-  const a = el("a", klasse, text);
+function download(text, href, klasse = "knopf klein") {
+  const a = el("a", klasse, `↓ ${text}`);
   a.href = href;
   return a;
 }
 
+/** Ein Abschnitt des Meetings: Überschrift, Anzahl, Download-Knöpfe rechts, darunter der Inhalt. */
+function abschnitt(titel, anzahl, downloads, inhalt) {
+  const s = el("section", "block teil");
+  const kopf = el("div", "teilkopf");
+  const h = el("h3", "", titel);
+  if (anzahl !== null) h.append(el("span", "zahl", String(anzahl)));
+  const knoepfe = el("div", "reihe");
+  knoepfe.append(...downloads);
+  kopf.append(h, knoepfe);
+  s.append(kopf, inhalt);
+  return s;
+}
+
+/** Gruppiert nach Agendapunkt in der Reihenfolge der Agenda; ohne Zuordnung zuletzt. */
+function nachAgendapunkt(agenda, eintraege) {
+  const gruppen = agenda.map((a) => ({ titel: a.titel, eintraege: eintraege.filter((e) => e.agendapunkt === a.id) }));
+  const ohne = eintraege.filter((e) => !agenda.some((a) => a.id === e.agendapunkt));
+  return [...gruppen, { titel: "Ohne Agendapunkt", eintraege: ohne }].filter((g) => g.eintraege.length);
+}
+
+function gruppiert(agenda, eintraege, zeile, leer) {
+  const rahmen = el("div", "gruppiert");
+  for (const g of nachAgendapunkt(agenda, eintraege)) {
+    const liste = el("ul");
+    liste.append(...g.eintraege.map(zeile));
+    rahmen.append(el("h4", "", g.titel), liste);
+  }
+  if (!eintraege.length) rahmen.append(el("p", "leer", leer));
+  return rahmen;
+}
+
 async function zeige(id) {
   gewaehlt = id;
-  const t = await hole(`/api/tage/${id}`);
+  const m = await hole(`/api/tage/${id}`);
   const detail = $("#detail");
   detail.replaceChildren();
-  if (t.fehler) return void detail.append(el("p", "", t.fehler));
+  if (m.fehler) return void detail.append(el("p", "", m.fehler));
+  const p = m.protokoll;
+  const md = (art) => `/api/tage/${id}/markdown?art=${art}`;
 
-  const kopf = el("div", "detailkopf");
+  // Kopf: Name, Datum, Gesamt-Download, Broki, Löschen
+  const kopf = el("div", "block detailkopf");
   const titel = el("div");
-  titel.append(el("h2", "", t.name), el("p", "", `${datum(t.datum)}${t.aktiv ? " · aktiver Tag" : ""}`));
-
-  const broki = el("button", "", "Für Broki kopieren");
+  titel.append(el("h2", "", m.name), el("p", "", `${datum(m.datum)}${m.aktiv ? " · aktives Meeting" : ""}`));
+  const broki = el("button", "zweit", "Für Broki kopieren");
   broki.title = "Kopiert Zusammenfassungs-Prompt, Protokoll und Transkript in die Zwischenablage";
   broki.addEventListener("click", async () => {
     try {
@@ -72,52 +82,74 @@ async function zeige(id) {
       window.open(`/api/tage/${id}/broki`, "_blank"); // Zwischenablage gesperrt: Text in neuem Tab zum Kopieren
     }
   });
-  const weg = el("button", "zweit", "Tag löschen");
+  const weg = el("button", "zweit", "Meeting löschen");
   weg.addEventListener("click", async () => {
-    if (!confirm(`„${t.name}" mit Transkript, To-dos und Fragen wirklich unwiderruflich löschen?`)) return;
+    if (!confirm(`„${m.name}" mit Transkript, To-dos und Fragen wirklich unwiderruflich löschen?`)) return;
     try {
       await sende(`/api/tage/${id}`, {}, "DELETE");
       gewaehlt = null;
-      detail.replaceChildren(el("p", "", "Tag gelöscht."));
+      detail.replaceChildren(el("div", "block", "Meeting gelöscht."));
       ladeListe();
     } catch (fehler) {
       alert(fehler.message);
     }
   });
   const aktionen = el("div", "reihe");
-  aktionen.append(link("Transkript herunterladen", `/api/tage/${id}/markdown?art=transkript`), link("Alles herunterladen", `/api/tage/${id}/markdown`), broki, weg);
+  aktionen.append(download("Alles herunterladen", md("alles"), "knopf"), broki, weg);
   kopf.append(titel, aktionen);
+
+  // To-dos, gegliedert nach Agendapunkt
+  const todos = gruppiert(p.agenda, p.todos, (t) => {
+    const li = el("li", t.status === "erledigt" ? "erledigt" : "");
+    li.append(el("span", "haken", t.status === "erledigt" ? "✓" : "○"), el("span", "", t.text), el("span", "meta", `Wer: ${t.owner} · Bis: ${t.frist}`));
+    return li;
+  }, "Keine To-dos.");
+  const offen = p.todos.filter((t) => t.status === "offen").length;
+
+  const entscheidungen = gruppiert(p.agenda, p.entscheidungen, (e) => { const li = el("li"); li.append(el("span", "haken", "→"), el("span", "", e.text)); return li; }, "Keine Entscheidungen.");
+  if (p.offene_fragen.length) {
+    const liste = el("ul");
+    liste.append(...p.offene_fragen.map((f) => { const li = el("li", f.status === "beantwortet" ? "erledigt" : ""); li.append(el("span", "haken", f.status === "beantwortet" ? "✓" : "?"), el("span", "", f.text)); return li; }));
+    entscheidungen.append(el("h4", "", "Offene Fragen"), liste);
+  }
 
   // Fragen und Antworten: jede Frage mit den Antworten, die darauf folgten
   const qa = el("div", "qa");
   let block = null;
-  for (const n of t.chat) {
+  for (const n of m.chat) {
     if (n.von === "frage") {
       block = el("div", "qa-block");
-      const an = n.an && n.an !== "alle" ? ROLLEN[n.an].name : "alle";
-      block.append(el("p", "qa-frage", `${uhr(n.zeit)} · Frage an ${an}: ${n.text}`));
+      block.append(el("p", "qa-frage", `${uhr(n.zeit)} · Frage an ${n.an && n.an !== "alle" ? agentName(n.an) : "alle"}: ${n.text}`));
       qa.append(block);
     } else if (block) {
-      const antwort = el("p", `qa-antwort ${n.von}`);
-      antwort.append(el("b", "", `${ROLLEN[n.von].symbol} ${ROLLEN[n.von].name}: `), n.text);
+      const antwort = el("p", "qa-antwort");
+      antwort.append(el("b", "", `${n.name ?? agentName(n.von)}: `), n.text);
       block.append(antwort);
     }
   }
-  if (!t.chat.length) qa.append(el("p", "", "Keine Fragen gestellt."));
+  if (!m.chat.length) qa.append(el("p", "leer", "Keine Fragen gestellt."));
 
   // Transkript, gegliedert nach dem Agendapunkt, der beim Sprechen ausgewählt war
   const transkript = el("div", "transkript");
   let letzter = null;
-  for (const a of t.transkript) {
-    const punkt = t.protokoll.agenda.find((p) => p.id === a.agendapunkt)?.titel ?? "Ohne Agendapunkt";
+  for (const a of m.transkript) {
+    const punkt = p.agenda.find((x) => x.id === a.agendapunkt)?.titel ?? "Ohne Agendapunkt";
     if (punkt !== letzter) transkript.append(el("h4", "", (letzter = punkt)));
-    const p = el("div");
-    p.append(el("time", "", uhr(a.zeit)), a.text);
-    transkript.append(p);
+    const zeile = el("div");
+    zeile.append(el("time", "", uhr(a.zeit)), a.text);
+    transkript.append(zeile);
   }
-  if (!t.transkript.length) transkript.append(el("p", "", "Kein Transkript."));
+  if (!m.transkript.length) transkript.append(el("p", "leer", "Kein Transkript."));
+  const transkriptRahmen = el("details", "aufklapp");
+  transkriptRahmen.append(el("summary", "", `Transkript anzeigen (${m.transkript.length} Abschnitte)`), transkript);
 
-  detail.append(kopf, abschnitt("Zusammenfassung", zusammenfassung(t.zusammenfassung)), abschnitt("Fragen und Antworten", qa), abschnitt("Transkript", transkript));
+  detail.append(
+    kopf,
+    abschnitt("To-do-Liste", `${p.todos.length} · ${offen} offen`, [download("Markdown", md("todos")), download("Excel (CSV)", `/api/tage/${id}/todos.csv`)], todos),
+    abschnitt("Entscheidungen und offene Fragen", p.entscheidungen.length, [download("Markdown", md("entscheidungen"))], entscheidungen),
+    abschnitt("Fragen an die Spezial-Agenten", m.chat.filter((n) => n.von === "frage").length, [download("Markdown", md("fragen"))], qa),
+    abschnitt("Transkript", null, [download("Markdown", md("transkript"))], transkriptRahmen),
+  );
   ladeListe();
 }
 

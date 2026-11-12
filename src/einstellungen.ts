@@ -3,25 +3,35 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { config } from "./config.ts";
-import { ROLLEN, type Adressat, type Protokoll, type Rolle } from "./types.ts";
+import type { Adressat, Protokoll } from "./types.ts";
 
-// Alles, was sich in der Admin-Ansicht einstellen lässt. Gespeichert in data/einstellungen.json.
-const AgentSchema = z.object({
+// Globale Einstellungen: Spezial-Agenten, Prompts, Obergrenze. Gespeichert in data/einstellungen.json.
+// Hintergrundwissen, Fachbegriffe und Agenda gehören zum jeweiligen Meeting (store.ts).
+export const FIGUREN = ["sales", "bpm", "consultant", "kuerzel"] as const;
+export const FARBEN = ["#0069b4", "#004080", "#31435e", "#0f7c8a", "#6b4fa0", "#a8530f"] as const;
+
+/** Was sich an einem Spezial-Agenten einstellen lässt (ohne ID). */
+export const AgentEingabeSchema = z.object({
   name: z.string().trim().min(1).max(40),
-  beschreibung: z.string().trim().max(2000),
-  /** Wissensdatei des Agenten (Markdown/Text). Wird bei jeder Frage an diesen Agenten mitgeschickt. */
+  /** Rollen-Prompt: Wer ist der Agent, worauf achtet er, wie antwortet er? */
+  beschreibung: z.string().trim().max(8000),
+  /** Wissensdatei (Markdown/Text). Wird bei jeder Frage an diesen Agenten mitgeschickt. */
   wissen: z.string().max(300_000).default(""),
+  /** Gezeichnete Figur oder "kuerzel" (Kreis mit Anfangsbuchstaben) */
+  figur: z.enum(FIGUREN).default("kuerzel"),
+  farbe: z.enum(FARBEN).default("#0069b4"),
 });
-export const EinstellungenSchema = z.object({
-  briefing: z.string().max(50_000),
-  /** Fachbegriffe und Namen, die die Transkription richtig schreiben soll (Komma oder Zeilenumbruch) */
-  begriffe: z.string().max(4000),
+const AgentSchema = AgentEingabeSchema.extend({ id: z.string().regex(/^[a-z0-9-]{1,40}$/) });
+export type Agent = z.infer<typeof AgentSchema>;
+
+/** Prompts und Obergrenze – der Teil, den die Admin-Ansicht unter "Erweitert" speichert. */
+export const ErweitertSchema = z.object({
   promptAssistent: z.string().trim().min(1).max(20_000),
   promptAgenten: z.string().trim().min(1).max(20_000),
   promptZusammenfassung: z.string().trim().min(1).max(20_000),
-  agenten: z.object({ sales: AgentSchema, bpm: AgentSchema, consultant: AgentSchema }),
   maxTodosProZyklus: z.number().int().min(1).max(10),
 });
+export const EinstellungenSchema = ErweitertSchema.extend({ agenten: z.array(AgentSchema).min(1).max(12) });
 export type Einstellungen = z.infer<typeof EinstellungenSchema>;
 
 const datei = path.join(path.dirname(config.pfade.daten), "einstellungen.json");
@@ -29,8 +39,6 @@ const datei = path.join(path.dirname(config.pfade.daten), "einstellungen.json");
 /** Standardwerte für Prompts und Rollen. Die Agenda gehört zum jeweiligen Tag (store.ts). */
 export function standard(): Einstellungen {
   return {
-    briefing: "",
-    begriffe: "Brodos, Broki, Darling, Dynamics, DaaS+",
     promptAssistent: `Du bist "Darling", der Transkriptions-Assistent im Brodos Sales Agentic Workshop. Du hörst über
 Transkript-Abschnitte mit und führst das Protokoll.
 
@@ -64,10 +72,10 @@ Kontext zu Brodos: [BRODOS-BRIEFING]
 Agenda: [AGENDA]
 Aktueller Protokollstand: [STAND]
 
-Du vereinst drei Perspektiven:
+Du vereinst diese Perspektiven:
 [AGENTEN]
 
-Antworte, wenn nicht anders verlangt, kurz aus allen drei Perspektiven
+Antworte, wenn nicht anders verlangt, kurz aus allen Perspektiven
 (je 1–3 Sätze, mit Rollenname als Label). Wird eine Rolle direkt angesprochen,
 antworte nur aus dieser Rolle (max. 6 Sätze).
 
@@ -98,30 +106,45 @@ Regeln:
 - Korrigiere offensichtliche Transkriptionsfehler bei Namen und Fachbegriffen
   stillschweigend, wenn der Zusammenhang eindeutig ist.
 - Deutsch, sachlich, knapp. Keine Einleitung, kein Fazit, keine Floskeln.`,
-    agenten: {
-      sales: {
+    agenten: [
+      {
+        id: "sales",
         name: "Sales Professional",
         beschreibung: "20 Jahre B2B-Vertrieb, Handel, Distribution. Denkt vom Kunden und vom Abschluss her, pragmatisch, skeptisch gegenüber Papierprozessen.",
         wissen: "",
+        figur: "sales",
+        farbe: "#0069b4",
       },
-      bpm: {
+      {
+        id: "bpm",
         name: "BPM Specialist",
         beschreibung: "Prozessmanagement und Automatisierung. Achtet auf Übergaben, Medienbrüche, fehlende Verantwortliche, Wartezeiten. Unterscheidet klar: feste Regel (klassische Automatisierung) vs. Urteilsvermögen (KI-Agent).",
         wissen: "",
+        figur: "bpm",
+        farbe: "#004080",
       },
-      consultant: {
+      {
+        id: "consultant",
         name: "Business Consultant",
         beschreibung: "Strategie und Umsetzung. Nutzen, Aufwand, Risiko, Reihenfolge, Change Management, erster Pilot mit Wirkung in 4–6 Wochen.",
         wissen: "",
+        figur: "consultant",
+        farbe: "#31435e",
       },
-    },
+    ],
     maxTodosProZyklus: 3,
   };
 }
 
 function laden(): Einstellungen {
   try {
-    return EinstellungenSchema.parse({ ...standard(), ...JSON.parse(fs.readFileSync(datei, "utf8")) });
+    const roh = JSON.parse(fs.readFileSync(datei, "utf8"));
+    // Ältere Versionen hatten genau drei feste Agenten als Objekt { sales, bpm, consultant }
+    if (roh.agenten && !Array.isArray(roh.agenten)) {
+      const vorlage = standard().agenten;
+      roh.agenten = Object.entries(roh.agenten as Record<string, object>).map(([id, a]) => ({ ...vorlage.find((v) => v.id === id), ...a, id }));
+    }
+    return EinstellungenSchema.parse({ ...standard(), ...roh });
   } catch {
     return standard();
   }
@@ -135,21 +158,31 @@ export function speichere(neu: Einstellungen): void {
   fs.writeFileSync(datei, JSON.stringify(neu, null, 2));
 }
 
+export const agent = (id: string) => einstellungen.agenten.find((a) => a.id === id);
+
+/** Legt einen Agenten an; die ID entsteht aus dem Namen und bleibt danach fest. */
+export function agentAnlegen(eingabe: z.infer<typeof AgentEingabeSchema>): Agent {
+  const kurz = eingabe.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "agent";
+  let id = kurz;
+  for (let n = 2; agent(id) || id === "alle" || id === "frage"; n++) id = `${kurz}-${n}`;
+  const neu = { ...eingabe, id };
+  speichere({ ...einstellungen, agenten: [...einstellungen.agenten, neu] });
+  return neu;
+}
+
 /**
- * Setzt die Platzhalter im Prompt der Spezial-Agenten ein. Diesen Text bekommt später das Sprachmodell.
+ * Setzt die Platzhalter im Prompt der Spezial-Agenten ein. Diesen Text bekommt das Sprachmodell.
  * Wissensdateien werden nur für die gefragten Agenten angehängt – das hält den Prompt klein und die Antwort schnell.
  */
-export function promptAgentenFertig(protokoll: Protokoll, an: Adressat = "alle"): string {
+export function promptAgentenFertig(meeting: { protokoll: Protokoll; briefing: string }, an: Adressat = "alle"): string {
   const e = einstellungen;
-  const mitWissen = (r: Rolle) => (an === "alle" || an === r) && e.agenten[r].wissen.trim();
-  const agent = (r: Rolle) =>
-    `- ${e.agenten[r].name}: ${e.agenten[r].beschreibung}` +
-    (mitWissen(r) ? `\n\n<wissen agent="${e.agenten[r].name}">\n${e.agenten[r].wissen.trim()}\n</wissen>\n` : "");
+  const zeile = (a: Agent) =>
+    `- ${a.name}: ${a.beschreibung}` + ((an === "alle" || an === a.id) && a.wissen.trim() ? `\n\n<wissen agent="${a.name}">\n${a.wissen.trim()}\n</wissen>\n` : "");
   const ersetzungen: Record<string, string> = {
-    "[BRODOS-BRIEFING]": e.briefing.trim() || "(kein Briefing hinterlegt)",
-    "[AGENDA]": protokoll.agenda.map((a, i) => `${i + 1}. ${a.titel}${a.status === "läuft" ? " (läuft gerade)" : ""}`).join("\n"),
-    "[STAND]": JSON.stringify(protokoll),
-    "[AGENTEN]": ROLLEN.map(agent).join("\n"),
+    "[BRODOS-BRIEFING]": meeting.briefing.trim() || "(kein Hintergrundwissen hinterlegt)",
+    "[AGENDA]": meeting.protokoll.agenda.map((a, i) => `${i + 1}. ${a.titel}${a.status === "läuft" ? " (läuft gerade)" : ""}`).join("\n"),
+    "[STAND]": JSON.stringify(meeting.protokoll),
+    "[AGENTEN]": e.agenten.map(zeile).join("\n"),
   };
   return Object.entries(ersetzungen).reduce((text, [platzhalter, wert]) => text.replaceAll(platzhalter, wert), e.promptAgenten);
 }

@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="de">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Regie · Broki-Live</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Regie · Siri</title></head>
 <body class="regie">
-  <header class="kopf"><span class="logo">Brodos</span><h1><a href="/">Broki-Live</a> · Regie</h1><div class="status"><span id="mock" class="pille" hidden>MOCK-MODUS</span><span id="mikro"><span class="punkt"></span><span>Pausiert</span></span><span id="zyklus"></span></div></header>
+  <header class="kopf"><a class="logo" href="/" title="Zur Startseite"><img src="/img/siri-wort.png" alt="Siri – Broki's Meeting Assistent"></a><h1>Regie</h1><div class="status"><span id="mock" class="pille" hidden>MOCK-MODUS</span><span id="mikro"><span class="punkt"></span><span>Pausiert</span></span><span id="zyklus"></span></div></header>
   <div id="hinweis" class="hinweis"></div>
   <main>
     <section class="block">
@@ -18,12 +18,7 @@
     <section class="block">
       <h2>Frage an die Spezial-Agenten</h2>
       <form id="formular" class="reihe">
-        <select id="an" aria-label="An wen geht die Frage?">
-          <option value="alle">An alle</option>
-          <option value="sales">◆ Sales Professional</option>
-          <option value="bpm">■ BPM Specialist</option>
-          <option value="consultant">▲ Business Consultant</option>
-        </select>
+        <select id="an" aria-label="An wen geht die Frage?"></select>
         <input id="text" type="text" placeholder="Frage tippen …" autocomplete="off">
         <button type="submit">Senden</button>
       </form>
@@ -52,8 +47,8 @@
 
     <section class="block">
       <h2>Inhalte löschen</h2>
-      <p id="reset-info">Leert Transkript, Protokoll und Chat des aktiven Tages unwiderruflich. Name, Datum und Agenda bleiben. Andere Tage sind nicht betroffen. Ganze Tage löschst du im <a href="/archiv">Archiv</a>.</p>
-      <div class="reihe"><button id="reset" class="zweit">Inhalte dieses Tages löschen</button></div>
+      <p id="reset-info">Leert Transkript, Protokoll und Chat des aktiven Meetings unwiderruflich. Name, Datum und Agenda bleiben. Andere Meetings sind nicht betroffen. Ganze Meetings löschst du im <a href="/archiv">Archiv</a>.</p>
+      <div class="reihe"><button id="reset" class="zweit">Inhalte dieses Meetings löschen</button></div>
     </section>
   </main>
   <script type="module" src="/js/regie.js"></script>

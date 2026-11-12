@@ -1,77 +1,58 @@
 <!doctype html>
 <html lang="de">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Admin · Broki-Live</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Admin · Siri</title></head>
 <body class="regie admin">
-  <header class="kopf"><span class="logo">Brodos</span><h1><a href="/">Broki-Live</a> · Admin</h1></header>
+  <header class="kopf"><a class="logo" href="/" title="Zur Startseite"><img src="/img/siri-wort.png" alt="Siri – Broki's Meeting Assistent"></a><h1>Admin</h1></header>
   <div id="hinweis" class="hinweis"></div>
-  <form id="formular">
-    <main>
-      <section id="tage" class="block breit tage">
-        <h2>Tage und Agenda</h2>
-        <p>Jeder Workshop-Tag hat einen Namen, ein Datum und eine eigene Agenda. Transkript, To-dos und Fragen werden unter dem Tag gespeichert, der im Transkriptions-Assistenten ausgewählt ist.</p>
-        <div class="tagformular">
-          <div class="feld"><label for="tag-wahl">Tag bearbeiten</label><select id="tag-wahl"></select></div>
-          <div class="feld"><label for="tag-name">Name</label><input id="tag-name" type="text" maxlength="80" placeholder="z. B. Sales Agentic Workshop"></div>
-          <div class="feld"><label for="tag-datum">Datum</label><input id="tag-datum" type="date"></div>
-        </div>
-        <label for="tag-agenda">Agenda (ein Punkt pro Zeile)</label>
-        <textarea id="tag-agenda" rows="6"></textarea>
-        <div class="reihe">
-          <button type="button" id="tag-speichern">Tag speichern</button>
-          <button type="button" id="tag-neu" class="zweit">Als neuen Tag anlegen</button>
-          <button type="button" id="tag-loeschen" class="zweit">Tag löschen</button>
-          <span id="tag-meldung" role="status"></span>
-        </div>
-      </section>
+  <main>
+    <section class="bereich" aria-labelledby="t-meetings">
+      <div class="bereichskopf">
+        <div><h2 id="t-meetings">Meetings</h2><p>Name, Datum, Agenda, Hintergrundwissen und Fachbegriffe je Meeting.</p></div>
+        <button type="button" id="meeting-neu">+ Neues Meeting</button>
+      </div>
+      <div id="meeting-liste" class="akkordeon"></div>
+    </section>
 
-      <section class="block">
-        <h2><label for="briefing">Hintergrundwissen</label></h2>
-        <p>Kontext zu Brodos, Vertrieb, Produkten, Begriffen. Die Spezial-Agenten bekommen diesen Text bei jeder Frage mit (Platzhalter [BRODOS-BRIEFING]).</p>
-        <textarea id="briefing" rows="7" placeholder="Noch kein Hintergrundwissen hinterlegt."></textarea>
-      </section>
+    <section class="bereich" aria-labelledby="t-agenten">
+      <div class="bereichskopf">
+        <div><h2 id="t-agenten">Spezial-Agenten</h2><p>Rolle, Prompt und Wissensdateien je Agent.</p></div>
+        <button type="button" id="agent-neu">+ Neuer Agent</button>
+      </div>
+      <div id="agent-liste" class="akkordeon"></div>
+    </section>
 
-      <section class="block breit">
-        <h2><label for="begriffe">Fachbegriffe und Namen für die Transkription</label></h2>
-        <p>Mit Komma getrennt. Die Transkription schreibt diese Wörter dann richtig (z. B. „DaaS+" statt „das Plus"). Hier auch Namen der Teilnehmenden und das Aktivierungswort eintragen.</p>
-        <textarea id="begriffe" rows="2"></textarea>
-      </section>
-
-      <section class="block breit">
-        <h2>Spezial-Agenten</h2>
-        <p>Name (wird im Chat angezeigt), Rollenbeschreibung und Wissensdatei. Alles zusammen ersetzt den Platzhalter [AGENTEN] im Prompt. Das Wissen eines Agenten wird nur mitgeschickt, wenn er gefragt ist.</p>
-        <div id="agenten" class="agenten"></div>
-      </section>
-
-      <section class="block">
-        <div class="titelzeile"><h2><label for="promptAssistent">Prompt Transkriptions-Assistent</label></h2><button type="button" class="zweit klein" data-standard="promptAssistent">Standard</button></div>
-        <p>Regeln, wann To-dos, Entscheidungen und offene Fragen angelegt werden. Aktivierungswort für Sprachbefehle: „Darling, To-do für …".</p>
-        <textarea id="promptAssistent" rows="16" class="mono"></textarea>
-      </section>
-
-      <section class="block">
-        <div class="titelzeile"><h2><label for="promptAgenten">Prompt Spezial-Agenten</label></h2><button type="button" class="zweit klein" data-standard="promptAgenten">Standard</button></div>
-        <p>Platzhalter werden automatisch ersetzt: [BRODOS-BRIEFING], [AGENDA], [STAND], [AGENTEN].</p>
-        <textarea id="promptAgenten" rows="16" class="mono"></textarea>
-        <details id="vorschau"><summary>Vorschau: so bekommt ihn das Sprachmodell (letzter gespeicherter Stand)</summary><pre></pre></details>
-      </section>
-
-      <section class="block">
-        <div class="titelzeile"><h2><label for="promptZusammenfassung">Prompt Zusammenfassung (für Broki)</label></h2><button type="button" class="zweit klein" data-standard="promptZusammenfassung">Standard</button></div>
-        <p>Vorlage für die Zusammenfassung am Ende. Im Archiv kopierst du diesen Prompt zusammen mit Protokoll und Transkript und fügst ihn in Broki ein.</p>
-        <textarea id="promptZusammenfassung" rows="12" class="mono"></textarea>
-      </section>
-
-      <section class="block">
-        <h2><label for="maxTodos">Bremse für To-dos</label></h2>
-        <p>Höchstzahl neuer To-dos pro Zyklus. Was darüber liegt, landet als Vorschlag und geht nicht verloren.</p>
-        <input id="maxTodos" type="number" min="1" max="10" step="1">
-      </section>
-    </main>
-    <footer class="speicherleiste">
-      <span id="meldung" role="status"></span>
-      <button type="submit">Speichern</button>
-    </footer>
-  </form>
+    <section class="bereich breit" aria-labelledby="t-erweitert">
+      <details class="eintrag" id="erweitert">
+        <summary><span class="titel" id="t-erweitert">Erweitert: Prompts und Obergrenze</span><span class="info">für alle Meetings</span></summary>
+        <form id="formular" class="eintrag-inhalt">
+          <div class="zweispaltig">
+            <div class="feld">
+              <div class="titelzeile"><label for="promptAssistent">Prompt Transkriptions-Assistent</label><button type="button" class="zweit klein" data-standard="promptAssistent">Standard</button></div>
+              <p>Regeln, wann To-dos, Vorschläge, Entscheidungen und offene Fragen angelegt werden. Aktivierungswort: „Darling, To-do für …".</p>
+              <textarea id="promptAssistent" rows="14" class="mono"></textarea>
+            </div>
+            <div class="feld">
+              <div class="titelzeile"><label for="promptAgenten">Rahmen-Prompt Spezial-Agenten</label><button type="button" class="zweit klein" data-standard="promptAgenten">Standard</button></div>
+              <p>Gilt für alle Agenten. Platzhalter: [BRODOS-BRIEFING] = Hintergrundwissen des Meetings, [AGENDA], [STAND], [AGENTEN] = Prompts und Wissen der Agenten.</p>
+              <textarea id="promptAgenten" rows="14" class="mono"></textarea>
+              <details id="vorschau"><summary>Vorschau</summary><pre></pre></details>
+            </div>
+            <div class="feld">
+              <div class="titelzeile"><label for="promptZusammenfassung">Prompt Zusammenfassung (für Broki)</label><button type="button" class="zweit klein" data-standard="promptZusammenfassung">Standard</button></div>
+              <p>Wird im Archiv zusammen mit Protokoll und Transkript kopiert.</p>
+              <textarea id="promptZusammenfassung" rows="10" class="mono"></textarea>
+            </div>
+            <div class="feld">
+              <label for="maxTodos">Höchstzahl neuer To-dos pro Abschnitt</label>
+              <p>Was darüber liegt, landet als Vorschlag und geht nicht verloren.</p>
+              <input id="maxTodos" type="number" min="1" max="10" step="1">
+            </div>
+          </div>
+          <div class="reihe"><button type="submit">Speichern</button><span id="meldung" class="meldung" role="status"></span></div>
+        </form>
+      </details>
+    </section>
+  </main>
   <script type="module" src="/js/admin.js"></script>
 </body>
 </html>

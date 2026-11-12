@@ -1,4 +1,4 @@
-# Broki-Live (MVP)
+# Siri – Broki's Meeting Assistent (MVP)
 
 Transkriptions-Assistent und Spezial-Agenten für den Sales Agentic Workshop am 26.11.2026.
 Der interne Projektkontext (`CLAUDE.md`) liegt bewusst nicht im Repository.
@@ -29,8 +29,8 @@ Dann im Browser `http://localhost:3000` öffnen:
 | `/` | Auswahl: Transkriptions-Assistent oder Spezial-Agenten |
 | `/screen1` | Transkriptions-Assistent: An/Aus, Agenda, To-dos, Entscheidungen, offene Fragen |
 | `/screen2` | Spezial-Agenten: Agent wählen, Chat mit Texteingabe und Push-to-Talk (Leertaste halten) |
-| `/archiv` | Alle Tage: Zusammenfassung, Fragen und Antworten, Transkript ansehen, herunterladen, löschen |
-| `/admin` | Tage mit Datum und Agenda anlegen; Einstellungen: Hintergrundwissen, Prompts, Namen, Rollen und Wissensdateien der Spezial-Agenten, Obergrenze für To-dos |
+| `/archiv` | Alle Meetings: To-do-Liste, Entscheidungen, Fragen und Antworten, Transkript – je mit Download (Markdown, To-dos auch als CSV) |
+| `/admin` | Meetings und Spezial-Agenten zum Aufklappen und Neuanlegen; unter „Erweitert" Prompts und Obergrenze für To-dos |
 | `/regie` | Start/Pause, Fragen tippen, Transkript einsehen, Daten löschen |
 
 Den Transkriptions-Assistenten einschalten (Knopf oben in der Ansicht): Alle 8 s (`MOCK_CHUNK_SECONDS`) kommt ein Abschnitt aus dem Fake-Transkript, der Fake-Chronist aktualisiert Screen 1.
@@ -44,7 +44,7 @@ Entwicklung mit automatischem Neustart: `npm run dev`. Typprüfung: `npm run typ
 config/agenda.json          Agenda für den ersten, automatisch angelegten Tag
 src/server.ts               HTTP-API, Zyklus, Live-Updates (SSE)
 src/types.ts                Datenmodell + Schema-Validierung (zod)
-src/store.ts                Speicher: ein Tag = eine Datei in data/tage/ (Protokoll, Transkript, Chat)
+src/store.ts                Speicher: ein Meeting = eine Datei in data/tage/ (Agenda, Wissen, Protokoll, Transkript, Chat)
 src/einstellungen.ts        Admin-Einstellungen (data/einstellungen.json), Prompt-Platzhalter, Sicherheitsnetz für To-dos
 src/archiv.ts               Aufbereitung eines Tages für Ansicht und Download
 src/anbieter/               Schnittstellen + Mock (hier kommen Mistral und Broki dazu)
@@ -61,8 +61,9 @@ public/                     Die drei Ansichten (HTML/CSS/JS ohne Build-Schritt)
 | `GET /api/transcript` | Rohtranskript (nur Regie) |
 | `POST /api/audio-chunk` | Audio-Schnipsel (Rohdaten, `Content-Type: audio/…`); bleibt nur im Arbeitsspeicher |
 | `POST /api/chat` | `{ text, an }` oder `{ sprache: true, an }`; `an` = `alle`, `sales`, `bpm`, `consultant` |
-| `GET/POST /api/tage`, `GET/PUT/DELETE /api/tage/:id`, `POST /api/tage/:id/aktivieren` | Tage anlegen, ändern, auswählen, löschen |
-| `GET /api/tage/:id/markdown` (`?art=transkript`), `GET /api/tage/:id/broki` | Download bzw. Text zum Einfügen in Broki |
+| `GET/POST /api/tage`, `GET/PUT/DELETE /api/tage/:id`, `POST /api/tage/:id/aktivieren` | Meetings anlegen, ändern, auswählen, löschen (Name, Datum, Agenda, Hintergrundwissen, Fachbegriffe) |
+| `POST /api/agenten`, `PUT/DELETE /api/agenten/:id` | Spezial-Agenten anlegen, ändern, löschen (Name, Prompt, Wissen, Figur, Farbe) |
+| `GET /api/tage/:id/markdown?art=alles\|transkript\|todos\|entscheidungen\|fragen`, `GET /api/tage/:id/todos.csv`, `GET /api/tage/:id/broki` | Downloads bzw. Text zum Einfügen in Broki |
 | `POST /api/agenda/:id/aktiv` | Agendapunkt von Hand auswählen |
 | `PATCH/DELETE /api/todos/:id` | To-do bearbeiten, abhaken, löschen |
 | `GET/PUT /api/admin/einstellungen`, `GET /api/admin/vorschau` | Admin: Einstellungen lesen/speichern, fertigen Prompt ansehen |

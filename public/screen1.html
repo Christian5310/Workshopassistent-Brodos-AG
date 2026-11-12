@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="de">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Transkriptions-Assistent · Broki-Live</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Transkriptions-Assistent · Siri</title></head>
 <body>
-  <header class="kopf"><span class="logo">Brodos</span><h1><a href="/">Broki-Live</a> · Transkriptions-Assistent</h1><button id="transkript-knopf" type="button" class="schalter" aria-pressed="false">Transkript</button><button id="schalter" type="button" class="schalter" aria-pressed="false">Assistent ist aus</button><div class="status"><span id="mock" class="pille" hidden>MOCK-MODUS</span><span id="pegel" class="pegel" hidden title="Mikrofon-Pegel"><i></i></span><span id="mikro"><span class="punkt"></span><span>Pausiert</span></span><span id="zyklus"></span><span id="countdown"></span></div></header>
-  <div class="tagleiste"><label for="tagwahl">Tag</label><select id="tagwahl"></select><span id="tag-info"></span><span id="arbeit" class="arbeit" role="status"></span><a href="/admin#tage">Tage und Agenda verwalten</a></div>
+  <header class="kopf"><a class="logo" href="/" title="Zur Startseite"><img src="/img/siri-wort.png" alt="Siri – Broki's Meeting Assistent"></a><h1>Transkriptions-Assistent</h1><button id="transkript-knopf" type="button" class="schalter" aria-pressed="false">Transkript</button><button id="schalter" type="button" class="schalter" aria-pressed="false">Assistent ist aus</button><div class="status"><span id="mock" class="pille" hidden>MOCK-MODUS</span><span id="pegel" class="pegel" hidden title="Mikrofon-Pegel"><i></i></span><span id="mikro"><span class="punkt"></span><span>Pausiert</span></span><span id="zyklus"></span><span id="countdown"></span></div></header>
+  <div class="tagleiste"><label for="tagwahl">Meeting</label><select id="tagwahl"></select><span id="tag-info"></span><span id="arbeit" class="arbeit" role="status"></span><a href="/admin">Meetings verwalten</a></div>
   <div id="hinweis" class="hinweis"></div>
   <div id="mikrofehler" class="hinweis fehler" role="alert"></div>
   <main class="protokoll">

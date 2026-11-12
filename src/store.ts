@@ -15,6 +15,10 @@ export interface Tag {
   /** JJJJ-MM-TT */
   datum: string;
   erstellt: number;
+  /** Hintergrundwissen zu diesem Meeting (Kontext für die Spezial-Agenten) */
+  briefing: string;
+  /** Fachbegriffe und Namen, die die Transkription richtig schreiben soll (mit Komma getrennt) */
+  begriffe: string;
   protokoll: Protokoll;
   chat: ChatNachricht[];
   transkript: TranskriptAbschnitt[];
@@ -49,13 +53,25 @@ function agendaAnwenden(protokoll: Protokoll, titel: string[]): void {
   protokoll.agenda = titel.map((t) => alt.find((a) => a.titel === t) ?? { id: `A${++zaehler}`, titel: t, status: "offen" as const });
 }
 
-function neuerTag(name: string, datum: string, agenda: string[]): Tag {
+export const STANDARD_BEGRIFFE = "Brodos, Broki, Darling, Dynamics, DaaS+";
+
+export interface TagEingabe {
+  name: string;
+  datum: string;
+  agenda: string[];
+  briefing?: string;
+  begriffe?: string;
+}
+
+function neuerTag({ name, datum, agenda, briefing = "", begriffe = STANDARD_BEGRIFFE }: TagEingabe): Tag {
   const kurz = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "tag";
   return {
     id: `${datum}-${kurz}-${randomUUID().slice(0, 4)}`,
     name,
     datum,
     erstellt: Date.now(),
+    briefing,
+    begriffe,
     protokoll: leeresProtokoll(agenda),
     chat: [],
     transkript: [],
@@ -76,7 +92,7 @@ function lies(id: string): Tag | null {
   if (!gueltigeId(id)) return null;
   try {
     const roh = JSON.parse(fs.readFileSync(datei(id), "utf8")) as Tag;
-    return { ...roh, protokoll: ProtokollSchema.parse(roh.protokoll) };
+    return { ...roh, briefing: roh.briefing ?? "", begriffe: roh.begriffe ?? STANDARD_BEGRIFFE, protokoll: ProtokollSchema.parse(roh.protokoll) };
   } catch {
     return null;
   }
@@ -90,7 +106,7 @@ function migriere(): void {
   fs.mkdirSync(ordner, { recursive: true });
   try {
     const alt = JSON.parse(fs.readFileSync(config.pfade.daten, "utf8"));
-    const tag = neuerTag("Workshop", heute(), []);
+    const tag = neuerTag({ name: "Workshop", datum: heute(), agenda: [] });
     schreibe({ ...tag, ...alt, id: tag.id, name: tag.name, datum: tag.datum, protokoll: ProtokollSchema.parse(alt.protokoll) });
     fs.rmSync(config.pfade.daten);
   } catch {
@@ -101,7 +117,7 @@ function migriere(): void {
     for (const f of fs.readdirSync(altArchiv).filter((n) => n.endsWith(".json"))) {
       try {
         const e = JSON.parse(fs.readFileSync(path.join(altArchiv, f), "utf8"));
-        const tag = neuerTag(String(e.titel), new Date(e.zeit).toLocaleDateString("sv-SE"), []);
+        const tag = neuerTag({ name: String(e.titel), datum: new Date(e.zeit).toLocaleDateString("sv-SE"), agenda: [] });
         schreibe({ ...tag, erstellt: e.zeit, protokoll: ProtokollSchema.parse(e.protokoll), transkript: e.transkript ?? [], chat: e.chat ?? [] });
       } catch {
         // unlesbarer Eintrag: überspringen
@@ -123,7 +139,7 @@ class Store {
     } catch {
       // noch kein aktiver Tag gemerkt
     }
-    this.daten = lies(aktivId) ?? this.liste()[0] ?? this.erstelle("Workshop", heute(), standardAgenda());
+    this.daten = lies(aktivId) ?? this.liste()[0] ?? this.erstelle({ name: "Workshop", datum: heute(), agenda: standardAgenda() });
     this.#merkeAktiv();
   }
 
@@ -150,18 +166,20 @@ class Store {
     return this.daten?.id === id ? this.daten : lies(id);
   }
 
-  erstelle(name: string, datum: string, agenda: string[]): Tag {
-    const tag = neuerTag(name, datum, agenda);
+  erstelle(eingabe: TagEingabe): Tag {
+    const tag = neuerTag(eingabe);
     schreibe(tag);
     return tag;
   }
 
-  aendere(id: string, name: string, datum: string, agenda: string[]): Tag | null {
+  aendere(id: string, e: TagEingabe): Tag | null {
     const tag = this.hole(id);
     if (!tag) return null;
-    tag.name = name;
-    tag.datum = datum;
-    agendaAnwenden(tag.protokoll, agenda);
+    tag.name = e.name;
+    tag.datum = e.datum;
+    tag.briefing = e.briefing ?? tag.briefing;
+    tag.begriffe = e.begriffe ?? tag.begriffe;
+    agendaAnwenden(tag.protokoll, e.agenda);
     schreibe(tag);
     return tag;
   }
@@ -180,7 +198,7 @@ class Store {
     if (!gueltigeId(id) || !fs.existsSync(datei(id))) return false;
     fs.rmSync(datei(id));
     if (this.daten.id === id) {
-      this.daten = this.liste()[0] ?? this.erstelle("Workshop", heute(), standardAgenda());
+      this.daten = this.liste()[0] ?? this.erstelle({ name: "Workshop", datum: heute(), agenda: standardAgenda() });
       this.#merkeAktiv();
     }
     return true;

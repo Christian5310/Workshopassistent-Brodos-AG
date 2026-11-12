@@ -1,20 +1,30 @@
-import { ROLLEN, el, figur, sende, verbinde, zeigeChat, zeigeStatus } from "./common.js";
+import { AGENTEN, el, figur, sende, verbinde, zeigeChat, zeigeStatus } from "./common.js";
 
 const chat = document.querySelector("#chat");
 const statusZeile = document.querySelector("#chatstatus");
 const formular = document.querySelector("#formular");
 const text = document.querySelector("#text");
-// Auswahl des Spezial-Agenten (ein Knopf ist immer aktiv)
+// Auswahl des Spezial-Agenten: "Alle" plus ein Knopf je Agent (aus der Admin-Ansicht)
 const an = { value: "alle" };
-const wahl = [...document.querySelectorAll("#an button")];
-for (const knopf of wahl) {
-  if (knopf.dataset.wert !== "alle") knopf.replaceChildren(figur(knopf.dataset.wert), el("span", "name", ROLLEN[knopf.dataset.wert].name));
-  knopf.addEventListener("click", () => {
-    an.value = knopf.dataset.wert;
-    for (const k of wahl) k.setAttribute("aria-checked", String(k === knopf));
-  });
+const wahl = document.querySelector("#an");
+let wahlStand = "";
+function zeigeWahl() {
+  const stand = JSON.stringify([...AGENTEN.values()]) + an.value;
+  if (stand === wahlStand) return;
+  wahlStand = stand;
+  if (an.value !== "alle" && !AGENTEN.has(an.value)) an.value = "alle";
+  const knopf = (wert, inhalt, farbe) => {
+    const k = el("button");
+    k.type = "button";
+    k.setAttribute("role", "radio");
+    k.setAttribute("aria-checked", String(an.value === wert));
+    if (farbe) k.style.setProperty("--rolle", farbe);
+    k.append(...inhalt);
+    k.addEventListener("click", () => { an.value = wert; zeigeWahl(); });
+    return k;
+  };
+  wahl.replaceChildren(knopf("alle", ["Alle"]), ...[...AGENTEN.values()].map((a) => knopf(a.id, [figur(a), el("span", "name", a.name)], a.farbe)));
 }
-const ptt = document.querySelector("#ptt");
 
 let hoertZu = false;
 let denkt = false;
@@ -27,7 +37,7 @@ function zeigeChatStatus(fehler = "") {
 
 verbinde(({ chat: nachrichten, status }) => {
   zeigeStatus(status);
-  for (const k of wahl) if (k.dataset.wert !== "alle") k.querySelector(".name").textContent = ROLLEN[k.dataset.wert].name;
+  zeigeWahl();
   denkt = status.chat === "denkt nach";
   quelle = status.quelle;
   zeigeChat(chat, nachrichten, denkt);

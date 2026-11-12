@@ -1,5 +1,5 @@
 import { config } from "../config.ts";
-import { einstellungen } from "../einstellungen.ts";
+import { store } from "../store.ts";
 import type { TranskriptQuelle } from "./schnittstellen.ts";
 
 const ENDUNG: Record<string, string> = { "audio/webm": "webm", "audio/mp4": "m4a", "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/wav": "wav" };
@@ -17,7 +17,7 @@ export class MistralTranskriptQuelle implements TranskriptQuelle {
     const formular = new FormData();
     formular.set("model", config.stt.modell);
     formular.set("language", "de");
-    const begriffe = einstellungen.begriffe.split(/[,\n]/).map((b) => b.trim()).filter(Boolean);
+    const begriffe = store.daten.begriffe.split(/[,\n]/).map((b) => b.trim()).filter(Boolean);
     if (begriffe.length) formular.set("context_bias", begriffe.join(","));
     formular.set("file", new Blob([new Uint8Array(audio)], { type: typ }), `abschnitt.${ENDUNG[typ] ?? "webm"}`);
 

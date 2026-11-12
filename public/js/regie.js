@@ -1,4 +1,4 @@
-import { el, sende, verbinde, zeigeStatus } from "./common.js";
+import { el, fuelleAgentenWahl, sende, verbinde, zeigeStatus } from "./common.js";
 
 const $ = (id) => document.querySelector(id);
 let letzterZyklus = undefined;
@@ -19,6 +19,7 @@ async function ladeTranskript() {
 verbinde(({ status, chat, tag }) => {
   document.querySelector("#reset").textContent = `Inhalte von „${tag.name}" löschen`;
   zeigeStatus(status);
+  fuelleAgentenWahl($("#an"));
   $("#start").disabled = status.aufnahme || status.quelle === "mikro";
   $("#pause").disabled = !status.aufnahme;
   $("#aufnahme-info").textContent = status.mock
@@ -63,7 +64,7 @@ const melde = (fehler) => ($("#chat-info").textContent = fehler.message);
 $("#start").addEventListener("click", () => sende("/api/regie/start").catch(melde));
 $("#pause").addEventListener("click", () => sende("/api/regie/pause").catch(melde));
 $("#reset").addEventListener("click", () => {
-  if (confirm("Transkript, Protokoll und Chat dieses Tages wirklich unwiderruflich löschen?")) sende("/api/regie/reset").catch(melde);
+  if (confirm("Transkript, Protokoll und Chat dieses Meetings wirklich unwiderruflich löschen?")) sende("/api/regie/reset").catch(melde);
 });
 $("#formular").addEventListener("submit", (ereignis) => {
   ereignis.preventDefault();

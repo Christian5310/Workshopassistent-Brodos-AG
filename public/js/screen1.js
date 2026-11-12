@@ -41,7 +41,7 @@ async function ladeTage() {
   const tage = await (await fetch("/api/tage")).json();
   tagwahl.replaceChildren(
     ...tage.map((t) => {
-      const o = el("option", "", `${new Date(`${t.datum}T12:00:00`).toLocaleDateString("de-DE")} · ${t.name}`);
+      const o = el("option", "", `${t.name} · ${new Date(`${t.datum}T12:00:00`).toLocaleDateString("de-DE")}`);
       o.value = t.id;
       return o;
     }),
@@ -284,7 +284,7 @@ function zeige({ protokoll, status, tag }) {
       knopf.addEventListener("click", () => sende(`/api/agenda/${a.id}/aktiv`).catch(console.warn));
       return zeile(a.id, a.status, knopf, { box: false });
     }),
-    "Keine Agenda hinterlegt. Unter Admin anlegen.",
+    "Keine Agenda hinterlegt. Im Admin beim Meeting eintragen.",
   );
 
   if (!bearbeite) zeigeTodos();

@@ -6,7 +6,7 @@ import * as archiv from "./archiv.ts";
 import { config, quelle, zyklusSekunden } from "./config.ts";
 import * as admin from "./einstellungen.ts";
 import { store } from "./store.ts";
-import { ProtokollSchema, ROLLEN, type Adressat, type ChatStatus, type Schnappschuss } from "./types.ts";
+import { ProtokollSchema, type Adressat, type ChatStatus, type Schnappschuss } from "./types.ts";
 
 const anbieter = erstelleAnbieter();
 
@@ -29,11 +29,7 @@ function schnappschuss(): Schnappschuss {
   return {
     tag: { id: store.daten.id, name: store.daten.name, datum: store.daten.datum },
     protokoll: store.daten.protokoll,
-    agenten: {
-      sales: { name: admin.einstellungen.agenten.sales.name },
-      bpm: { name: admin.einstellungen.agenten.bpm.name },
-      consultant: { name: admin.einstellungen.agenten.consultant.name },
-    },
+    agenten: admin.einstellungen.agenten.map(({ id, name, figur, farbe }) => ({ id, name, figur, farbe })),
     chat: store.daten.chat,
     status: { aufnahme, quelle, letzterZyklus: store.daten.letzterZyklus, zyklusSekunden, mock: config.mock, chat: chatStatus, hinweis, arbeit },
   };
@@ -201,7 +197,7 @@ app.get("/api/transcript", (_req, res) => {
 
 /** Stellt eine Frage an die Spezial-Agenten und legt Frage und Antworten im Chat ab. */
 async function frageStellen(holeFrage: () => Promise<string | null>, an: Adressat, res: Response): Promise<void> {
-  if (an !== "alle" && !ROLLEN.includes(an)) return void res.status(400).json({ fehler: "Unbekannter Adressat." });
+  if (an !== "alle" && !admin.agent(an)) return void res.status(400).json({ fehler: "Unbekannter Adressat." });
   if (chatStatus !== "bereit") return void res.status(409).json({ fehler: "Die Spezial-Agenten denken noch nach." });
 
   chatStatus = "denkt nach";
@@ -216,7 +212,7 @@ async function frageStellen(holeFrage: () => Promise<string | null>, an: Adressa
     senden();
 
     const antworten = await anbieter.sprachmodell.expertenrunde({ frage, an, verlauf, protokoll: store.daten.protokoll });
-    for (const a of antworten) store.daten.chat.push({ id: randomUUID(), von: a.von, text: a.text, zeit: Date.now() });
+    for (const a of antworten) store.daten.chat.push({ id: randomUUID(), von: a.von, name: admin.agent(a.von)?.name, text: a.text, zeit: Date.now() });
     store.speichern();
     res.json({ ok: true });
   } catch (fehler) {
@@ -338,23 +334,56 @@ app.post("/api/regie/reset", (_req, res) => {
 
 // ── Admin: Prompts, Hintergrundwissen, Agenda und Agenten einstellen ──
 app.get("/api/admin/einstellungen", (_req, res) => {
-  res.json({ einstellungen: admin.einstellungen, standard: admin.standard(), mock: config.mock });
+  res.json({ einstellungen: admin.einstellungen, standard: admin.standard(), mock: config.mock, figuren: admin.FIGUREN, farben: admin.FARBEN });
 });
 
+/** Speichert Prompts und Obergrenze ("Erweitert"). Agenten und Meetings haben eigene Endpunkte. */
 app.put("/api/admin/einstellungen", (req, res) => {
-  const geprueft = admin.EinstellungenSchema.safeParse(req.body);
+  const geprueft = admin.ErweitertSchema.safeParse(req.body);
   if (!geprueft.success) {
     const erster = geprueft.error.issues[0];
     return void res.status(400).json({ fehler: `Ungültige Eingabe bei „${erster?.path.join(".")}": ${erster?.message}` });
   }
-  admin.speichere(geprueft.data);
+  admin.speichere({ ...admin.einstellungen, ...geprueft.data });
+  res.json({ ok: true });
+});
+
+// ── Spezial-Agenten anlegen, ändern, löschen ──
+const agentAusBody = (body: unknown, res: Response) => {
+  const geprueft = admin.AgentEingabeSchema.safeParse(body);
+  if (!geprueft.success) res.status(400).json({ fehler: "Bitte Name (höchstens 40 Zeichen), Prompt und Wissen prüfen." });
+  return geprueft.success ? geprueft.data : null;
+};
+
+app.post("/api/agenten", (req, res) => {
+  const d = agentAusBody(req.body, res);
+  if (!d) return;
+  if (admin.einstellungen.agenten.length >= 12) return void res.status(400).json({ fehler: "Mehr als 12 Agenten sind nicht möglich." });
+  const neu = admin.agentAnlegen(d);
+  senden();
+  res.json({ ok: true, id: neu.id });
+});
+
+app.put("/api/agenten/:id", (req, res) => {
+  const d = agentAusBody(req.body, res);
+  if (!d) return;
+  if (!admin.agent(req.params.id)) return void res.status(404).json({ fehler: "Agent nicht gefunden." });
+  admin.speichere({ ...admin.einstellungen, agenten: admin.einstellungen.agenten.map((a) => (a.id === req.params.id ? { ...d, id: a.id } : a)) });
+  senden();
+  res.json({ ok: true });
+});
+
+app.delete("/api/agenten/:id", (req, res) => {
+  if (!admin.agent(req.params.id)) return void res.status(404).json({ fehler: "Agent nicht gefunden." });
+  if (admin.einstellungen.agenten.length <= 1) return void res.status(400).json({ fehler: "Mindestens ein Agent muss bleiben." });
+  admin.speichere({ ...admin.einstellungen, agenten: admin.einstellungen.agenten.filter((a) => a.id !== req.params.id) });
   senden();
   res.json({ ok: true });
 });
 
 /** Zeigt den Prompt der Spezial-Agenten mit eingesetzten Platzhaltern – so bekommt ihn das Sprachmodell. */
 app.get("/api/admin/vorschau", (_req, res) => {
-  const fertig = admin.promptAgentenFertig(store.daten.protokoll);
+  const fertig = admin.promptAgentenFertig(store.daten);
   res.json({ promptAgenten: fertig, zeichen: fertig.length });
 });
 
@@ -363,6 +392,8 @@ const TagSchema = z.object({
   name: z.string().trim().min(1).max(80),
   datum: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   agenda: z.array(z.string().trim().min(1).max(120)).max(30),
+  briefing: z.string().max(50_000).optional(),
+  begriffe: z.string().max(4000).optional(),
 });
 const tagAusBody = (body: unknown, res: Response) => {
   const geprueft = TagSchema.safeParse(body);
@@ -371,7 +402,7 @@ const tagAusBody = (body: unknown, res: Response) => {
 };
 const holeTag = (id: string, res: Response) => {
   const tag = store.hole(id);
-  if (!tag) res.status(404).json({ fehler: "Tag nicht gefunden." });
+  if (!tag) res.status(404).json({ fehler: "Meeting nicht gefunden." });
   return tag;
 };
 
@@ -382,22 +413,22 @@ app.get("/api/tage", (_req, res) => {
 app.post("/api/tage", (req, res) => {
   const d = tagAusBody(req.body, res);
   if (!d) return;
-  const tag = store.erstelle(d.name, d.datum, d.agenda);
+  const tag = store.erstelle(d);
   res.json({ ok: true, id: tag.id });
 });
 
 app.put("/api/tage/:id", (req, res) => {
   const d = tagAusBody(req.body, res);
   if (!d) return;
-  if (!store.aendere(req.params.id, d.name, d.datum, d.agenda)) return void res.status(404).json({ fehler: "Tag nicht gefunden." });
+  if (!store.aendere(req.params.id, d)) return void res.status(404).json({ fehler: "Meeting nicht gefunden." });
   senden();
   res.json({ ok: true });
 });
 
 /** Macht einen Tag zum aktiven: Ab jetzt laufen Transkript, To-dos und Chat dort. */
 app.post("/api/tage/:id/aktivieren", (req, res) => {
-  if (aufnahme) return void res.status(409).json({ fehler: "Bitte erst den Assistenten ausschalten, dann den Tag wechseln." });
-  if (!store.wechsle(req.params.id)) return void res.status(404).json({ fehler: "Tag nicht gefunden." });
+  if (aufnahme) return void res.status(409).json({ fehler: "Bitte erst den Assistenten ausschalten, dann das Meeting wechseln." });
+  if (!store.wechsle(req.params.id)) return void res.status(404).json({ fehler: "Meeting nicht gefunden." });
   hinweis = null;
   senden();
   res.json({ ok: true });
@@ -408,25 +439,28 @@ app.get("/api/tage/:id", (req, res) => {
   if (tag) res.json({ ...tag, aktiv: tag.id === store.daten.id, zusammenfassung: archiv.zusammenfassung(tag.protokoll) });
 });
 
-/** Downloads: ?art=transkript liefert nur das Transkript, sonst den ganzen Tag. */
+/** Downloads als Markdown: ?art=alles|transkript|todos|entscheidungen|fragen */
 app.get("/api/tage/:id/markdown", (req, res) => {
   const tag = holeTag(req.params.id, res);
   if (!tag) return;
-  const nurTranskript = req.query.art === "transkript";
-  res
-    .attachment(`${tag.datum}-${nurTranskript ? "transkript" : "protokoll"}.md`)
-    .type("text/markdown; charset=utf-8")
-    .send(nurTranskript ? archiv.transkriptMarkdown(tag) : archiv.alsMarkdown(tag));
+  const art = (String(req.query.art ?? "alles") in archiv.DOWNLOADS ? String(req.query.art ?? "alles") : "alles") as keyof typeof archiv.DOWNLOADS;
+  res.attachment(`${tag.datum}-${art === "alles" ? "protokoll" : art}.md`).type("text/markdown; charset=utf-8").send(archiv.DOWNLOADS[art](tag));
+});
+
+/** To-do-Liste als CSV für Excel. */
+app.get("/api/tage/:id/todos.csv", (req, res) => {
+  const tag = holeTag(req.params.id, res);
+  if (tag) res.attachment(`${tag.datum}-todos.csv`).type("text/csv; charset=utf-8").send(archiv.todosCsv(tag));
 });
 
 app.get("/api/tage/:id/broki", (req, res) => {
   const tag = holeTag(req.params.id, res);
-  if (tag) res.type("text/plain; charset=utf-8").send(archiv.fuerBroki(tag));
+  if (tag) res.type("text/plain; charset=utf-8").send(archiv.fuerBroki(tag, admin.einstellungen.promptZusammenfassung));
 });
 
 app.delete("/api/tage/:id", (req, res) => {
   if (aufnahme && req.params.id === store.daten.id) return void res.status(409).json({ fehler: "Bitte erst den Assistenten ausschalten." });
-  if (!store.loesche(req.params.id)) return void res.status(404).json({ fehler: "Tag nicht gefunden." });
+  if (!store.loesche(req.params.id)) return void res.status(404).json({ fehler: "Meeting nicht gefunden." });
   senden();
   res.json({ ok: true });
 });
@@ -434,6 +468,6 @@ app.delete("/api/tage/:id", (req, res) => {
 app.use(express.static(config.pfade.public, { extensions: ["html"] }));
 
 app.listen(config.port, config.host, () => {
-  console.log(`Broki-Live läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"}, Quelle: ${quelle})`);
+  console.log(`Siri (Broki-Live) läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"}, Quelle: ${quelle})`);
   console.log("  /  Auswahl   ·   /screen1  Transkriptions-Assistent   ·   /screen2  Spezial-Agenten   ·   /regie   ·   /archiv   ·   /admin");
 });
