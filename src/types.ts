@@ -55,6 +55,8 @@ export interface Schnappschuss {
   chat: ChatNachricht[];
   status: {
     aufnahme: boolean;
+    /** "mikro": der Browser nimmt auf und schickt Schnipsel; "timer": Mock-Skript ohne Mikrofon */
+    quelle: "mikro" | "timer";
     letzterZyklus: number | null;
     zyklusSekunden: number;
     mock: boolean;

@@ -314,3 +314,9 @@ details pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.75rem
 .vorschlag button { font-size: 0.7rem; padding: 0.4rem 0.7rem; }
 .wissenleiste { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.85rem; }
 .wissenleiste .zaehler { flex: 1; color: var(--ink-muted); font-size: 0.8rem; }
+
+/* ── Mikrofon-Pegel und Fehlermeldungen ── */
+.pegel { display: inline-block; width: 4.5rem; height: 0.6rem; border-radius: var(--r-s); background: var(--brand-dark); overflow: hidden; }
+.pegel[hidden] { display: none; }
+.pegel i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.1s linear; }
+.hinweis.fehler { background: var(--accent); color: var(--ink); font-weight: 600; }

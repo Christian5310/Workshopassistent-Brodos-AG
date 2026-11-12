@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import express, { type Response } from "express";
 import { erstelleAnbieter } from "./anbieter/index.ts";
 import * as archiv from "./archiv.ts";
-import { config, zyklusSekunden } from "./config.ts";
+import { config, quelle, zyklusSekunden } from "./config.ts";
 import * as admin from "./einstellungen.ts";
 import { store } from "./store.ts";
 import { ProtokollSchema, ROLLEN, type Adressat, type ChatStatus, type Schnappschuss } from "./types.ts";
@@ -15,6 +15,9 @@ let chatStatus: ChatStatus = "bereit";
 let hinweis: string | null = null;
 let zyklusTimer: NodeJS.Timeout | null = null;
 let zyklusLaeuft = false;
+let pausiertUm = 0;
+/** Audio-Schnipsel werden strikt nacheinander verarbeitet, damit die Reihenfolge im Transkript stimmt. */
+let warteschlange: Promise<void> = Promise.resolve();
 
 // ── Live-Updates per Server-Sent Events ──────────────────────────────────────
 const zuhoerer = new Set<Response>();
@@ -28,7 +31,7 @@ function schnappschuss(): Schnappschuss {
       consultant: { name: admin.einstellungen.agenten.consultant.name },
     },
     chat: store.daten.chat,
-    status: { aufnahme, letzterZyklus: store.daten.letzterZyklus, zyklusSekunden, mock: config.mock, chat: chatStatus, hinweis },
+    status: { aufnahme, quelle, letzterZyklus: store.daten.letzterZyklus, zyklusSekunden, mock: config.mock, chat: chatStatus, hinweis },
   };
 }
 
@@ -74,12 +77,15 @@ function starten(): void {
   if (aufnahme) return;
   aufnahme = true;
   hinweis = null;
-  zyklusTimer = setInterval(() => void zyklus(), zyklusSekunden * 1000);
-  void zyklus(); // erster Abschnitt sofort, damit die Demo nicht mit Warten beginnt
+  if (quelle === "timer") {
+    zyklusTimer = setInterval(() => void zyklus(), zyklusSekunden * 1000);
+    void zyklus(); // erster Abschnitt sofort, damit die Demo nicht mit Warten beginnt
+  }
   senden();
 }
 
 function pausieren(neuerHinweis: string | null = null): void {
+  if (aufnahme) pausiertUm = Date.now();
   aufnahme = false;
   hinweis = neuerHinweis;
   if (zyklusTimer) clearInterval(zyklusTimer);
@@ -100,6 +106,34 @@ app.get("/api/events", (req, res) => {
   res.write(`data: ${JSON.stringify(schnappschuss())}\n\n`);
   zuhoerer.add(res);
   req.on("close", () => zuhoerer.delete(res));
+});
+
+/**
+ * Audio-Schnipsel aus dem Browser (Rohdaten im Body, Content-Type audio/…).
+ * Das Audio bleibt nur im Arbeitsspeicher und wird nach der Transkription verworfen – nie auf die Platte.
+ */
+app.post("/api/audio-chunk", express.raw({ type: "audio/*", limit: "8mb" }), (req, res) => {
+  if (quelle !== "mikro") return void res.status(409).json({ fehler: "Im Mock-Modus kommt das Transkript aus dem Skript, nicht vom Mikrofon." });
+  // Kurz nach dem Ausschalten darf der letzte, angebrochene Schnipsel noch ankommen.
+  if (!aufnahme && Date.now() - pausiertUm > 20_000) return void res.status(409).json({ fehler: "Der Assistent ist ausgeschaltet." });
+  const audio = req.body as Buffer;
+  if (!Buffer.isBuffer(audio) || audio.length < 1000) return void res.status(400).json({ fehler: "Kein Audio empfangen." });
+  const mime = String(req.headers["content-type"] ?? "audio/webm");
+
+  warteschlange = warteschlange.then(async () => {
+    try {
+      const text = await anbieter.transkript.transkribiere(audio, "protokoll", mime);
+      if (text === null) return pausieren("Mock-Skript ist zu Ende. Für einen neuen Durchlauf in der Regie die Daten löschen.");
+      if (text.trim()) return await verarbeiteAbschnitt(text.trim());
+      store.daten.letzterZyklus = Date.now(); // Stille: nichts zu protokollieren
+      senden();
+    } catch (fehler) {
+      console.warn("Transkription fehlgeschlagen, Schnipsel verworfen.", fehler);
+      hinweis = "Die Transkription ist gerade nicht erreichbar. Der letzte Abschnitt fehlt im Protokoll.";
+      senden();
+    }
+  });
+  res.status(202).json({ ok: true, bytes: audio.length });
 });
 
 /** Rohtranskript – nur für die Regie, nie auf den Screens. */
@@ -243,6 +277,6 @@ app.delete("/api/archiv", (_req, res) => {
 app.use(express.static(config.pfade.public, { extensions: ["html"] }));
 
 app.listen(config.port, config.host, () => {
-  console.log(`Broki-Live läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"})`);
+  console.log(`Broki-Live läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"}, Quelle: ${quelle})`);
   console.log("  /  Auswahl   ·   /screen1  Transkriptions-Assistent   ·   /screen2  Spezial-Agenten   ·   /regie   ·   /archiv   ·   /admin");
 });

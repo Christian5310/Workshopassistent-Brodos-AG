@@ -3,7 +3,9 @@
 Transkriptions-Assistent und Spezial-Agenten für den Sales Agentic Workshop am 26.11.2026.
 Der interne Projektkontext (`CLAUDE.md`) liegt bewusst nicht im Repository.
 
-**Stand:** Schritt 1 + 2 – Gerüst und Mock-Modus. Es läuft noch kein echtes Audio und kein echtes Sprachmodell.
+**Stand:** Gerüst, Mock-Modus und Audioaufnahme im Browser. Transkription (Mistral Voxtral) und Sprachmodell sind noch nicht angebunden.
+
+Mikrofon und Upload ohne API-Key testen: `MOCK_MIKRO=true npm start`. Der Browser nimmt dann echte Schnipsel auf, das Protokoll kommt weiter aus dem Fake-Transkript.
 
 ## Starten
 
@@ -49,6 +51,7 @@ public/                     Die drei Ansichten (HTML/CSS/JS ohne Build-Schritt)
 | `GET /api/state` | Protokollstand, Chat, Status |
 | `GET /api/events` | Dasselbe als Live-Stream (Server-Sent Events) |
 | `GET /api/transcript` | Rohtranskript (nur Regie) |
+| `POST /api/audio-chunk` | Audio-Schnipsel (Rohdaten, `Content-Type: audio/…`); bleibt nur im Arbeitsspeicher |
 | `POST /api/chat` | `{ text, an }` oder `{ sprache: true, an }`; `an` = `alle`, `sales`, `bpm`, `consultant` |
 | `GET/POST/DELETE /api/archiv`, `GET/DELETE /api/archiv/:id`, `GET /api/archiv/:id/markdown` | Archiv: speichern, lesen, herunterladen, löschen |
 | `GET/PUT /api/admin/einstellungen`, `GET /api/admin/vorschau` | Admin: Einstellungen lesen/speichern, fertigen Prompt ansehen |

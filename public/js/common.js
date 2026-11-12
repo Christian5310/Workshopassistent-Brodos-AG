@@ -44,7 +44,7 @@ export function zeigeStatus(status) {
   const mikro = document.querySelector("#mikro");
   if (mikro) {
     mikro.querySelector(".punkt").classList.toggle("an", status.aufnahme);
-    mikro.querySelector("span:last-child").textContent = status.aufnahme ? "Mikro aktiv" : "Pausiert";
+    mikro.querySelector("span:last-child").textContent = !status.aufnahme ? "Pausiert" : status.quelle === "mikro" ? "Hört zu" : "Läuft (Mock-Skript)";
   }
   const mock = document.querySelector("#mock");
   if (mock) mock.hidden = !status.mock;

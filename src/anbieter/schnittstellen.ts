@@ -6,7 +6,7 @@ import type { Adressat, ChatNachricht, Protokoll, Rolle } from "../types.ts";
  */
 export interface TranskriptQuelle {
   /** @returns Text oder null, wenn nichts (mehr) erkannt wurde */
-  transkribiere(audio: Buffer | null, zweck: "protokoll" | "chat"): Promise<string | null>;
+  transkribiere(audio: Buffer | null, zweck: "protokoll" | "chat", mime?: string): Promise<string | null>;
 }
 
 export interface ChatKontext {

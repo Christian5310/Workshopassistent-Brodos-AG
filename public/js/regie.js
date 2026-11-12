@@ -18,11 +18,12 @@ async function ladeTranskript() {
 
 verbinde(({ status, chat }) => {
   zeigeStatus(status);
-  $("#start").disabled = status.aufnahme;
+  $("#start").disabled = status.aufnahme || status.quelle === "mikro";
   $("#pause").disabled = !status.aufnahme;
   $("#aufnahme-info").textContent = status.mock
     ? `Mock-Modus: Alle ${status.zyklusSekunden} s kommt ein Abschnitt aus dem Fake-Transkript.`
-    : `Alle ${status.zyklusSekunden} s wird ein Audio-Schnipsel transkribiert.`;
+    : "";
+  if (status.quelle === "mikro") $("#aufnahme-info").textContent = `Alle ${status.zyklusSekunden} s wird ein Audio-Schnipsel transkribiert. Eingeschaltet wird am Gerät mit dem Mikrofon, in der Ansicht „Transkriptions-Assistent".`;
   $("#chat-info").textContent =
     status.chat === "denkt nach" ? "Die Spezial-Agenten denken nach …" : `${chat.length} Nachrichten im Verlauf. Antworten erscheinen bei den Spezial-Agenten.`;
   if (status.letzterZyklus !== letzterZyklus) {
