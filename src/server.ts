@@ -45,9 +45,9 @@ async function verarbeiteAbschnitt(text: string): Promise<void> {
     const antwort = await anbieter.sprachmodell.chronist(store.daten.protokoll, text);
     const geprueft = ProtokollSchema.safeParse(antwort);
     if (geprueft.success) store.daten.protokoll = admin.absichern(store.daten.protokoll, geprueft.data);
-    else console.warn("Chronist: ungültige Antwort verworfen, Stand bleibt unverändert.");
+    else console.warn("Assistent: ungültige Antwort verworfen, Stand bleibt unverändert.");
   } catch (fehler) {
-    console.warn("Chronist: Aufruf fehlgeschlagen, Stand bleibt unverändert.", fehler);
+    console.warn("Assistent: Aufruf fehlgeschlagen, Stand bleibt unverändert.", fehler);
   }
   store.daten.letzterZyklus = Date.now();
   store.speichern();

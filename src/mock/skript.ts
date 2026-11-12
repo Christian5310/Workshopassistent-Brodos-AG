@@ -1,7 +1,7 @@
 /**
  * Fake-Transkript für den Mock-Modus: ein frei erfundener Workshop-Verlauf.
  * Namen, Zahlen und Inhalte sind Platzhalter und haben nichts mit echten Brodos-Daten zu tun.
- * Jeder Abschnitt trägt die Änderungen, die der Fake-Chronist daraus "erkennt".
+ * Jeder Abschnitt trägt die Änderungen, die der Fake-Assistent daraus "erkennt".
  */
 export type MockOp =
   | { typ: "agenda"; id: string; status: "läuft" | "erledigt" }
@@ -45,7 +45,7 @@ export const MOCK_SKRIPT: MockAbschnitt[] = [
     ],
   },
   {
-    text: "Chronist, To-do für Anna: Durchlaufzeiten der Angebote aus Dynamics auswerten, bis Freitag.",
+    text: "Darling, To-do für Anna: Durchlaufzeiten der Angebote aus Dynamics auswerten, bis Freitag.",
     ops: [{ typ: "todo", text: "Durchlaufzeiten der Angebote aus Dynamics auswerten", owner: "Anna", frist: "Freitag" }],
   },
   {

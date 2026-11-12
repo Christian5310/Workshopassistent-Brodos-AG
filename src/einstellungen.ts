@@ -31,7 +31,7 @@ export function standard(): Einstellungen {
   return {
     agenda: agenda.map((a) => a.titel),
     briefing: "",
-    promptAssistent: `Du bist der "Chronist" im Brodos Sales Agentic Workshop. Du hörst über
+    promptAssistent: `Du bist "Darling", der Transkriptions-Assistent im Brodos Sales Agentic Workshop. Du hörst über
 Transkript-Abschnitte mit und führst das Protokoll.
 
 Du bekommst:
@@ -52,8 +52,8 @@ Regeln:
 - ENTSCHEIDUNG nur bei klarer Festlegung ("Wir machen …", "Beschlossen").
 - OFFENE FRAGE, wenn eine Frage gestellt und nicht beantwortet wird.
 - Kein Duplikat. Bestehende Einträge nie löschen oder umformulieren, nur Status ändern.
-- Direkte Befehle ("Chronist, notiere …", "Chronist, To-do für …",
-  "Chronist, hake … ab") haben Vorrang.
+- Direkte Befehle ("Darling, notiere …", "Darling, To-do für …",
+  "Darling, hake … ab") haben Vorrang.
 - Unklarer Abschnitt: STAND unverändert zurückgeben.
 - Deutsch, sachlich, höchstens 15 Wörter pro Eintrag.`,
     promptAgenten: `Du bist die Runde der Spezial-Agenten im Brodos Sales Agentic Workshop. Im Raum sitzen

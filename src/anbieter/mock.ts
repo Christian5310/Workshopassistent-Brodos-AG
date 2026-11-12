@@ -21,7 +21,7 @@ export class MockTranskriptQuelle implements TranskriptQuelle {
 }
 
 export class MockSprachmodell implements Sprachmodell {
-  /** Fake-Chronist: schlägt den Abschnitt im Skript nach und wendet die hinterlegten Änderungen an. */
+  /** Fake-Assistent: schlägt den Abschnitt im Skript nach und wendet die hinterlegten Änderungen an. */
   async chronist(stand: Protokoll, abschnitt: string): Promise<unknown> {
     await warte(400);
     const neu = structuredClone(stand);
