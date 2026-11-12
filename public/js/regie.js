@@ -30,6 +30,31 @@ verbinde(({ status, chat, tag }) => {
   if (status.letzterZyklus !== letzterZyklus) {
     letzterZyklus = status.letzterZyklus;
     ladeTranskript();
+    ladeDiagnose();
+  }
+});
+
+async function ladeDiagnose() {
+  const eintraege = await (await fetch("/api/regie/diagnose")).json();
+  const ziel = $("#diagnose");
+  ziel.replaceChildren();
+  if (!eintraege.length) ziel.append(el("p", "", "Noch keine Abschnitte seit dem Start der App."));
+  for (const e of eintraege.toReversed()) {
+    const zeile = el("div", e.ok ? "" : "problem");
+    zeile.append(el("time", "", new Date(e.zeit).toLocaleTimeString("de-DE")), el("b", "", e.ergebnis), el("div", "gehoert", e.text.length > 220 ? `${e.text.slice(0, 220)} …` : e.text));
+    ziel.append(zeile);
+  }
+}
+ladeDiagnose();
+
+$("#textformular").addEventListener("submit", async (ereignis) => {
+  ereignis.preventDefault();
+  try {
+    const { abschnitte } = await sende("/api/regie/text", { text: $("#einspeisen").value });
+    $("#einspeisen").value = "";
+    $("#chat-info").textContent = `${abschnitte} Abschnitt(e) werden verarbeitet …`;
+  } catch (fehler) {
+    $("#chat-info").textContent = fehler.message;
   }
 });
 

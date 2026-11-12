@@ -1,31 +1,36 @@
 import { z } from "zod";
 
-// Datenmodell des Protokollstands (CLAUDE.md Abschnitt 5). Jede LLM-Antwort wird dagegen validiert.
+// Datenmodell des Protokollstands. Jede Antwort des Sprachmodells läuft durch dieses Schema.
+// Es ist bewusst nachsichtig: Fehlt ein Feld oder ist es null, greift ein Standardwert; ein kaputter
+// Eintrag wird einzeln verworfen, statt dass die ganze Antwort (und damit alle To-dos) verloren geht.
+const text = z.coerce.string().trim().min(1);
+const frei = (ersatz: string) => z.string().trim().min(1).catch(ersatz);
+const kennung = z.coerce.string().catch("");
+const liste = <T extends z.ZodType>(eintrag: T) =>
+  z
+    .array(z.unknown())
+    .catch([])
+    .transform((werte) => werte.flatMap((w) => { const r = eintrag.safeParse(w); return r.success ? [r.data as z.infer<T>] : []; }));
+
 export const ProtokollSchema = z.object({
-  agenda: z.array(
-    z.object({ id: z.string(), titel: z.string(), status: z.enum(["offen", "läuft", "erledigt"]) }),
-  ),
-  todos: z.array(
+  agenda: liste(z.object({ id: kennung, titel: text, status: z.enum(["offen", "läuft", "erledigt"]).catch("offen") })),
+  todos: liste(
     z.object({
-      id: z.string(),
-      text: z.string(),
-      owner: z.string(),
-      frist: z.string(),
-      status: z.enum(["offen", "erledigt"]),
-      agendapunkt: z.string(),
-      /** Kategorie, unter der das To-do abgelegt wurde (z. B. "Vormittag"). Leer = aktuelle Liste. */
-      gruppe: z.string().default(""),
+      id: kennung,
+      text,
+      owner: frei("offen"),
+      frist: frei("offen"),
+      status: z.enum(["offen", "erledigt"]).catch("offen"),
+      agendapunkt: z.string().catch(""),
+      /** Kategorie, unter der das To-do abgelegt wurde. Leer = aktuelle Liste. */
+      gruppe: z.string().catch(""),
     }),
   ),
   /** Unsichere To-dos: erst nach Bestätigung durch einen Menschen werden sie zu echten To-dos. */
-  vorschlaege: z
-    .array(z.object({ id: z.string(), text: z.string(), owner: z.string(), frist: z.string(), agendapunkt: z.string() }))
-    .default([]),
-  entscheidungen: z.array(z.object({ id: z.string(), text: z.string(), agendapunkt: z.string() })),
-  offene_fragen: z.array(
-    z.object({ id: z.string(), text: z.string(), status: z.enum(["offen", "beantwortet"]) }),
-  ),
-  notizen: z.array(z.object({ agendapunkt: z.string(), text: z.string() })),
+  vorschlaege: liste(z.object({ id: kennung, text, owner: frei("offen"), frist: frei("offen"), agendapunkt: z.string().catch("") })),
+  entscheidungen: liste(z.object({ id: kennung, text, agendapunkt: z.string().catch("") })),
+  offene_fragen: liste(z.object({ id: kennung, text, status: z.enum(["offen", "beantwortet"]).catch("offen") })),
+  notizen: liste(z.object({ agendapunkt: z.string().catch(""), text })),
 });
 export type Protokoll = z.infer<typeof ProtokollSchema>;
 

@@ -68,6 +68,8 @@ public/                     Die drei Ansichten (HTML/CSS/JS ohne Build-Schritt)
 | `GET/PUT /api/admin/einstellungen`, `GET /api/admin/vorschau` | Admin: Einstellungen lesen/speichern, fertigen Prompt ansehen |
 | `POST /api/todos/ablegen` | `{ name }`: aktuelle To-dos unter einer Kategorie ablegen; `{ name, zurueck: true }` holt sie zurück |
 | `POST /api/vorschlag/:id/annehmen` · `verwerfen` | Unsicheres To-do übernehmen oder verwerfen |
+| `GET /api/regie/diagnose` | Je Abschnitt: was gehört wurde und was der Assistent daraus gemacht hat |
+| `POST /api/regie/text` | `{ text }`: Text statt Audio verarbeiten (Test ohne Mikrofon, Plan B) |
 | `POST /api/regie/start` · `pause` · `reset` | Aufnahme steuern, alle Daten löschen |
 
 ## Hinweise

@@ -43,6 +43,14 @@ function senden(): void {
 }
 
 // ── Chronist-Zyklus ──────────────────────────────────────────────────────────
+/** Diagnose: was der Assistent je Abschnitt gehört und daraus gemacht hat (nur im Arbeitsspeicher, letzte 40). */
+const diagnose: { zeit: number; text: string; ergebnis: string; ok: boolean }[] = [];
+function protokolliere(text: string, ergebnis: string, ok = true): void {
+  diagnose.push({ zeit: Date.now(), text, ergebnis, ok });
+  if (diagnose.length > 40) diagnose.shift();
+  console.log(`[${new Date().toLocaleTimeString("de-DE")}] Abschnitt (${text.length} Zeichen) → ${ergebnis}`);
+}
+
 /** Ein neuer Transkript-Abschnitt: anhängen, Protokollstand vom LLM aktualisieren lassen, validieren. */
 async function verarbeiteAbschnitt(text: string): Promise<void> {
   const punkt = store.daten.protokoll.agenda.find((a) => a.status === "läuft")?.id ?? "";
@@ -50,10 +58,25 @@ async function verarbeiteAbschnitt(text: string): Promise<void> {
   try {
     const antwort = await anbieter.sprachmodell.chronist(store.daten.protokoll, text);
     const geprueft = ProtokollSchema.safeParse(antwort);
-    if (geprueft.success) store.daten.protokoll = admin.absichern(store.daten.protokoll, geprueft.data, punkt);
-    else console.warn("Assistent: ungültige Antwort verworfen, Stand bleibt unverändert.");
+    if (geprueft.success) {
+      const alt = store.daten.protokoll;
+      const neu = admin.absichern(alt, geprueft.data, punkt);
+      const plus = (n: number, wort: string) => (n > 0 ? [`${n} ${wort}`] : []);
+      const teile = [
+        ...plus(neu.todos.length - alt.todos.length, "To-do(s)"),
+        ...plus(neu.vorschlaege.length - alt.vorschlaege.length, "Vorschlag/Vorschläge"),
+        ...plus(neu.entscheidungen.length - alt.entscheidungen.length, "Entscheidung(en)"),
+        ...plus(neu.offene_fragen.length - alt.offene_fragen.length, "offene Frage(n)"),
+        ...plus(neu.notizen.length - alt.notizen.length, "Notiz(en)"),
+        ...plus(neu.todos.filter((t) => t.status === "erledigt").length - alt.todos.filter((t) => t.status === "erledigt").length, "abgehakt"),
+      ];
+      store.daten.protokoll = neu;
+      protokolliere(text, teile.length ? `neu: ${teile.join(", ")}` : "nichts Neues erkannt");
+    } else {
+      protokolliere(text, "Antwort des Sprachmodells war unbrauchbar und wurde verworfen", false);
+    }
   } catch (fehler) {
-    console.warn("Assistent: Aufruf fehlgeschlagen, Stand bleibt unverändert.", fehler);
+    protokolliere(text, `Sprachmodell nicht erreichbar: ${fehler instanceof Error ? fehler.message.slice(0, 160) : fehler}`, false);
   }
   store.daten.letzterZyklus = Date.now();
   store.speichern();
@@ -127,16 +150,40 @@ app.post("/api/audio-chunk", express.raw({ type: "audio/*", limit: "8mb" }), (re
     try {
       const text = await anbieter.transkript.transkribiere(audio, "protokoll", mime);
       if (text === null) return pausieren("Mock-Skript ist zu Ende. Für einen neuen Durchlauf in der Regie die Daten löschen.");
-      if (text.trim()) return await verarbeiteAbschnitt(text.trim());
+      if (text.trim()) { hinweis = null; return await verarbeiteAbschnitt(text.trim()); }
+      protokolliere("(Audio)", "nichts verstanden (Stille oder zu leise)");
       store.daten.letzterZyklus = Date.now(); // Stille: nichts zu protokollieren
       senden();
     } catch (fehler) {
-      console.warn("Transkription fehlgeschlagen, Schnipsel verworfen.", fehler);
-      hinweis = "Die Transkription ist gerade nicht erreichbar. Der letzte Abschnitt fehlt im Protokoll.";
+      protokolliere("(Audio)", `Transkription fehlgeschlagen: ${fehler instanceof Error ? fehler.message.slice(0, 160) : fehler}`, false);
+      const grund = fehler instanceof Error ? fehler.message : String(fehler);
+      hinweis = `Die Transkription hat nicht geklappt, der letzte Abschnitt fehlt. Grund: ${/HTTP 401/.test(grund) ? "Der Mistral-Key wird abgelehnt (.env prüfen)." : /HTTP 4\d\d/.test(grund) ? grund.slice(0, 140) : "Mistral ist von diesem Rechner aus nicht erreichbar (Netzwerk, Firmen-Proxy oder Firewall)."}`;
       senden();
     }
   });
   res.status(202).json({ ok: true, bytes: audio.length });
+});
+
+app.get("/api/regie/diagnose", (_req, res) => {
+  res.json(diagnose);
+});
+
+/**
+ * Text statt Audio einspeisen (Test ohne Mikrofon, oder Plan B: Stichpunkte/Transkript von Hand einfügen).
+ * Langer Text wird an Satzgrenzen in Abschnitte von rund 900 Zeichen geteilt – so groß wie eine Minute Gespräch.
+ */
+app.post("/api/regie/text", (req, res) => {
+  const text = String(req.body?.text ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return void res.status(400).json({ fehler: "Bitte Text eingeben." });
+  const abschnitte: string[] = [];
+  let aktuell = "";
+  for (const satz of text.split(/(?<=[.!?…])\s+/)) {
+    if (aktuell && (aktuell + " " + satz).length > 900) { abschnitte.push(aktuell); aktuell = satz; }
+    else aktuell = aktuell ? `${aktuell} ${satz}` : satz;
+  }
+  if (aktuell) abschnitte.push(aktuell);
+  for (const a of abschnitte) warteschlange = warteschlange.then(() => verarbeiteAbschnitt(a));
+  res.status(202).json({ ok: true, abschnitte: abschnitte.length });
 });
 
 /** Rohtranskript – nur für die Regie, nie auf den Screens. */

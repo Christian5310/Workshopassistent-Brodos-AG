@@ -154,40 +154,75 @@ export function promptAgentenFertig(protokoll: Protokoll, an: Adressat = "alle")
   return Object.entries(ersetzungen).reduce((text, [platzhalter, wert]) => text.replaceAll(platzhalter, wert), e.promptAgenten);
 }
 
+const woerter = (t: string) => new Set(t.toLowerCase().replace(/[^\p{L}\p{N}+ ]/gu, " ").split(/\s+/).filter((w) => w.length > 2));
+/** Anteil gemeinsamer Wörter (0–1). Erkennt denselben Eintrag auch bei leicht anderer Formulierung. */
+function aehnlichkeit(a: string, b: string): number {
+  const x = woerter(a);
+  const y = woerter(b);
+  if (!x.size || !y.size) return a.trim().toLowerCase() === b.trim().toLowerCase() ? 1 : 0;
+  let gemeinsam = 0;
+  for (const w of x) if (y.has(w)) gemeinsam++;
+  return gemeinsam / Math.min(x.size, y.size);
+}
+
 /**
  * Sicherheitsnetz nach jeder Antwort des Assistenten (gilt unabhängig vom Prompt):
- * Bestehende Einträge bleiben erhalten und behalten ihren Text, nur der Status darf sich ändern.
- * Neue Einträge werden dem von Hand ausgewählten Agendapunkt zugeordnet.
- * Neue To-dos sind pro Zyklus gedeckelt, damit die Liste nicht geflutet wird; was darüber liegt, wird zum Vorschlag.
+ * - Bestehende Einträge bleiben erhalten und behalten ihren Text, nur der Status darf sich ändern.
+ * - Ein Eintrag gilt als "bestehend", wenn ID und Inhalt zu einem vorhandenen passen. Vergibt das
+ *   Sprachmodell eine schon benutzte ID für etwas Neues, geht der Eintrag nicht mehr verloren.
+ * - Neue Einträge bekommen ihre ID vom Server und den von Hand ausgewählten Agendapunkt.
+ * - Neue To-dos sind pro Zyklus gedeckelt; was darüber liegt, wird zum Vorschlag.
  */
 export function absichern(alt: Protokoll, neu: Protokoll, punkt = ""): Protokoll {
-  const fuehreZusammen = <T extends { id: string }>(a: T[], n: T[], status: (x: T, y: T) => T, max = Infinity): T[] => [
-    ...a.map((x) => {
-      const y = n.find((k) => k.id === x.id);
-      return y ? status(x, y) : x;
-    }),
-    ...n.filter((y) => !a.some((x) => x.id === y.id)).slice(0, max),
+  const gleich = (a: string, b: string) => aehnlichkeit(a, b) >= 0.8;
+  const naechste = (liste: { id: string }[], praefix: string) => Math.max(0, ...liste.map((e) => Number(e.id.slice(1)) || 0)) + 1;
+
+  /** Trennt die Antwort in Status-Updates für bestehende Einträge und wirklich neue Einträge. */
+  function teile<T extends { id: string; text: string }>(a: T[], n: T[]) {
+    const updates = new Map<string, T>();
+    const neue: T[] = [];
+    for (const y of n) {
+      const perId = a.find((x) => x.id === y.id && y.id !== "");
+      if (perId && aehnlichkeit(perId.text, y.text) >= 0.5) updates.set(perId.id, y);
+      else {
+        const perText = a.find((x) => gleich(x.text, y.text));
+        if (perText) updates.set(perText.id, y);
+        else if (!neue.some((z) => gleich(z.text, y.text))) neue.push(y);
+      }
+    }
+    return { updates, neue };
+  }
+
+  const t = teile(alt.todos, neu.todos);
+  const v = teile(alt.vorschlaege, neu.vorschlaege);
+  const e = teile(alt.entscheidungen, neu.entscheidungen);
+  const f = teile(alt.offene_fragen, neu.offene_fragen);
+
+  const max = einstellungen.maxTodosProZyklus;
+  let tNr = naechste(alt.todos, "T");
+  const todos = [
+    ...alt.todos.map((x) => ({ ...x, status: t.updates.get(x.id)?.status ?? x.status })),
+    ...t.neue.slice(0, max).map((y) => ({ ...y, id: `T${tNr++}`, gruppe: "", agendapunkt: punkt })),
   ];
-  const gleich = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
-  const neueTodos = neu.todos.filter((y) => !alt.todos.some((x) => x.id === y.id));
-  // Vorschläge: bestehende bleiben, neue kommen dazu – ebenso To-dos, die über der Obergrenze liegen.
-  const kandidaten = [
-    ...neu.vorschlaege.filter((y) => !alt.vorschlaege.some((x) => x.id === y.id)),
-    ...neueTodos.slice(einstellungen.maxTodosProZyklus).map(({ status: _status, gruppe: _gruppe, ...rest }) => rest),
-  ];
+
+  // Vorschläge: neue vom Sprachmodell plus To-dos über der Obergrenze – sofern nicht schon als To-do vorhanden
+  const kandidaten = [...v.neue, ...t.neue.slice(max).map(({ status: _s, gruppe: _g, ...rest }) => rest)];
   const vorschlaege = [...alt.vorschlaege];
   for (const k of kandidaten) {
-    const doppelt = [...vorschlaege, ...alt.todos, ...neueTodos.slice(0, einstellungen.maxTodosProZyklus)].some((x) => gleich(x.text, k.text));
-    if (!doppelt) vorschlaege.push({ ...k, agendapunkt: punkt, id: `V-${randomUUID().slice(0, 8)}` }); // IDs vergibt der Server
+    if (![...vorschlaege, ...todos].some((x) => gleich(x.text, k.text))) vorschlaege.push({ ...k, agendapunkt: punkt, id: `V-${randomUUID().slice(0, 8)}` });
   }
+
+  let eNr = naechste(alt.entscheidungen, "E");
+  let fNr = naechste(alt.offene_fragen, "F");
   return {
-    vorschlaege,
     agenda: alt.agenda, // die Agenda steuert die Moderation von Hand, nicht das Sprachmodell
-    todos: fuehreZusammen(alt.todos, neu.todos, (x, y) => ({ ...x, status: y.status }), einstellungen.maxTodosProZyklus).map((t) =>
-      alt.todos.some((x) => x.id === t.id) ? t : { ...t, gruppe: "", agendapunkt: punkt },
-    ), // neue To-dos: aktuelle Liste, ausgewählter Agendapunkt
-    entscheidungen: fuehreZusammen(alt.entscheidungen, neu.entscheidungen, (x) => x).map((e) => (alt.entscheidungen.some((x) => x.id === e.id) ? e : { ...e, agendapunkt: punkt })),
-    offene_fragen: fuehreZusammen(alt.offene_fragen, neu.offene_fragen, (x, y) => ({ ...x, status: y.status })),
-    notizen: [...alt.notizen, ...neu.notizen.slice(alt.notizen.length).map((n) => ({ ...n, agendapunkt: punkt }))],
+    todos,
+    vorschlaege,
+    entscheidungen: [...alt.entscheidungen, ...e.neue.map((y) => ({ ...y, id: `E${eNr++}`, agendapunkt: punkt }))],
+    offene_fragen: [
+      ...alt.offene_fragen.map((x) => ({ ...x, status: f.updates.get(x.id)?.status ?? x.status })),
+      ...f.neue.map((y) => ({ ...y, id: `F${fNr++}` })),
+    ],
+    notizen: [...alt.notizen, ...neu.notizen.filter((n) => !alt.notizen.some((x) => gleich(x.text, n.text))).map((n) => ({ ...n, agendapunkt: punkt }))],
   };
 }

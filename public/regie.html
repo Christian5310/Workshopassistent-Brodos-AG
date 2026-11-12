@@ -36,6 +36,21 @@
     </section>
 
     <section class="block">
+      <h2>Diagnose: Was hat der Assistent erkannt?</h2>
+      <p>Pro Abschnitt: was gehört wurde und was daraus entstanden ist. Hilft, wenn To-dos fehlen.</p>
+      <div id="diagnose" class="transkript"></div>
+    </section>
+
+    <section class="block">
+      <h2>Text einspeisen</h2>
+      <p>Zum Testen ohne Mikrofon oder als Plan B: Der Text wird wie ein gehörter Abschnitt verarbeitet. Lange Texte werden automatisch aufgeteilt.</p>
+      <form id="textformular">
+        <textarea id="einspeisen" rows="4" placeholder="z. B. Tom erstellt bis Freitag die Liste der Freigabeschritte."></textarea>
+        <div class="reihe" style="margin-top:0.5rem"><button type="submit">Verarbeiten</button></div>
+      </form>
+    </section>
+
+    <section class="block">
       <h2>Inhalte löschen</h2>
       <p id="reset-info">Leert Transkript, Protokoll und Chat des aktiven Tages unwiderruflich. Name, Datum und Agenda bleiben. Andere Tage sind nicht betroffen. Ganze Tage löschst du im <a href="/archiv">Archiv</a>.</p>
       <div class="reihe"><button id="reset" class="zweit">Inhalte dieses Tages löschen</button></div>

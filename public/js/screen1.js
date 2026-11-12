@@ -91,6 +91,12 @@ schalter.addEventListener("click", async () => {
   }
 });
 
+// Zeigt, dass wirklich aufgenommen wird: Sekunden bis der laufende Abschnitt gesendet wird.
+setInterval(() => {
+  const rest = Math.max(0, Math.ceil((aufnahme.naechsterVersand - Date.now()) / 1000));
+  $("#countdown").textContent = aufnahme.laeuft ? `· Aufnahme läuft, sendet in ${rest} s` : "";
+}, 500);
+
 // ── Beim Ausschalten: To-dos der aktuellen Liste unter dem laufenden Agendapunkt ablegen ──
 const ablage = $("#ablage");
 const aktuellerPunkt = () => stand.agenda.find((a) => a.status === "läuft") ?? stand.agenda.findLast((a) => a.status === "erledigt");

@@ -6,6 +6,8 @@ const FORMATE = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg
 
 export class Aufnahme {
   laeuft = false;
+  /** Zeitpunkt, zu dem der laufende Schnipsel abgeschlossen und gesendet wird */
+  naechsterVersand = 0;
   #strom = null;
   #rekorder = null;
   #wechsel = null;
@@ -90,6 +92,7 @@ export class Aufnahme {
     });
     rekorder.start();
     this.#rekorder = rekorder;
+    this.naechsterVersand = Date.now() + sekunden * 1000;
     this.#wechsel = setTimeout(() => {
       this.#neuerSchnipsel(sekunden); // erst den neuen starten, dann den alten beenden: keine Lücke
       rekorder.stop();
@@ -99,7 +102,12 @@ export class Aufnahme {
   async #hochladen(blob, versuch = 1) {
     try {
       const antwort = await fetch("/api/audio-chunk", { method: "POST", headers: { "Content-Type": blob.type.split(";")[0] }, body: blob });
-      if (!antwort.ok && antwort.status !== 409) throw new Error(`Fehler ${antwort.status}`);
+      if (antwort.status === 409 || antwort.status === 400) {
+        // Der Server hat den Abschnitt abgelehnt (z. B. Assistent aus): sichtbar machen statt still verwerfen
+        const { fehler } = await antwort.json().catch(() => ({}));
+        return void (this.laeuft && this.beiFehler(`Ein Audio-Abschnitt wurde nicht angenommen: ${fehler ?? antwort.status}`));
+      }
+      if (!antwort.ok) throw new Error(`Fehler ${antwort.status}`);
       this.beiFehler("");
     } catch {
       if (versuch < 3) {

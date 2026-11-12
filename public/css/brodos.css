@@ -380,3 +380,7 @@ input[type="date"] { font: inherit; font-size: 0.85rem; border-radius: var(--r-m
 #tag-meldung { align-self: center; font-size: 0.85rem; color: var(--ink-muted); }
 .transkript h4 { margin: 0.8rem 0 0.2rem; font-size: 0.85rem; color: var(--brand); }
 @media (max-width: 900px) { .tagformular { grid-template-columns: 1fr; } }
+
+/* ── Regie: Diagnose ── */
+#diagnose .gehoert { color: var(--ink-muted); margin-top: 0.15rem; }
+#diagnose .problem b { background: var(--accent); padding: 0 0.3rem; border-radius: var(--r-s); }
