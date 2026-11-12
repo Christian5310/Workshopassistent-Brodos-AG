@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Regie · Workshop Agent</title></head>
+<body class="regie">
+  <header class="kopf"><span class="logo">Brodos</span><h1><a href="/">Workshop Agent</a> · Regie</h1><div class="status"><span id="mock" class="pille" hidden>MOCK-MODUS</span><span id="mikro"><span class="punkt"></span><span>Pausiert</span></span><span id="zyklus"></span></div></header>
+  <div id="hinweis" class="hinweis"></div>
+  <main>
+    <section class="block">
+      <h2>Transkriptions-Assistent</h2>
+      <p id="aufnahme-info"></p>
+      <div class="reihe">
+        <button id="start">Einschalten</button>
+        <button id="pause" class="zweit">Ausschalten</button>
+      </div>
+      <p><a href="/screen1" target="_blank">Transkriptions-Assistent öffnen</a> · <a href="/screen2" target="_blank">Spezial-Agenten öffnen</a></p>
+    </section>
+
+    <section class="block">
+      <h2>Frage an die Spezial-Agenten</h2>
+      <form id="formular" class="reihe">
+        <select id="an" aria-label="An wen geht die Frage?">
+          <option value="alle">An alle</option>
+          <option value="sales">◆ Sales Professional</option>
+          <option value="bpm">■ BPM Specialist</option>
+          <option value="consultant">▲ Business Consultant</option>
+        </select>
+        <input id="text" type="text" placeholder="Frage tippen …" autocomplete="off">
+        <button type="submit">Senden</button>
+      </form>
+      <p id="chat-info"></p>
+    </section>
+
+    <section class="block">
+      <h2>Transkript (nur Regie)</h2>
+      <div id="transkript" class="transkript"></div>
+    </section>
+
+    <section class="block">
+      <h2>Daten löschen</h2>
+      <p>Löscht Transkript, Protokoll und Chat der laufenden Sitzung unwiderruflich und lädt die Agenda neu. Vorher bei Bedarf im <a href="/archiv">Archiv</a> speichern. Archiv-Einträge bleiben erhalten.</p>
+      <div class="reihe"><button id="reset" class="zweit">Alle Daten löschen</button></div>
+    </section>
+  </main>
+  <script type="module" src="/js/regie.js"></script>
+</body>
+</html>

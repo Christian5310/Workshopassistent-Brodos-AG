@@ -1,0 +1,7 @@
+node_modules/
+.env
+data/*
+!data/.gitkeep
+
+# Interner Projektkontext – nicht ins öffentliche Repo
+CLAUDE.md

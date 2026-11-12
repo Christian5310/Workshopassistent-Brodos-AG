@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Archiv · Workshop Agent</title></head>
+<body class="regie archiv">
+  <header class="kopf"><span class="logo">Brodos</span><h1><a href="/">Workshop Agent</a> · Archiv</h1></header>
+  <main>
+    <aside class="archivliste">
+      <section class="block">
+        <h2>Aktuelle Sitzung speichern</h2>
+        <p id="aktuell-info"></p>
+        <form id="speichern" class="reihe">
+          <input id="titel" type="text" placeholder="Titel, z. B. Sales Workshop Vormittag" maxlength="120" autocomplete="off">
+          <button type="submit">Ins Archiv speichern</button>
+        </form>
+        <p id="meldung" role="status"></p>
+      </section>
+      <section class="block">
+        <h2>Gespeichert</h2>
+        <ul id="eintraege" class="eintraege"></ul>
+        <div class="reihe"><button id="alles-loeschen" class="zweit" hidden>Ganzes Archiv löschen</button></div>
+      </section>
+    </aside>
+    <section id="detail" class="block detail"><p>Wähle links einen Eintrag aus.</p></section>
+  </main>
+  <script type="module" src="/js/archiv.js"></script>
+</body>
+</html>

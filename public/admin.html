@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Admin · Workshop Agent</title></head>
+<body class="regie admin">
+  <header class="kopf"><span class="logo">Brodos</span><h1><a href="/">Workshop Agent</a> · Admin</h1></header>
+  <div id="hinweis" class="hinweis"></div>
+  <form id="formular">
+    <main>
+      <section class="block">
+        <h2><label for="agenda">Agenda</label></h2>
+        <p>Ein Punkt pro Zeile. Punkte mit unverändertem Titel behalten in der laufenden Sitzung ihren Status.</p>
+        <textarea id="agenda" rows="7"></textarea>
+      </section>
+
+      <section class="block">
+        <h2><label for="briefing">Hintergrundwissen</label></h2>
+        <p>Kontext zu Brodos, Vertrieb, Produkten, Begriffen. Die Spezial-Agenten bekommen diesen Text bei jeder Frage mit (Platzhalter [BRODOS-BRIEFING]).</p>
+        <textarea id="briefing" rows="7" placeholder="Noch kein Hintergrundwissen hinterlegt."></textarea>
+      </section>
+
+      <section class="block breit">
+        <h2>Spezial-Agenten</h2>
+        <p>Name (wird im Chat angezeigt) und Rollenbeschreibung (Platzhalter [AGENTEN] im Prompt).</p>
+        <div id="agenten" class="agenten"></div>
+      </section>
+
+      <section class="block">
+        <div class="titelzeile"><h2><label for="promptAssistent">Prompt Transkriptions-Assistent</label></h2><button type="button" class="zweit klein" data-standard="promptAssistent">Standard</button></div>
+        <p>Regeln, wann To-dos, Entscheidungen und offene Fragen angelegt werden.</p>
+        <textarea id="promptAssistent" rows="16" class="mono"></textarea>
+      </section>
+
+      <section class="block">
+        <div class="titelzeile"><h2><label for="promptAgenten">Prompt Spezial-Agenten</label></h2><button type="button" class="zweit klein" data-standard="promptAgenten">Standard</button></div>
+        <p>Platzhalter werden automatisch ersetzt: [BRODOS-BRIEFING], [AGENDA], [STAND], [AGENTEN].</p>
+        <textarea id="promptAgenten" rows="16" class="mono"></textarea>
+        <details id="vorschau"><summary>Vorschau: so bekommt ihn das Sprachmodell (letzter gespeicherter Stand)</summary><pre></pre></details>
+      </section>
+
+      <section class="block">
+        <div class="titelzeile"><h2><label for="promptZusammenfassung">Prompt Zusammenfassung (für Broki)</label></h2><button type="button" class="zweit klein" data-standard="promptZusammenfassung">Standard</button></div>
+        <p>Vorlage für die Zusammenfassung am Ende. Im Archiv kopierst du diesen Prompt zusammen mit Protokoll und Transkript und fügst ihn in Broki ein.</p>
+        <textarea id="promptZusammenfassung" rows="12" class="mono"></textarea>
+      </section>
+
+      <section class="block">
+        <h2><label for="maxTodos">Bremse für To-dos</label></h2>
+        <p>Höchstzahl neuer To-dos pro Zyklus. Was darüber liegt, landet als Vorschlag und geht nicht verloren.</p>
+        <input id="maxTodos" type="number" min="1" max="10" step="1">
+      </section>
+    </main>
+    <footer class="speicherleiste">
+      <span id="meldung" role="status"></span>
+      <button type="submit">Speichern</button>
+    </footer>
+  </form>
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>
