@@ -72,7 +72,7 @@ async function zeigeMeetings() {
   for (const m of alle) {
     const { d, inhalt } = eintrag({
       titel: m.neu ? "Neues Meeting" : m.name,
-      info: m.neu ? "noch nicht gespeichert" : `${datumKurz(m.datum)}${m.aktiv ? " · aktiv" : ""} · ${m.agenda.length} Agendapunkte`,
+      info: m.neu ? "noch nicht gespeichert" : `${datumKurz(m.datum)}${m.aktiv ? " · geöffnet" : m.abgeschlossen ? " · abgeschlossen" : ""} · ${m.agenda.length} Agendapunkte`,
       offen: offenesMeeting === m.id,
     });
     d.addEventListener("toggle", () => { if (d.open) offenesMeeting = m.id; else if (offenesMeeting === m.id) offenesMeeting = null; });

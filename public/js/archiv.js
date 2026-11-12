@@ -12,14 +12,21 @@ async function ladeListe() {
   const meetings = await hole("/api/tage");
   const liste = $("#eintraege");
   liste.replaceChildren();
-  for (const m of meetings) {
-    const knopf = el("button", `zweit${m.id === gewaehlt ? " gewaehlt" : ""}`);
-    knopf.append(el("b", "", `${m.name}${m.aktiv ? " (aktiv)" : ""}`), el("span", "", `${datum(m.datum)} · ${m.todos} To-dos · ${m.entscheidungen} Entscheidungen · ${m.fragen} Fragen`));
-    knopf.addEventListener("click", () => zeige(m.id));
-    const li = el("li");
-    li.append(knopf);
-    liste.append(li);
-  }
+  const gruppe = (titel, eintraege, leer) => {
+    liste.append(el("li", "gruppentitel", titel));
+    if (!eintraege.length) liste.append(el("li", "leer", leer));
+    for (const m of eintraege) {
+      const knopf = el("button", `zweit${m.id === gewaehlt ? " gewaehlt" : ""}`);
+      knopf.append(el("b", "", `${m.name}${m.aktiv ? " (geöffnet)" : ""}`), el("span", "", `${datum(m.datum)} · ${m.todos} To-dos · ${m.entscheidungen} Entscheidungen · ${m.fragen} Fragen`));
+      knopf.addEventListener("click", () => zeige(m.id));
+      const li = el("li");
+      li.append(knopf);
+      liste.append(li);
+    }
+  };
+  gruppe("Abgeschlossen", meetings.filter((m) => m.abgeschlossen), "Noch kein abgeschlossenes Meeting.");
+  const offen = meetings.filter((m) => !m.abgeschlossen);
+  if (offen.length) gruppe("Noch nicht abgeschlossen", offen, "");
 }
 
 function download(text, href, klasse = "knopf klein") {
@@ -71,7 +78,8 @@ async function zeige(id) {
   // Kopf: Name, Datum, Gesamt-Download, Broki, Löschen
   const kopf = el("div", "block detailkopf");
   const titel = el("div");
-  titel.append(el("h2", "", m.name), el("p", "", `${datum(m.datum)}${m.aktiv ? " · aktives Meeting" : ""}`));
+  const zustand = m.abgeschlossen ? `abgeschlossen am ${new Date(m.geschlossenAm).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}` : m.aktiv ? "gerade geöffnet" : "noch nicht abgeschlossen";
+  titel.append(el("h2", "", m.name), el("p", "", `${datum(m.datum)} · ${zustand}`));
   const broki = el("button", "zweit", "Für Broki kopieren");
   broki.title = "Kopiert Zusammenfassungs-Prompt, Protokoll und Transkript in die Zwischenablage";
   broki.addEventListener("click", async () => {
@@ -95,7 +103,21 @@ async function zeige(id) {
     }
   });
   const aktionen = el("div", "reihe");
-  aktionen.append(download("Alles herunterladen", md("alles"), "knopf"), broki, weg);
+  aktionen.append(download("Alles herunterladen", md("alles"), "knopf"), broki);
+  if (m.abgeschlossen) {
+    const wieder = el("button", "zweit", "Wieder öffnen");
+    wieder.title = "Öffnet das Meeting erneut im Transkriptions-Assistenten";
+    wieder.addEventListener("click", async () => {
+      try {
+        await sende(`/api/tage/${id}/aktivieren`);
+        location.href = "/screen1";
+      } catch (fehler) {
+        alert(fehler.message);
+      }
+    });
+    aktionen.append(wieder);
+  }
+  aktionen.append(weg);
   kopf.append(titel, aktionen);
 
   // To-dos, gegliedert nach Agendapunkt

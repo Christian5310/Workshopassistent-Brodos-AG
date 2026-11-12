@@ -60,7 +60,7 @@ export type ChatStatus = "bereit" | "denkt nach";
 /** Alles, was die Screens anzeigen. Wird per GET /api/state und SSE ausgeliefert. */
 export interface Schnappschuss {
   /** Der aktive Tag, zu dem Protokoll, Transkript und Chat gehören */
-  tag: { id: string; name: string; datum: string };
+  tag: { id: string; name: string; datum: string } | null;
   protokoll: Protokoll;
   /** Anzeigenamen der Spezial-Agenten (in der Admin-Ansicht einstellbar) */
   agenten: { id: string; name: string; figur: string; farbe: string }[];

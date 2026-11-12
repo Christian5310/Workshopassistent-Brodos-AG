@@ -30,12 +30,17 @@ let hoertZu = false;
 let denkt = false;
 
 function zeigeChatStatus(fehler = "") {
+  if (ohneMeeting && !fehler) return;
   statusZeile.textContent = fehler || (hoertZu ? "hört zu …" : denkt ? "denkt nach …" : "");
   ptt.classList.toggle("aktiv", hoertZu);
   formular.querySelector("button[type=submit]").disabled = denkt;
 }
 
-verbinde(({ chat: nachrichten, status }) => {
+let ohneMeeting = false;
+verbinde(({ chat: nachrichten, status, tag }) => {
+  ohneMeeting = tag === null;
+  document.querySelector("#formular").hidden = document.querySelector(".wahlzeile").hidden = ohneMeeting;
+  if (ohneMeeting) statusZeile.textContent = "Kein Meeting geöffnet. Bitte im Transkriptions-Assistenten ein Meeting auswählen.";
   zeigeStatus(status);
   zeigeWahl();
   denkt = status.chat === "denkt nach";

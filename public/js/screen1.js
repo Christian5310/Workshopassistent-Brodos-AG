@@ -35,33 +35,37 @@ function fuelle(id, eintraege, leerText) {
 
 const melde = (text) => ($("#mikrofehler").textContent = text);
 
-// ── Tag auswählen: Alles Weitere (Transkript, To-dos, Ablage) läuft unter diesem Tag ──
+// ── Meeting auswählen: Erst danach füllt sich die Ansicht. Abgeschlossene Meetings liegen im Archiv. ──
 const tagwahl = $("#tagwahl");
 async function ladeTage() {
-  const tage = await (await fetch("/api/tage")).json();
+  const meetings = (await (await fetch("/api/tage")).json()).filter((t) => !t.abgeschlossen);
+  const platzhalter = el("option", "", meetings.length ? "Meeting auswählen …" : "Noch kein Meeting – im Admin anlegen");
+  platzhalter.value = "";
   tagwahl.replaceChildren(
-    ...tage.map((t) => {
+    platzhalter,
+    ...meetings.map((t) => {
       const o = el("option", "", `${t.name} · ${new Date(`${t.datum}T12:00:00`).toLocaleDateString("de-DE")}`);
       o.value = t.id;
       return o;
     }),
   );
-  tagwahl.value = tagId;
+  tagwahl.value = tagId ?? "";
 }
 tagwahl.addEventListener("change", async () => {
+  if (!tagwahl.value) return void (tagwahl.value = tagId ?? "");
   try {
+    abschlussInfo = null;
     await sende(`/api/tage/${tagwahl.value}/aktivieren`);
   } catch (fehler) {
     melde(fehler.message);
-    tagwahl.value = tagId;
+    tagwahl.value = tagId ?? "";
   }
 });
 
-// ── Aufnahme und An/Aus-Schalter ──
-const schalter = $("#schalter");
+// ── Aufnahme: Starten, Pausieren, Meeting schließen ──
 const pegel = $("#pegel");
 
-// Dieses Gerät ist das Aufnahmegerät, sobald hier eingeschaltet wurde (übersteht ein Neuladen der Seite).
+// Dieses Gerät ist das Aufnahmegerät, sobald hier gestartet wurde (übersteht ein Neuladen der Seite).
 const MERKER = "broki-live-aufnahmegeraet";
 const merke = (wert) => { try { wert ? localStorage.setItem(MERKER, "1") : localStorage.removeItem(MERKER); } catch {} };
 const istAufnahmegeraet = () => { try { return localStorage.getItem(MERKER) === "1"; } catch { return false; } };
@@ -71,24 +75,55 @@ const aufnahme = new Aufnahme({
   beiFehler: melde,
 });
 
-schalter.addEventListener("click", async () => {
+const versuche = (aktion) => async () => {
   melde("");
   try {
-    if (an) {
-      const wahl = await frageAblage();
-      if (wahl === "abbrechen") return;
-      merke(false);
-      await aufnahme.stopp(); // letzter, angebrochener Schnipsel geht noch raus
-      await sende("/api/regie/pause");
-      if (wahl === "ablegen") await sende("/api/todos/ablegen");
-    } else {
-      if (quelle === "mikro") await aufnahme.mikrofonOeffnen(); // erst fragen, dann einschalten
-      merke(true);
-      await sende("/api/regie/start");
-    }
+    await aktion();
   } catch (fehler) {
     melde(fehler.message);
   }
+};
+
+$("#start").addEventListener("click", versuche(async () => {
+  if (quelle === "mikro") await aufnahme.mikrofonOeffnen(); // erst fragen, dann starten
+  merke(true);
+  await sende("/api/regie/start");
+}));
+
+// Pausieren: Aufnahme anhalten, sonst bleibt alles, wie es ist. Nichts wird abgelegt oder geleert.
+async function pausiere() {
+  merke(false);
+  await aufnahme.stopp(); // der angebrochene Abschnitt geht noch raus
+  await sende("/api/regie/pause");
+}
+$("#pause").addEventListener("click", versuche(pausiere));
+
+// Meeting schließen: alles liegt danach im Archiv, die Ansicht wird geleert.
+let abschlussInfo = null;
+$("#schliessen").addEventListener("click", versuche(async () => {
+  const name = tagwahl.selectedOptions[0]?.textContent ?? "Meeting";
+  $("#schluss-text").textContent = `„${name}" wird abgeschlossen${an ? ", die Aufnahme endet" : ""}. Transkript, To-dos, Entscheidungen und Fragen liegen danach im Archiv und lassen sich dort herunterladen. Die Ansicht hier wird geleert. Im Archiv kannst du das Meeting bei Bedarf wieder öffnen.`;
+  const dialog = $("#schluss");
+  dialog.returnValue = "abbrechen";
+  dialog.showModal();
+  await new Promise((fertig) => dialog.addEventListener("close", fertig, { once: true }));
+  if (dialog.returnValue !== "schliessen") return;
+  if (an) await pausiere();
+  abschlussInfo = { name }; // vor dem Aufruf setzen: das Update vom Server kommt schneller als die Antwort
+  try {
+    await sende("/api/meeting/schliessen");
+  } catch (fehler) {
+    abschlussInfo = null;
+    throw fehler;
+  }
+}));
+
+// Liste ablegen: aktuelle To-dos unter dem laufenden Agendapunkt einsortieren, damit die Liste kurz bleibt.
+$("#ablegen").addEventListener("click", versuche(() => sende("/api/todos/ablegen")));
+
+// Solange aufgenommen wird, vor dem Verlassen der Seite warnen: Die Aufnahme läuft nur in diesem Tab.
+window.addEventListener("beforeunload", (ereignis) => {
+  if (aufnahme.laeuft) ereignis.preventDefault();
 });
 
 // Zeigt, dass wirklich aufgenommen wird: Sekunden bis der laufende Abschnitt gesendet wird.
@@ -97,21 +132,6 @@ setInterval(() => {
   $("#countdown").textContent = aufnahme.laeuft ? `· Aufnahme läuft, sendet in ${rest} s` : "";
 }, 500);
 
-// ── Beim Ausschalten: To-dos der aktuellen Liste unter dem laufenden Agendapunkt ablegen ──
-const ablage = $("#ablage");
-const aktuellerPunkt = () => stand.agenda.find((a) => a.status === "läuft") ?? stand.agenda.findLast((a) => a.status === "erledigt");
-
-function frageAblage() {
-  const aktuell = stand.todos.filter((t) => !t.gruppe);
-  if (!aktuell.length) return Promise.resolve("nur-aus");
-  const kategorie = aktuellerPunkt()?.titel ?? "Ohne Agendapunkt";
-  $("#ablage-text").textContent =
-    `Die aktuelle Liste hat ${aktuell.length} To-do${aktuell.length === 1 ? "" : "s"}. Beim Ablegen wandern sie in die Kategorie „${kategorie}", und die Liste startet nach der Pause leer. Abgelegte To-dos bleiben aufklappbar und im Protokoll.`;
-  ablage.returnValue = "abbrechen";
-  ablage.showModal();
-  return new Promise((fertig) => ablage.addEventListener("close", () => fertig(ablage.returnValue), { once: true }));
-}
-
 // ── Kleines Transkript-Fenster unter der Agenda (ein-/ausblendbar) ──
 const tKnopf = $("#transkript-knopf");
 let tOffen = false;
@@ -119,7 +139,7 @@ let tStand = null;
 try { tOffen = localStorage.getItem("broki-live-transkript") === "1"; } catch {}
 
 async function zeigeTranskript(erzwingen = false) {
-  $("#transkript-karte").hidden = !tOffen;
+  $("#transkript-karte").hidden = !tOffen || tagId === null;
   tKnopf.classList.toggle("aktiv", tOffen);
   tKnopf.setAttribute("aria-pressed", String(tOffen));
   const marke = `${tagId}/${letzterZyklus}`;
@@ -232,7 +252,7 @@ function todoEditor(t) {
 function zeigeTodos() {
   const aktuell = stand.todos.filter((t) => !t.gruppe);
   if (bearbeite && !aktuell.some((t) => t.id === bearbeite)) bearbeite = null;
-  fuelle("#todos", aktuell.map(todoZeile), stand.todos.length ? "Aktuelle Liste ist leer." : "Noch keine To-dos.");
+  fuelle("#todos", aktuell.map(todoZeile), tagId === null ? "" : stand.todos.length ? "Aktuelle Liste ist leer." : "Noch keine To-dos.");
   const offen = aktuell.filter((t) => t.status === "offen").length;
   $("#todo-zahl").textContent = aktuell.length ? `${offen} offen` : "";
 }
@@ -240,12 +260,14 @@ function zeigeTodos() {
 // ── Alles anzeigen ──
 function zeige({ protokoll, status, tag }) {
   zeigeStatus(status);
-  if (tag.id !== tagId) {
-    // Tag gewechselt: nichts davon ist "neu", also ohne Animation aufbauen
-    tagId = tag.id;
+  const neueId = tag?.id ?? null;
+  if (neueId !== tagId) {
+    // Meeting gewechselt oder geschlossen: nichts davon ist "neu", also ohne Animation aufbauen
+    tagId = neueId;
     bekannt.clear();
     ersterAufbau = true;
     bearbeite = null;
+    tStand = null;
   }
   stand = protokoll;
   an = status.aufnahme;
@@ -253,13 +275,32 @@ function zeige({ protokoll, status, tag }) {
   letzterZyklus = status.letzterZyklus;
   ladeTage();
   tagwahl.disabled = an;
-  $("#tag-info").textContent = an ? "" : "";
-  tagwahl.title = an ? "Zum Wechseln erst den Assistenten ausschalten." : "";
-  $("#arbeit").textContent = status.arbeit ?? (an && quelle === "mikro" ? "Aufnahme läuft. Der erste Abschnitt wird nach 20 Sekunden gesendet, danach jede Minute." : "");
+  tagwahl.title = an ? "Zum Wechseln erst pausieren." : "";
 
-  schalter.textContent = an ? "Assistent ist an" : "Assistent ist aus";
-  schalter.classList.toggle("aktiv", an);
-  schalter.setAttribute("aria-pressed", String(an));
+  // Steuerung: ohne Meeting nichts; mit Meeting Starten/Fortsetzen oder Pausieren, dazu Schließen
+  const offen = tag !== null;
+  $("#start").hidden = !offen || an;
+  $("#start").textContent = status.letzterZyklus ? "▶ Aufnahme fortsetzen" : "▶ Aufnahme starten";
+  $("#pause").hidden = !an;
+  $("#schliessen").hidden = !offen;
+  $("#transkript-knopf").hidden = !offen;
+  $("#ablegen").hidden = !protokoll.todos.some((t) => !t.gruppe);
+  document.body.classList.toggle("ohne-meeting", !offen);
+
+  const leer = $("#leerhinweis");
+  leer.hidden = offen;
+  if (!offen) {
+    leer.replaceChildren(
+      el("b", "", abschlussInfo ? `„${abschlussInfo.name}" ist abgeschlossen und liegt im Archiv.` : "Kein Meeting geöffnet."),
+      el("span", "", abschlussInfo ? " Für ein weiteres Meeting oben eines auswählen." : " Wähle oben ein Meeting aus, dann füllt sich diese Ansicht."),
+    );
+    if (abschlussInfo) {
+      const link = el("a", "", "Zum Archiv");
+      link.href = "/archiv";
+      leer.append(" ", link);
+    }
+  }
+  $("#arbeit").textContent = !offen ? "" : status.arbeit ?? (an && quelle === "mikro" ? "Aufnahme läuft. Der erste Abschnitt wird nach 20 Sekunden gesendet, danach jede Minute." : !an && status.letzterZyklus ? "Pausiert. Alles bleibt erhalten, bis du das Meeting schließt." : "");
 
   // Aufnahme folgt dem Serverstatus: läuft nur auf dem Aufnahmegerät und nur, wenn echte Schnipsel gefragt sind.
   const sollAufnehmen = an && quelle === "mikro" && istAufnahmegeraet();
@@ -284,7 +325,7 @@ function zeige({ protokoll, status, tag }) {
       knopf.addEventListener("click", () => sende(`/api/agenda/${a.id}/aktiv`).catch(console.warn));
       return zeile(a.id, a.status, knopf, { box: false });
     }),
-    "Keine Agenda hinterlegt. Im Admin beim Meeting eintragen.",
+    offen ? "Keine Agenda hinterlegt. Im Admin beim Meeting eintragen." : "",
   );
 
   if (!bearbeite) zeigeTodos();
@@ -307,11 +348,11 @@ function zeige({ protokoll, status, tag }) {
     "",
   );
 
-  fuelle("#entscheidungen", protokoll.entscheidungen.map((e) => zeile(e.id, "fest", el("span", "text", e.text), { box: false, marke: "→" })), "Noch keine Entscheidungen.");
+  fuelle("#entscheidungen", protokoll.entscheidungen.map((e) => zeile(e.id, "fest", el("span", "text", e.text), { box: false, marke: "→" })), offen ? "Noch keine Entscheidungen." : "");
   fuelle(
     "#fragen",
     protokoll.offene_fragen.map((f) => zeile(f.id, f.status, el("span", "text", f.text), { box: false, marke: f.status === "beantwortet" ? "✓" : "?" })),
-    "Keine offenen Fragen.",
+    offen ? "Keine offenen Fragen." : "",
   );
 
   ersterAufbau = false;

@@ -17,10 +17,11 @@ async function ladeTranskript() {
 }
 
 verbinde(({ status, chat, tag }) => {
-  document.querySelector("#reset").textContent = `Inhalte von „${tag.name}" löschen`;
+  document.querySelector("#reset").textContent = tag ? `Inhalte von „${tag.name}" löschen` : "Kein Meeting geöffnet";
+  document.querySelector("#reset").disabled = !tag;
   zeigeStatus(status);
   fuelleAgentenWahl($("#an"));
-  $("#start").disabled = status.aufnahme || status.quelle === "mikro";
+  $("#start").disabled = status.aufnahme || status.quelle === "mikro" || !tag;
   $("#pause").disabled = !status.aufnahme;
   $("#aufnahme-info").textContent = status.mock
     ? `Mock-Modus: Alle ${status.zyklusSekunden} s kommt ein Abschnitt aus dem Fake-Transkript.`

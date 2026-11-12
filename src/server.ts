@@ -27,7 +27,7 @@ const zuhoerer = new Set<Response>();
 
 function schnappschuss(): Schnappschuss {
   return {
-    tag: { id: store.daten.id, name: store.daten.name, datum: store.daten.datum },
+    tag: store.istOffen ? { id: store.daten.id, name: store.daten.name, datum: store.daten.datum } : null,
     protokoll: store.daten.protokoll,
     agenten: admin.einstellungen.agenten.map(({ id, name, figur, farbe }) => ({ id, name, figur, farbe })),
     chat: store.daten.chat,
@@ -141,6 +141,7 @@ app.get("/api/events", (req, res) => {
  */
 app.post("/api/audio-chunk", express.raw({ type: "audio/*", limit: "8mb" }), (req, res) => {
   if (quelle !== "mikro") return void res.status(409).json({ fehler: "Im Mock-Modus kommt das Transkript aus dem Skript, nicht vom Mikrofon." });
+  if (!store.istOffen) return void res.status(409).json({ fehler: "Es ist kein Meeting geöffnet." });
   // Kurz nach dem Ausschalten darf der letzte, angebrochene Schnipsel noch ankommen.
   if (!aufnahme && Date.now() - pausiertUm > 20_000) return void res.status(409).json({ fehler: "Der Assistent ist ausgeschaltet." });
   const audio = req.body as Buffer;
@@ -176,6 +177,7 @@ app.get("/api/regie/diagnose", (_req, res) => {
  * Langer Text wird an Satzgrenzen in Abschnitte von rund 900 Zeichen geteilt – so groß wie eine Minute Gespräch.
  */
 app.post("/api/regie/text", (req, res) => {
+  if (!store.istOffen) return void res.status(409).json({ fehler: "Bitte erst im Transkriptions-Assistenten ein Meeting auswählen." });
   const text = String(req.body?.text ?? "").replace(/\s+/g, " ").trim();
   if (!text) return void res.status(400).json({ fehler: "Bitte Text eingeben." });
   const abschnitte: string[] = [];
@@ -197,6 +199,7 @@ app.get("/api/transcript", (_req, res) => {
 
 /** Stellt eine Frage an die Spezial-Agenten und legt Frage und Antworten im Chat ab. */
 async function frageStellen(holeFrage: () => Promise<string | null>, an: Adressat, res: Response): Promise<void> {
+  if (!store.istOffen) return void res.status(409).json({ fehler: "Bitte erst im Transkriptions-Assistenten ein Meeting auswählen." });
   if (an !== "alle" && !admin.agent(an)) return void res.status(400).json({ fehler: "Unbekannter Adressat." });
   if (chatStatus !== "bereit") return void res.status(409).json({ fehler: "Die Spezial-Agenten denken noch nach." });
 
@@ -316,6 +319,7 @@ app.post("/api/todos/ablegen", (req, res) => {
 });
 
 app.post("/api/regie/start", (_req, res) => {
+  if (!store.istOffen) return void res.status(409).json({ fehler: "Bitte erst ein Meeting auswählen." });
   starten();
   res.json({ ok: true });
 });
@@ -407,7 +411,7 @@ const holeTag = (id: string, res: Response) => {
 };
 
 app.get("/api/tage", (_req, res) => {
-  res.json(store.liste().map((t) => archiv.kurzinfo(t, store.daten.id)));
+  res.json(store.liste().map((t) => archiv.kurzinfo(t, store.istOffen ? store.daten.id : "")));
 });
 
 app.post("/api/tage", (req, res) => {
@@ -427,16 +431,31 @@ app.put("/api/tage/:id", (req, res) => {
 
 /** Macht einen Tag zum aktiven: Ab jetzt laufen Transkript, To-dos und Chat dort. */
 app.post("/api/tage/:id/aktivieren", (req, res) => {
-  if (aufnahme) return void res.status(409).json({ fehler: "Bitte erst den Assistenten ausschalten, dann das Meeting wechseln." });
+  if (aufnahme) return void res.status(409).json({ fehler: "Bitte erst pausieren, dann das Meeting wechseln." });
   if (!store.wechsle(req.params.id)) return void res.status(404).json({ fehler: "Meeting nicht gefunden." });
   hinweis = null;
   senden();
   res.json({ ok: true });
 });
 
+/**
+ * Meeting schließen: Aufnahme beenden, ausstehende Abschnitte fertig verarbeiten, als abgeschlossen markieren.
+ * Danach ist im Assistenten kein Meeting mehr geöffnet; alles liegt im Archiv.
+ */
+app.post("/api/meeting/schliessen", async (_req, res) => {
+  if (!store.istOffen) return void res.status(409).json({ fehler: "Es ist kein Meeting geöffnet." });
+  pausieren();
+  await warteschlange.catch(() => {}); // der letzte Abschnitt soll noch ins Protokoll
+  const tag = store.schliesse();
+  hinweis = null;
+  arbeit = null;
+  senden();
+  res.json({ ok: true, id: tag?.id });
+});
+
 app.get("/api/tage/:id", (req, res) => {
   const tag = holeTag(req.params.id, res);
-  if (tag) res.json({ ...tag, aktiv: tag.id === store.daten.id, zusammenfassung: archiv.zusammenfassung(tag.protokoll) });
+  if (tag) res.json({ ...tag, aktiv: store.istOffen && tag.id === store.daten.id, zusammenfassung: archiv.zusammenfassung(tag.protokoll) });
 });
 
 /** Downloads als Markdown: ?art=alles|transkript|todos|entscheidungen|fragen */
@@ -459,7 +478,7 @@ app.get("/api/tage/:id/broki", (req, res) => {
 });
 
 app.delete("/api/tage/:id", (req, res) => {
-  if (aufnahme && req.params.id === store.daten.id) return void res.status(409).json({ fehler: "Bitte erst den Assistenten ausschalten." });
+  if (aufnahme && req.params.id === store.daten.id) return void res.status(409).json({ fehler: "Bitte erst pausieren." });
   if (!store.loesche(req.params.id)) return void res.status(404).json({ fehler: "Meeting nicht gefunden." });
   senden();
   res.json({ ok: true });
@@ -468,6 +487,6 @@ app.delete("/api/tage/:id", (req, res) => {
 app.use(express.static(config.pfade.public, { extensions: ["html"] }));
 
 app.listen(config.port, config.host, () => {
-  console.log(`Siri (Broki-Live) läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"}, Quelle: ${quelle})`);
-  console.log("  /  Auswahl   ·   /screen1  Transkriptions-Assistent   ·   /screen2  Spezial-Agenten   ·   /regie   ·   /archiv   ·   /admin");
+  console.log(`Brodos Meeting Assistent läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"}, Quelle: ${quelle})`);
+  console.log("  /  Eröffnung   ·   /start  Auswahl   ·   /screen1  Transkriptions-Assistent   ·   /screen2  Spezial-Agenten   ·   /regie   ·   /archiv   ·   /admin");
 });

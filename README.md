@@ -1,4 +1,4 @@
-# Siri – Broki's Meeting Assistent (MVP)
+# Brodos Meeting Assistent (MVP)
 
 Transkriptions-Assistent und Spezial-Agenten für den Sales Agentic Workshop am 26.11.2026.
 Der interne Projektkontext (`CLAUDE.md`) liegt bewusst nicht im Repository.
@@ -26,8 +26,9 @@ Dann im Browser `http://localhost:3000` öffnen:
 
 | Ansicht | Zweck |
 |---|---|
-| `/` | Auswahl: Transkriptions-Assistent oder Spezial-Agenten |
-| `/screen1` | Transkriptions-Assistent: An/Aus, Agenda, To-dos, Entscheidungen, offene Fragen |
+| `/` | Eröffnungsbildschirm mit „Eintreten" (noch ohne Login) |
+| `/start` | Auswahl: Transkriptions-Assistent oder Spezial-Agenten, dazu Archiv, Admin, Regie |
+| `/screen1` | Transkriptions-Assistent: Meeting auswählen, Aufnahme starten/pausieren, Meeting schließen; Agenda, To-dos, Vorschläge, Entscheidungen, offene Fragen |
 | `/screen2` | Spezial-Agenten: Agent wählen, Chat mit Texteingabe und Push-to-Talk (Leertaste halten) |
 | `/archiv` | Alle Meetings: To-do-Liste, Entscheidungen, Fragen und Antworten, Transkript – je mit Download (Markdown, To-dos auch als CSV) |
 | `/admin` | Meetings und Spezial-Agenten zum Aufklappen und Neuanlegen; unter „Erweitert" Prompts und Obergrenze für To-dos |
@@ -64,6 +65,7 @@ public/                     Die drei Ansichten (HTML/CSS/JS ohne Build-Schritt)
 | `GET/POST /api/tage`, `GET/PUT/DELETE /api/tage/:id`, `POST /api/tage/:id/aktivieren` | Meetings anlegen, ändern, auswählen, löschen (Name, Datum, Agenda, Hintergrundwissen, Fachbegriffe) |
 | `POST /api/agenten`, `PUT/DELETE /api/agenten/:id` | Spezial-Agenten anlegen, ändern, löschen (Name, Prompt, Wissen, Figur, Farbe) |
 | `GET /api/tage/:id/markdown?art=alles\|transkript\|todos\|entscheidungen\|fragen`, `GET /api/tage/:id/todos.csv`, `GET /api/tage/:id/broki` | Downloads bzw. Text zum Einfügen in Broki |
+| `POST /api/meeting/schliessen` | Geöffnetes Meeting abschließen: liegt danach im Archiv, der Assistent ist leer |
 | `POST /api/agenda/:id/aktiv` | Agendapunkt von Hand auswählen |
 | `PATCH/DELETE /api/todos/:id` | To-do bearbeiten, abhaken, löschen |
 | `GET/PUT /api/admin/einstellungen`, `GET /api/admin/vorschau` | Admin: Einstellungen lesen/speichern, fertigen Prompt ansehen |

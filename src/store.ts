@@ -15,6 +15,9 @@ export interface Tag {
   /** JJJJ-MM-TT */
   datum: string;
   erstellt: number;
+  /** Abgeschlossene Meetings liegen im Archiv und werden im Assistenten nicht mehr zur Auswahl angeboten. */
+  abgeschlossen?: boolean;
+  geschlossenAm?: number;
   /** Hintergrundwissen zu diesem Meeting (Kontext für die Spezial-Agenten) */
   briefing: string;
   /** Fachbegriffe und Namen, die die Transkription richtig schreiben soll (mit Komma getrennt) */
@@ -128,30 +131,43 @@ function migriere(): void {
 }
 
 class Store {
-  /** Der aktive Tag: hier laufen Aufnahme, Protokoll und Chat. */
-  daten: Tag;
+  /** ID des geöffneten Meetings – oder null, wenn gerade keines geöffnet ist. */
+  #aktiv: Tag | null = null;
+  /** Platzhalter, solange kein Meeting geöffnet ist: leer und wird nie gespeichert. */
+  #leer: Tag = { ...neuerTag({ name: "", datum: heute(), agenda: [] }), id: "" };
 
   constructor() {
     migriere();
-    let aktivId = "";
+    let gemerkt: string | null | undefined;
     try {
-      aktivId = JSON.parse(fs.readFileSync(aktivDatei, "utf8")).id;
+      gemerkt = JSON.parse(fs.readFileSync(aktivDatei, "utf8")).id;
     } catch {
-      // noch kein aktiver Tag gemerkt
+      // erster Start: noch nichts gemerkt
     }
-    this.daten = lies(aktivId) ?? this.liste()[0] ?? this.erstelle({ name: "Workshop", datum: heute(), agenda: standardAgenda() });
-    this.#merkeAktiv();
+    if (this.liste().length === 0) this.erstelle({ name: "Workshop", datum: heute(), agenda: standardAgenda() });
+    this.#aktiv = gemerkt ? lies(gemerkt) : null;
+    if (this.#aktiv?.abgeschlossen) this.#aktiv = null;
+  }
+
+  /** Das geöffnete Meeting. Ist keines geöffnet, ein leerer Platzhalter (siehe istOffen). */
+  get daten(): Tag {
+    return this.#aktiv ?? this.#leer;
+  }
+
+  get istOffen(): boolean {
+    return this.#aktiv !== null;
   }
 
   #merkeAktiv(): void {
-    fs.writeFileSync(aktivDatei, JSON.stringify({ id: this.daten.id }));
+    fs.mkdirSync(basis, { recursive: true });
+    fs.writeFileSync(aktivDatei, JSON.stringify({ id: this.#aktiv?.id ?? null }));
   }
 
   speichern(): void {
-    schreibe(this.daten);
+    if (this.#aktiv) schreibe(this.#aktiv);
   }
 
-  /** Alle Tage, neuester zuerst. Der aktive kommt aus dem Arbeitsspeicher. */
+  /** Alle Meetings, neuestes zuerst. Das geöffnete kommt aus dem Arbeitsspeicher. */
   liste(): Tag[] {
     if (!fs.existsSync(ordner)) return [];
     return fs
@@ -163,7 +179,7 @@ class Store {
   }
 
   hole(id: string): Tag | null {
-    return this.daten?.id === id ? this.daten : lies(id);
+    return this.#aktiv?.id === id ? this.#aktiv : lies(id);
   }
 
   erstelle(eingabe: TagEingabe): Tag {
@@ -184,30 +200,47 @@ class Store {
     return tag;
   }
 
+  /** Öffnet ein Meeting im Assistenten. Ein abgeschlossenes wird dabei wieder geöffnet. */
   wechsle(id: string): boolean {
     const tag = lies(id);
     if (!tag) return false;
     this.speichern();
-    this.daten = tag;
+    delete tag.abgeschlossen;
+    delete tag.geschlossenAm;
+    this.#aktiv = tag;
+    this.speichern();
     this.#merkeAktiv();
     return true;
   }
 
-  /** Löscht einen Tag samt Transkript, Protokoll und Chat. Es bleibt immer mindestens ein Tag bestehen. */
+  /** Schließt das geöffnete Meeting ab: Es liegt danach im Archiv, der Assistent ist leer. */
+  schliesse(): Tag | null {
+    const tag = this.#aktiv;
+    if (!tag) return null;
+    tag.abgeschlossen = true;
+    tag.geschlossenAm = Date.now();
+    schreibe(tag);
+    this.#aktiv = null;
+    this.#merkeAktiv();
+    return tag;
+  }
+
+  /** Löscht ein Meeting samt Transkript, Protokoll und Chat. */
   loesche(id: string): boolean {
     if (!gueltigeId(id) || !fs.existsSync(datei(id))) return false;
     fs.rmSync(datei(id));
-    if (this.daten.id === id) {
-      this.daten = this.liste()[0] ?? this.erstelle({ name: "Workshop", datum: heute(), agenda: standardAgenda() });
+    if (this.#aktiv?.id === id) {
+      this.#aktiv = null;
       this.#merkeAktiv();
     }
     return true;
   }
 
-  /** Leert die Inhalte des aktiven Tages (Datenschutz-Anforderung). Name, Datum und Agenda bleiben. */
+  /** Leert die Inhalte des geöffneten Meetings (Datenschutz-Anforderung). Name, Datum und Agenda bleiben. */
   leeren(): void {
-    const t = this.daten;
-    this.daten = { ...t, protokoll: leeresProtokoll(t.protokoll.agenda.map((a) => a.titel)), chat: [], transkript: [], letzterZyklus: null, mockCursor: 0, mockFragenCursor: 0 };
+    const t = this.#aktiv;
+    if (!t) return;
+    this.#aktiv = { ...t, protokoll: leeresProtokoll(t.protokoll.agenda.map((a) => a.titel)), chat: [], transkript: [], letzterZyklus: null, mockCursor: 0, mockFragenCursor: 0 };
     this.speichern();
   }
 }

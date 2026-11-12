@@ -98,6 +98,8 @@ export function kurzinfo(tag: Tag, aktivId: string) {
     name: tag.name,
     datum: tag.datum,
     aktiv: tag.id === aktivId,
+    abgeschlossen: tag.abgeschlossen === true,
+    geschlossenAm: tag.geschlossenAm ?? null,
     agenda: tag.protokoll.agenda.map((a) => a.titel),
     briefing: tag.briefing,
     begriffe: tag.begriffe,
