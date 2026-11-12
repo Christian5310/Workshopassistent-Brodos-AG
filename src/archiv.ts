@@ -28,7 +28,7 @@ export function zusammenfassung(p: Protokoll): string {
     "## Agenda",
     liste(p.agenda.map((a) => `- [${a.status === "erledigt" ? "x" : " "}] ${a.titel}${a.status === "läuft" ? " (läuft)" : ""}`)),
     "\n## To-dos",
-    liste(p.todos.map((t) => `- [${t.status === "erledigt" ? "x" : " "}] ${t.text} · Wer: ${t.owner} · Bis: ${t.frist}`)),
+    liste(p.todos.map((t) => `- [${t.status === "erledigt" ? "x" : " "}] ${t.text} · Wer: ${t.owner} · Bis: ${t.frist}${t.gruppe ? ` · Kategorie: ${t.gruppe}` : ""}`)),
     ...(p.vorschlaege.length ? ["\n## Vorschläge (nicht bestätigt)", liste(p.vorschlaege.map((v) => `- ${v.text}`))] : []),
     "\n## Entscheidungen",
     liste(p.entscheidungen.map((e) => `- ${e.text}`)),

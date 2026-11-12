@@ -47,9 +47,12 @@ schalter.addEventListener("click", async () => {
   mikrofehler.textContent = "";
   try {
     if (an) {
+      const wahl = await frageAblage();
+      if (wahl === "abbrechen") return;
       merke(false);
       await aufnahme.stopp(); // letzter, angebrochener Schnipsel geht noch raus
       await sende("/api/regie/pause");
+      if (wahl === "ablegen") await sende("/api/todos/ablegen", { name: ablageName.value });
     } else {
       if (quelle === "mikro") await aufnahme.mikrofonOeffnen(); // erst fragen, dann einschalten
       merke(true);
@@ -60,7 +63,84 @@ schalter.addEventListener("click", async () => {
   }
 });
 
+// ── Beim Ausschalten: To-dos der aktuellen Liste unter einer Kategorie ablegen ──
+const ablage = document.querySelector("#ablage");
+const ablageName = document.querySelector("#ablage-name");
+let stand = null;
+
+function frageAblage() {
+  const aktuell = stand.todos.filter((t) => !t.gruppe);
+  if (!aktuell.length) return Promise.resolve("nur-aus");
+  const punkt = stand.agenda.find((a) => a.status === "läuft") ?? stand.agenda.findLast((a) => a.status === "erledigt");
+  const kategorien = new Set(stand.todos.map((t) => t.gruppe).filter(Boolean));
+  ablageName.value = punkt && !kategorien.has(punkt.titel) ? punkt.titel : `Block ${kategorien.size + 1}`;
+  document.querySelector("#ablage-text").textContent =
+    `Die aktuelle Liste hat ${aktuell.length} To-do${aktuell.length === 1 ? "" : "s"}. Du kannst sie unter einer Kategorie ablegen, dann startet die Liste nach der Pause leer. Abgelegte To-dos bleiben aufklappbar und im Protokoll.`;
+  ablage.returnValue = "abbrechen";
+  ablage.showModal();
+  ablageName.select();
+  return new Promise((fertig) => ablage.addEventListener("close", () => fertig(ablage.returnValue === "ablegen" && !ablageName.value.trim() ? "nur-aus" : ablage.returnValue), { once: true }));
+}
+
+// ── Kleines Transkript-Fenster unter der Agenda (ein-/ausblendbar) ──
+const tKnopf = document.querySelector("#transkript-knopf");
+const tKarte = document.querySelector("#transkript-karte");
+let tOffen = false;
+let tStand = null;
+try { tOffen = localStorage.getItem("broki-live-transkript") === "1"; } catch {}
+
+async function zeigeTranskript(erzwingen = false) {
+  tKarte.hidden = !tOffen;
+  tKnopf.classList.toggle("aktiv", tOffen);
+  tKnopf.setAttribute("aria-pressed", String(tOffen));
+  if (!tOffen || (!erzwingen && tStand === letzterZyklus)) return;
+  tStand = letzterZyklus;
+  const abschnitte = (await (await fetch("/api/transcript")).json()).slice(-6);
+  const ziel = document.querySelector("#transkript");
+  ziel.replaceChildren(...(abschnitte.length ? abschnitte.map((a, i) => el("p", i === abschnitte.length - 1 ? "neuester" : "", a.text)) : [el("p", "leer", "Noch kein Transkript.")]));
+  ziel.scrollTop = ziel.scrollHeight;
+}
+let letzterZyklus = null;
+tKnopf.addEventListener("click", () => {
+  tOffen = !tOffen;
+  try { localStorage.setItem("broki-live-transkript", tOffen ? "1" : "0"); } catch {}
+  zeigeTranskript(true);
+});
+
+// ── Abgelegte Kategorien: eingeklappt über der aktuellen Liste ──
+const offeneGruppen = new Set();
+function zeigeGruppen(todos) {
+  const ziel = document.querySelector("#gruppen");
+  const namen = [...new Set(todos.map((t) => t.gruppe).filter(Boolean))];
+  ziel.replaceChildren(
+    ...namen.map((name) => {
+      const eintraege = todos.filter((t) => t.gruppe === name);
+      const offen = eintraege.filter((t) => t.status === "offen").length;
+      const d = el("details", "gruppe");
+      d.open = offeneGruppen.has(name);
+      d.addEventListener("toggle", () => (d.open ? offeneGruppen.add(name) : offeneGruppen.delete(name)));
+      const kopf = el("summary");
+      kopf.append(el("b", "", name), el("span", "", `${eintraege.length} To-do${eintraege.length === 1 ? "" : "s"} · ${offen} offen`));
+      const liste = el("ul", "liste");
+      for (const t of eintraege) {
+        const li = el("li", t.status);
+        li.append(el("span", "box"), el("span", "text", `${t.text} · ${t.owner} · ${t.frist}`));
+        liste.append(li);
+      }
+      const zurueck = el("button", "zweit klein", "Zurück in die aktuelle Liste");
+      zurueck.addEventListener("click", () => sende("/api/todos/ablegen", { name, zurueck: true }).catch(console.warn));
+      d.append(kopf, liste, zurueck);
+      return d;
+    }),
+  );
+}
+
 function zeige({ protokoll, status }) {
+  stand = protokoll;
+  letzterZyklus = status.letzterZyklus;
+  zeigeTranskript();
+  zeigeGruppen(protokoll.todos);
+  const aktuelleTodos = protokoll.todos.filter((t) => !t.gruppe);
   zeigeStatus(status);
   an = status.aufnahme;
   schalter.textContent = an ? "Assistent ist an" : "Assistent ist aus";
@@ -80,7 +160,7 @@ function zeige({ protokoll, status }) {
 
   fuelle(
     "#todos",
-    protokoll.todos.map((t) => {
+    aktuelleTodos.map((t) => {
       const inhalt = el("div", "text", t.text);
       const meta = el("span", "meta");
       meta.append("Wer: ", el("b", "", t.owner), "  ·  Bis: ", el("b", "", t.frist));
@@ -88,10 +168,10 @@ function zeige({ protokoll, status }) {
       rahmen.append(inhalt, meta);
       return zeile(t.id, t.status, rahmen);
     }),
-    "Noch keine To-dos.",
+    protokoll.todos.length ? "Aktuelle Liste ist leer." : "Noch keine To-dos.",
   );
-  const offen = protokoll.todos.filter((t) => t.status === "offen").length;
-  document.querySelector("#todo-zahl").textContent = protokoll.todos.length ? `${offen} offen` : "";
+  const offen = aktuelleTodos.filter((t) => t.status === "offen").length;
+  document.querySelector("#todo-zahl").textContent = aktuelleTodos.length ? `${offen} offen` : "";
 
   // Vorschläge: unsichere To-dos, die ein Mensch übernimmt oder verwirft
   document.querySelector("#vorschlag-karte").hidden = !protokoll.vorschlaege.length;

@@ -202,11 +202,26 @@ app.post("/api/vorschlag/:id/:aktion", (req, res) => {
   p.vorschlaege = p.vorschlaege.filter((v) => v !== vorschlag);
   if (aktion === "annehmen") {
     const nummer = Math.max(0, ...p.todos.map((t) => Number(t.id.slice(1)) || 0)) + 1;
-    p.todos.push({ ...vorschlag, id: `T${nummer}`, status: "offen" });
+    p.todos.push({ ...vorschlag, id: `T${nummer}`, status: "offen", gruppe: "" });
   }
   store.speichern();
   senden();
   res.json({ ok: true });
+});
+
+/**
+ * To-dos der aktuellen Liste unter einer Kategorie ablegen (z. B. vor einer Pause), damit die Liste kurz bleibt.
+ * Body: { name: string }. Mit { name, zurueck: true } kommt eine Kategorie wieder in die aktuelle Liste.
+ */
+app.post("/api/todos/ablegen", (req, res) => {
+  const name = String(req.body?.name ?? "").trim().slice(0, 60);
+  if (!name) return void res.status(400).json({ fehler: "Bitte einen Namen für die Kategorie angeben." });
+  const [von, nach] = req.body?.zurueck ? [name, ""] : ["", name];
+  const betroffen = store.daten.protokoll.todos.filter((t) => t.gruppe === von);
+  for (const t of betroffen) t.gruppe = nach;
+  store.speichern();
+  senden();
+  res.json({ ok: true, anzahl: betroffen.length });
 });
 
 app.post("/api/regie/start", (_req, res) => {

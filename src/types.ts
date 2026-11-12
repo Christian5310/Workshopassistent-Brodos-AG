@@ -13,6 +13,8 @@ export const ProtokollSchema = z.object({
       frist: z.string(),
       status: z.enum(["offen", "erledigt"]),
       agendapunkt: z.string(),
+      /** Kategorie, unter der das To-do abgelegt wurde (z. B. "Vormittag"). Leer = aktuelle Liste. */
+      gruppe: z.string().default(""),
     }),
   ),
   /** Unsichere To-dos: erst nach Bestätigung durch einen Menschen werden sie zu echten To-dos. */

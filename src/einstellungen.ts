@@ -188,7 +188,7 @@ export function absichern(alt: Protokoll, neu: Protokoll): Protokoll {
   // Vorschläge: bestehende bleiben, neue kommen dazu – ebenso To-dos, die über der Obergrenze liegen.
   const kandidaten = [
     ...neu.vorschlaege.filter((y) => !alt.vorschlaege.some((x) => x.id === y.id)),
-    ...neueTodos.slice(einstellungen.maxTodosProZyklus).map(({ status: _status, ...rest }) => rest),
+    ...neueTodos.slice(einstellungen.maxTodosProZyklus).map(({ status: _status, gruppe: _gruppe, ...rest }) => rest),
   ];
   const vorschlaege = [...alt.vorschlaege];
   for (const k of kandidaten) {
@@ -198,7 +198,9 @@ export function absichern(alt: Protokoll, neu: Protokoll): Protokoll {
   return {
     vorschlaege,
     agenda: alt.agenda.map((x) => ({ ...x, status: neu.agenda.find((y) => y.id === x.id)?.status ?? x.status })),
-    todos: fuehreZusammen(alt.todos, neu.todos, (x, y) => ({ ...x, status: y.status }), einstellungen.maxTodosProZyklus),
+    todos: fuehreZusammen(alt.todos, neu.todos, (x, y) => ({ ...x, status: y.status }), einstellungen.maxTodosProZyklus).map((t) =>
+      alt.todos.some((x) => x.id === t.id) ? t : { ...t, gruppe: "" },
+    ), // neue To-dos landen immer in der aktuellen Liste
     entscheidungen: fuehreZusammen(alt.entscheidungen, neu.entscheidungen, (x) => x),
     offene_fragen: fuehreZusammen(alt.offene_fragen, neu.offene_fragen, (x, y) => ({ ...x, status: y.status })),
     notizen: [...alt.notizen, ...neu.notizen.slice(alt.notizen.length)],

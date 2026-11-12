@@ -43,6 +43,7 @@ export class MockSprachmodell implements Sprachmodell {
             frist: op.frist ?? "offen",
             status: "offen",
             agendapunkt: aktuell(),
+            gruppe: "",
           });
           break;
         case "vorschlag":

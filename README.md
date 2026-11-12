@@ -63,6 +63,7 @@ public/                     Die drei Ansichten (HTML/CSS/JS ohne Build-Schritt)
 | `POST /api/chat` | `{ text, an }` oder `{ sprache: true, an }`; `an` = `alle`, `sales`, `bpm`, `consultant` |
 | `GET/POST/DELETE /api/archiv`, `GET/DELETE /api/archiv/:id`, `GET /api/archiv/:id/markdown` | Archiv: speichern, lesen, herunterladen, löschen |
 | `GET/PUT /api/admin/einstellungen`, `GET /api/admin/vorschau` | Admin: Einstellungen lesen/speichern, fertigen Prompt ansehen |
+| `POST /api/todos/ablegen` | `{ name }`: aktuelle To-dos unter einer Kategorie ablegen; `{ name, zurueck: true }` holt sie zurück |
 | `POST /api/vorschlag/:id/annehmen` · `verwerfen` | Unsicheres To-do übernehmen oder verwerfen |
 | `GET /api/archiv/:id/broki` | Zusammenfassungs-Prompt + Protokoll + Transkript zum Einfügen in Broki |
 | `POST /api/regie/start` · `pause` · `reset` | Aufnahme steuern, alle Daten löschen |
