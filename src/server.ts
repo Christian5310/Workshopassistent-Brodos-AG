@@ -89,7 +89,7 @@ function pausieren(neuerHinweis: string | null = null): void {
 
 // ── HTTP ─────────────────────────────────────────────────────────────────────
 const app = express();
-app.use(express.json({ limit: "500kb" }));
+app.use(express.json({ limit: "2mb" }));
 
 app.get("/api/state", (_req, res) => {
   res.json(schnappschuss());
@@ -195,7 +195,8 @@ app.put("/api/admin/einstellungen", (req, res) => {
 
 /** Zeigt den Prompt der Spezial-Agenten mit eingesetzten Platzhaltern – so bekommt ihn das Sprachmodell. */
 app.get("/api/admin/vorschau", (_req, res) => {
-  res.json({ promptAgenten: admin.promptAgentenFertig(store.daten.protokoll) });
+  const fertig = admin.promptAgentenFertig(store.daten.protokoll);
+  res.json({ promptAgenten: fertig, zeichen: fertig.length });
 });
 
 // ── Archiv: Transkripte, Zusammenfassungen sowie Fragen und Antworten dauerhaft ablegen ──
@@ -242,6 +243,6 @@ app.delete("/api/archiv", (_req, res) => {
 app.use(express.static(config.pfade.public, { extensions: ["html"] }));
 
 app.listen(config.port, config.host, () => {
-  console.log(`Workshop Agent läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"})`);
+  console.log(`Broki-Live läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"})`);
   console.log("  /  Auswahl   ·   /screen1  Transkriptions-Assistent   ·   /screen2  Spezial-Agenten   ·   /regie   ·   /archiv   ·   /admin");
 });

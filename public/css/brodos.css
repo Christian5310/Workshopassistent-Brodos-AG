@@ -312,3 +312,5 @@ details pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.75rem
 .vorschlag { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .vorschlag .text { flex: 1 1 12rem; }
 .vorschlag button { font-size: 0.7rem; padding: 0.4rem 0.7rem; }
+.wissenleiste { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.85rem; }
+.wissenleiste .zaehler { flex: 1; color: var(--ink-muted); font-size: 0.8rem; }

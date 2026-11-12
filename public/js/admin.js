@@ -30,9 +30,47 @@ function fuelle(e) {
     text.rows = 5;
     text.value = e.agenten[rolle].beschreibung;
     text.setAttribute("aria-label", "Rollenbeschreibung");
+    text.rows = 4;
     const kopf = el("div", "agentkopf");
     kopf.append(figur(rolle), name);
-    karte.append(kopf, text);
+
+    // Wissensdatei: Text einfügen oder .md/.txt-Datei laden (bleibt im Browser, bis gespeichert wird)
+    const wissen = el("textarea", "mono");
+    wissen.id = `wissen-${rolle}`;
+    wissen.rows = 6;
+    wissen.maxLength = 300000;
+    wissen.placeholder = "Noch keine Wissensdatei. Text einfügen oder Datei laden.";
+    wissen.value = e.agenten[rolle].wissen;
+    wissen.setAttribute("aria-label", "Wissensdatei");
+    const zaehler = el("span", "zaehler");
+    const zaehle = () => (zaehler.textContent = wissen.value.length ? `${wissen.value.length.toLocaleString("de-DE")} Zeichen` : "leer");
+    wissen.addEventListener("input", zaehle);
+    zaehle();
+    const datei = el("input");
+    datei.type = "file";
+    datei.accept = ".md,.txt,text/markdown,text/plain";
+    datei.multiple = true;
+    datei.hidden = true;
+    datei.addEventListener("change", async () => {
+      const texte = await Promise.all([...datei.files].map((f) => f.text()));
+      const neu = [wissen.value.trim(), ...texte.map((t) => t.trim())].filter(Boolean).join("\n\n");
+      if (neu.length > 300000) return void melde("Die Wissensdatei ist zu groß (maximal 300.000 Zeichen pro Agent).");
+      wissen.value = neu;
+      datei.value = "";
+      wissen.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const laden = el("button", "zweit klein", "Datei laden (.md)");
+    laden.type = "button";
+    laden.addEventListener("click", () => datei.click());
+    const leeren = el("button", "zweit klein", "Leeren");
+    leeren.type = "button";
+    leeren.addEventListener("click", () => {
+      wissen.value = "";
+      wissen.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const leiste = el("div", "wissenleiste");
+    leiste.append(el("b", "", "Wissen"), zaehler, laden, leeren, datei);
+    karte.append(kopf, text, leiste, wissen);
     ziel.append(karte);
   }
 }
@@ -46,14 +84,15 @@ function lies() {
     promptZusammenfassung: $("#promptZusammenfassung").value,
     maxTodosProZyklus: Number($("#maxTodos").value),
     agenten: Object.fromEntries(
-      ROLLEN.map((r) => [r, { name: $(`#name-${r}`).value, beschreibung: $(`#beschreibung-${r}`).value }]),
+      ROLLEN.map((r) => [r, { name: $(`#name-${r}`).value, beschreibung: $(`#beschreibung-${r}`).value, wissen: $(`#wissen-${r}`).value }]),
     ),
   };
 }
 
 async function ladeVorschau() {
-  const { promptAgenten } = await (await fetch("/api/admin/vorschau")).json();
+  const { promptAgenten, zeichen } = await (await fetch("/api/admin/vorschau")).json();
   $("#vorschau pre").textContent = promptAgenten;
+  $("#vorschau summary").textContent = `Vorschau: so bekommt ihn das Sprachmodell bei „Frage an alle" (${zeichen.toLocaleString("de-DE")} Zeichen, letzter gespeicherter Stand)`;
 }
 
 async function lade() {

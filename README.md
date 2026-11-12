@@ -1,4 +1,4 @@
-# Workshop Agent (MVP)
+# Broki-Live (MVP)
 
 Transkriptions-Assistent und Spezial-Agenten für den Sales Agentic Workshop am 26.11.2026.
 Der interne Projektkontext (`CLAUDE.md`) liegt bewusst nicht im Repository.
@@ -20,7 +20,7 @@ Dann im Browser `http://localhost:3000` öffnen:
 | `/screen1` | Transkriptions-Assistent: An/Aus, Agenda, To-dos, Entscheidungen, offene Fragen |
 | `/screen2` | Spezial-Agenten: Agent wählen, Chat mit Texteingabe und Push-to-Talk (Leertaste halten) |
 | `/archiv` | Aktuelle Sitzung speichern; gespeicherte Transkripte, Zusammenfassungen, Fragen und Antworten ansehen, herunterladen, löschen |
-| `/admin` | Einstellungen: Agenda, Hintergrundwissen, Prompts, Namen und Rollen der Spezial-Agenten, Obergrenze für To-dos |
+| `/admin` | Einstellungen: Agenda, Hintergrundwissen, Prompts, Namen, Rollen und Wissensdateien der Spezial-Agenten, Obergrenze für To-dos |
 | `/regie` | Start/Pause, Fragen tippen, Transkript einsehen, Daten löschen |
 
 Den Transkriptions-Assistenten einschalten (Knopf oben in der Ansicht): Alle 8 s (`MOCK_CHUNK_SECONDS`) kommt ein Abschnitt aus dem Fake-Transkript, der Fake-Chronist aktualisiert Screen 1.
