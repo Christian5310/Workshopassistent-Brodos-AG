@@ -487,6 +487,6 @@ app.delete("/api/tage/:id", (req, res) => {
 app.use(express.static(config.pfade.public, { extensions: ["html"] }));
 
 app.listen(config.port, config.host, () => {
-  console.log(`Brodos Meeting Assistent läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"}, Quelle: ${quelle})`);
+  console.log(`Merlin läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"}, Quelle: ${quelle})`);
   console.log("  /  Eröffnung   ·   /start  Auswahl   ·   /screen1  Transkriptions-Assistent   ·   /screen2  Spezial-Agenten   ·   /regie   ·   /archiv   ·   /admin");
 });

@@ -1,4 +1,4 @@
-# Brodos Meeting Assistent (MVP)
+# Merlin – powered by BroKI (MVP)
 
 Transkriptions-Assistent und Spezial-Agenten für den Sales Agentic Workshop am 26.11.2026.
 Der interne Projektkontext (`CLAUDE.md`) liegt bewusst nicht im Repository.
