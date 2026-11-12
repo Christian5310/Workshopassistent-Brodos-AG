@@ -15,6 +15,8 @@ const AgentSchema = z.object({
 export const EinstellungenSchema = z.object({
   agenda: z.array(z.string().trim().min(1).max(120)).max(30),
   briefing: z.string().max(50_000),
+  /** Fachbegriffe und Namen, die die Transkription richtig schreiben soll (Komma oder Zeilenumbruch) */
+  begriffe: z.string().max(4000),
   promptAssistent: z.string().trim().min(1).max(20_000),
   promptAgenten: z.string().trim().min(1).max(20_000),
   promptZusammenfassung: z.string().trim().min(1).max(20_000),
@@ -31,6 +33,7 @@ export function standard(): Einstellungen {
   return {
     agenda: agenda.map((a) => a.titel),
     briefing: "",
+    begriffe: "Brodos, Broki, Darling, Dynamics, DaaS+",
     promptAssistent: `Du bist "Darling", der Transkriptions-Assistent im Brodos Sales Agentic Workshop. Du hörst über
 Transkript-Abschnitte mit und führst das Protokoll.
 

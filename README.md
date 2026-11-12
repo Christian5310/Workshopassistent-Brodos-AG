@@ -3,9 +3,17 @@
 Transkriptions-Assistent und Spezial-Agenten für den Sales Agentic Workshop am 26.11.2026.
 Der interne Projektkontext (`CLAUDE.md`) liegt bewusst nicht im Repository.
 
-**Stand:** Gerüst, Mock-Modus und Audioaufnahme im Browser. Transkription (Mistral Voxtral) und Sprachmodell sind noch nicht angebunden.
+**Stand:** Läuft im Mock-Modus ohne Keys und im Live-Modus mit Mistral Voxtral (Transkription) plus einem OpenAI-kompatiblen Sprachmodell (Mistral oder Broki/Open WebUI).
 
-Mikrofon und Upload ohne API-Key testen: `MOCK_MIKRO=true npm start`. Der Browser nimmt dann echte Schnipsel auf, das Protokoll kommt weiter aus dem Fake-Transkript.
+## Betriebsarten
+
+| Start | Verhalten |
+|---|---|
+| `npm start` | Mock: Fake-Transkript und Fake-Antworten, kein Mikrofon, keine Keys |
+| `MOCK_MIKRO=true npm start` | Mock-Anbieter, aber echte Aufnahme im Browser (testet Mikrofon und Upload) |
+| `MOCK_MODE=false` in `.env` | Live: Mikrofon → Voxtral → Sprachmodell. Braucht `MISTRAL_API_KEY`, siehe `.env.example` |
+
+Das Mikrofon funktioniert im Browser nur über `localhost` oder `https://`.
 
 ## Starten
 

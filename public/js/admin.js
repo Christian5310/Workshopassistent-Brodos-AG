@@ -10,6 +10,7 @@ const melde = (text) => ($("#meldung").textContent = text);
 function fuelle(e) {
   $("#agenda").value = e.agenda.join("\n");
   $("#briefing").value = e.briefing;
+  $("#begriffe").value = e.begriffe;
   $("#promptAssistent").value = e.promptAssistent;
   $("#promptAgenten").value = e.promptAgenten;
   $("#promptZusammenfassung").value = e.promptZusammenfassung;
@@ -79,6 +80,7 @@ function lies() {
   return {
     agenda: $("#agenda").value.split("\n").map((z) => z.trim()).filter(Boolean),
     briefing: $("#briefing").value,
+    begriffe: $("#begriffe").value,
     promptAssistent: $("#promptAssistent").value,
     promptAgenten: $("#promptAgenten").value,
     promptZusammenfassung: $("#promptZusammenfassung").value,

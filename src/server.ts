@@ -141,21 +141,15 @@ app.get("/api/transcript", (_req, res) => {
   res.json(store.daten.transkript);
 });
 
-/**
- * Frage an die Expertenrunde. Body: { text?: string, an?: "alle"|"sales"|"bpm"|"consultant", sprache?: boolean }
- * sprache=true steht für Push-to-Talk; im Mock liefert die Transkriptquelle dann eine Beispiel-Frage.
- */
-app.post("/api/chat", async (req, res) => {
-  const an: Adressat = req.body?.an ?? "alle";
+/** Stellt eine Frage an die Spezial-Agenten und legt Frage und Antworten im Chat ab. */
+async function frageStellen(holeFrage: () => Promise<string | null>, an: Adressat, res: Response): Promise<void> {
   if (an !== "alle" && !ROLLEN.includes(an)) return void res.status(400).json({ fehler: "Unbekannter Adressat." });
   if (chatStatus !== "bereit") return void res.status(409).json({ fehler: "Die Spezial-Agenten denken noch nach." });
 
   chatStatus = "denkt nach";
   senden();
   try {
-    const frage = req.body?.sprache
-      ? await anbieter.transkript.transkribiere(null, "chat")
-      : String(req.body?.text ?? "").trim();
+    const frage = (await holeFrage())?.trim();
     if (!frage) return void res.status(400).json({ fehler: "Keine Frage erkannt." });
 
     const verlauf = [...store.daten.chat];
@@ -168,12 +162,35 @@ app.post("/api/chat", async (req, res) => {
     store.speichern();
     res.json({ ok: true });
   } catch (fehler) {
-    console.warn("Expertenrunde: Aufruf fehlgeschlagen.", fehler);
+    console.warn("Spezial-Agenten: Aufruf fehlgeschlagen.", fehler);
     res.status(502).json({ fehler: "Die Spezial-Agenten sind gerade nicht erreichbar." });
   } finally {
     chatStatus = "bereit";
     senden();
   }
+}
+
+/**
+ * Getippte Frage. Body: { text: string, an?: "alle"|"sales"|"bpm"|"consultant" }
+ * Mit { sprache: true } liefert der Mock eine Beispiel-Frage (Push-to-Talk ohne echtes Mikrofon).
+ */
+app.post("/api/chat", (req, res) =>
+  frageStellen(
+    () => (req.body?.sprache ? anbieter.transkript.transkribiere(null, "chat") : Promise.resolve(String(req.body?.text ?? ""))),
+    req.body?.an ?? "alle",
+    res,
+  ),
+);
+
+/** Gesprochene Frage (Push-to-Talk): Audio im Body, Adressat als ?an=… Das Audio wird nach der Transkription verworfen. */
+app.post("/api/chat-audio", express.raw({ type: "audio/*", limit: "8mb" }), (req, res) => {
+  const audio = req.body as Buffer;
+  if (!Buffer.isBuffer(audio) || audio.length < 1000) return void res.status(400).json({ fehler: "Keine Aufnahme empfangen. Knopf länger halten." });
+  return frageStellen(
+    () => anbieter.transkript.transkribiere(audio, "chat", String(req.headers["content-type"] ?? "audio/webm")),
+    (req.query.an as Adressat) ?? "alle",
+    res,
+  );
 });
 
 /** Vorschlag bestätigen (wird zum To-do) oder verwerfen. */
