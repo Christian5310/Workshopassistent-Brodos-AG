@@ -16,7 +16,8 @@ async function ladeTranskript() {
   ziel.scrollTop = ziel.scrollHeight;
 }
 
-verbinde(({ status, chat }) => {
+verbinde(({ status, chat, tag }) => {
+  document.querySelector("#reset").textContent = `Inhalte von „${tag.name}" löschen`;
   zeigeStatus(status);
   $("#start").disabled = status.aufnahme || status.quelle === "mikro";
   $("#pause").disabled = !status.aufnahme;
@@ -37,7 +38,7 @@ const melde = (fehler) => ($("#chat-info").textContent = fehler.message);
 $("#start").addEventListener("click", () => sende("/api/regie/start").catch(melde));
 $("#pause").addEventListener("click", () => sende("/api/regie/pause").catch(melde));
 $("#reset").addEventListener("click", () => {
-  if (confirm("Transkript, Protokoll und Chat wirklich unwiderruflich löschen?")) sende("/api/regie/reset").catch(melde);
+  if (confirm("Transkript, Protokoll und Chat dieses Tages wirklich unwiderruflich löschen?")) sende("/api/regie/reset").catch(melde);
 });
 $("#formular").addEventListener("submit", (ereignis) => {
   ereignis.preventDefault();

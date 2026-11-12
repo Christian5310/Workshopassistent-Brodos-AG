@@ -8,7 +8,6 @@ let ungespeichert = false;
 const melde = (text) => ($("#meldung").textContent = text);
 
 function fuelle(e) {
-  $("#agenda").value = e.agenda.join("\n");
   $("#briefing").value = e.briefing;
   $("#begriffe").value = e.begriffe;
   $("#promptAssistent").value = e.promptAssistent;
@@ -78,7 +77,6 @@ function fuelle(e) {
 
 function lies() {
   return {
-    agenda: $("#agenda").value.split("\n").map((z) => z.trim()).filter(Boolean),
     briefing: $("#briefing").value,
     begriffe: $("#begriffe").value,
     promptAssistent: $("#promptAssistent").value,
@@ -102,12 +100,13 @@ async function lade() {
   standard = daten.standard;
   fuelle(daten.einstellungen);
   $("#hinweis").textContent = daten.mock
-    ? "Mock-Modus: Agenda, Namen und die To-do-Bremse wirken sofort. Prompts und Hintergrundwissen werden gespeichert, wirken aber erst, wenn ein echtes Sprachmodell angebunden ist."
+    ? "Mock-Modus: Tage, Agenda, Namen und die To-do-Bremse wirken sofort. Prompts und Hintergrundwissen werden gespeichert, wirken aber erst, wenn ein echtes Sprachmodell angebunden ist."
     : "";
   ladeVorschau();
 }
 
-$("#formular").addEventListener("input", () => {
+$("#formular").addEventListener("input", (ereignis) => {
+  if (ereignis.target.closest("#tage")) return; // Tage haben ihren eigenen Speichern-Knopf
   ungespeichert = true;
   melde("Ungespeicherte Änderungen");
 });
@@ -138,4 +137,59 @@ window.addEventListener("beforeunload", (ereignis) => {
   if (ungespeichert) ereignis.preventDefault();
 });
 
+// ── Tage und Agenda ──
+let tage = [];
+const tagMelde = (text) => ($("#tag-meldung").textContent = text);
+const tagEingabe = () => ({
+  name: $("#tag-name").value,
+  datum: $("#tag-datum").value,
+  agenda: $("#tag-agenda").value.split("\n").map((z) => z.trim()).filter(Boolean),
+});
+function zeigeTag(id) {
+  const tag = tage.find((t) => t.id === id) ?? tage[0];
+  if (!tag) return;
+  $("#tag-wahl").value = tag.id;
+  $("#tag-name").value = tag.name;
+  $("#tag-datum").value = tag.datum;
+  $("#tag-agenda").value = tag.agenda.join("\n");
+}
+async function ladeTage(waehle) {
+  tage = await (await fetch("/api/tage")).json();
+  const wahl = $("#tag-wahl");
+  wahl.replaceChildren(
+    ...tage.map((t) => {
+      const o = el("option", "", `${new Date(`${t.datum}T12:00:00`).toLocaleDateString("de-DE")} · ${t.name}${t.aktiv ? " (aktiv)" : ""}`);
+      o.value = t.id;
+      return o;
+    }),
+  );
+  zeigeTag(waehle ?? tage.find((t) => t.aktiv)?.id);
+}
+$("#tag-wahl").addEventListener("change", () => { zeigeTag($("#tag-wahl").value); tagMelde(""); });
+$("#tag-speichern").addEventListener("click", async () => {
+  try {
+    const id = $("#tag-wahl").value;
+    await sende(`/api/tage/${id}`, tagEingabe(), "PUT");
+    await ladeTage(id);
+    tagMelde("Tag gespeichert.");
+  } catch (fehler) { tagMelde(fehler.message); }
+});
+$("#tag-neu").addEventListener("click", async () => {
+  try {
+    const { id } = await sende("/api/tage", tagEingabe());
+    await ladeTage(id);
+    tagMelde("Neuer Tag angelegt. Auswählen kannst du ihn im Transkriptions-Assistenten.");
+  } catch (fehler) { tagMelde(fehler.message); }
+});
+$("#tag-loeschen").addEventListener("click", async () => {
+  const tag = tage.find((t) => t.id === $("#tag-wahl").value);
+  if (!tag || !confirm(`„${tag.name}" mit Transkript, To-dos und Fragen wirklich unwiderruflich löschen?`)) return;
+  try {
+    await sende(`/api/tage/${tag.id}`, {}, "DELETE");
+    await ladeTage();
+    tagMelde("Tag gelöscht.");
+  } catch (fehler) { tagMelde(fehler.message); }
+});
+
 lade();
+ladeTage();

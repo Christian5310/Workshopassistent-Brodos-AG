@@ -346,3 +346,37 @@ dialog h2 { color: var(--brand); font-size: 1.2rem; }
 dialog p { margin: 0; line-height: 1.45; color: var(--ink-muted); }
 dialog label { font-weight: 600; font-size: 0.85rem; }
 dialog input[type="text"] { font-size: 1rem; }
+
+/* ── Tag-Auswahl ── */
+.tagleiste { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; padding: 0.4rem 1.5rem; background: var(--surface); border-bottom: 1px solid var(--line); font-size: 0.75rem; }
+.tagleiste label { font-weight: 700; color: var(--brand); }
+.tagleiste select { font-size: 0.75rem; padding: 0.3rem 0.6rem; max-width: 100%; font-weight: 600; }
+.tagleiste span { flex: 1; color: var(--ink-muted); }
+.tagleiste a { font-size: 0.7rem; }
+
+/* ── Agenda zum Anklicken ── */
+.agenda li { padding: 0; }
+.agenda-knopf { width: 100%; display: flex; gap: 0.7rem; align-items: flex-start; text-align: left; padding: 0.55rem 0.6rem; background: transparent; border: 0; color: inherit; font: inherit; font-weight: inherit; border-radius: var(--r-s); }
+.agenda-knopf:hover { background: var(--surface-alt); }
+.agenda .läuft .agenda-knopf:hover { background: var(--brand-soft); }
+
+/* ── To-dos bearbeiten ── */
+.todo-text { flex: 1; text-align: left; background: transparent; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 400; line-height: inherit; border-radius: var(--r-s); }
+.todo-text:hover { background: var(--surface-alt); }
+.todos .box { cursor: pointer; }
+.todos .bearbeiten { background: var(--surface-alt); }
+.editor { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.editor .breit, .editor .reihe { grid-column: 1 / -1; }
+.editor input { font-size: 0.85rem; width: 100%; }
+.editor input.breit { font-size: 1.1rem; }
+.editor button { font-size: 0.75rem; padding: 0.4rem 0.8rem; }
+
+/* ── Admin: Tage ── */
+.tagformular { display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 0.8rem; }
+.feld { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+.tage label { font-weight: 600; font-size: 0.85rem; }
+.tage select, .tage input { width: 100%; }
+input[type="date"] { font: inherit; font-size: 0.85rem; border-radius: var(--r-m); border: 1px solid var(--line); padding: 0.5rem 0.8rem; color: var(--ink); background: var(--surface); }
+#tag-meldung { align-self: center; font-size: 0.85rem; color: var(--ink-muted); }
+.transkript h4 { margin: 0.8rem 0 0.2rem; font-size: 0.85rem; color: var(--brand); }
+@media (max-width: 900px) { .tagformular { grid-template-columns: 1fr; } }

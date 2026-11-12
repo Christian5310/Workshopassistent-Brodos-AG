@@ -44,7 +44,7 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
         { role: "system", content: `${einstellungen.promptAssistent}\n\n${FORMAT_STAND}` },
         {
           role: "user",
-          content: `STAND:\n${JSON.stringify(stand)}\n\nVORHERIGER ABSCHNITT (nur zum Verständnis, bereits verarbeitet):\n${davor || "(keiner)"}\n\nABSCHNITT:\n${abschnitt}`,
+          content: `STAND:\n${JSON.stringify(stand)}\n\nAKTUELLER AGENDAPUNKT: ${stand.agenda.find((a) => a.status === "läuft")?.titel ?? "(keiner ausgewählt)"}\n\nVORHERIGER ABSCHNITT (nur zum Verständnis, bereits verarbeitet):\n${davor || "(keiner)"}\n\nABSCHNITT:\n${abschnitt}`,
         },
       ],
       8000,

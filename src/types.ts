@@ -45,12 +45,16 @@ export interface ChatNachricht {
 export interface TranskriptAbschnitt {
   zeit: number;
   text: string;
+  /** ID des Agendapunkts, der beim Sprechen ausgewählt war */
+  agendapunkt?: string;
 }
 
 export type ChatStatus = "bereit" | "denkt nach";
 
 /** Alles, was die Screens anzeigen. Wird per GET /api/state und SSE ausgeliefert. */
 export interface Schnappschuss {
+  /** Der aktive Tag, zu dem Protokoll, Transkript und Chat gehören */
+  tag: { id: string; name: string; datum: string };
   protokoll: Protokoll;
   /** Anzeigenamen der Spezial-Agenten (in der Admin-Ansicht einstellbar) */
   agenten: Record<Rolle, { name: string }>;

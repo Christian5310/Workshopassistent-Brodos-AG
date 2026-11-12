@@ -13,7 +13,6 @@ const AgentSchema = z.object({
   wissen: z.string().max(300_000).default(""),
 });
 export const EinstellungenSchema = z.object({
-  agenda: z.array(z.string().trim().min(1).max(120)).max(30),
   briefing: z.string().max(50_000),
   /** Fachbegriffe und Namen, die die Transkription richtig schreiben soll (Komma oder Zeilenumbruch) */
   begriffe: z.string().max(4000),
@@ -27,11 +26,9 @@ export type Einstellungen = z.infer<typeof EinstellungenSchema>;
 
 const datei = path.join(path.dirname(config.pfade.daten), "einstellungen.json");
 
-/** Standardwerte: Prompts und Rollen aus CLAUDE.md (Abschnitt 5 und 6), Agenda aus config/agenda.json. */
+/** Standardwerte für Prompts und Rollen. Die Agenda gehört zum jeweiligen Tag (store.ts). */
 export function standard(): Einstellungen {
-  const agenda = JSON.parse(fs.readFileSync(config.pfade.agenda, "utf8")) as { titel: string }[];
   return {
-    agenda: agenda.map((a) => a.titel),
     briefing: "",
     begriffe: "Brodos, Broki, Darling, Dynamics, DaaS+",
     promptAssistent: `Du bist "Darling", der Transkriptions-Assistent im Brodos Sales Agentic Workshop. Du hörst über
@@ -51,7 +48,7 @@ Regeln:
   "vorschlaege" ein, nicht unter "todos". Ein Mensch entscheidet darüber.
 - OWNER und FRIST nur, wenn ausdrücklich genannt. Sonst "offen". Nie raten.
 - ERLEDIGT nur, wenn klar gesagt wird, dass etwas abgeschlossen ist.
-  Agendapunkt erledigt, wenn die Gruppe zum nächsten Punkt wechselt.
+- Die Agenda steuert die Moderation. Ändere den Status von Agendapunkten nicht.
 - ENTSCHEIDUNG nur bei klarer Festlegung ("Wir machen …", "Beschlossen").
 - OFFENE FRAGE, wenn eine Frage gestellt und nicht beantwortet wird.
 - Kein Duplikat. Bestehende Einträge nie löschen oder umformulieren, nur Status ändern.
@@ -150,7 +147,7 @@ export function promptAgentenFertig(protokoll: Protokoll, an: Adressat = "alle")
     (mitWissen(r) ? `\n\n<wissen agent="${e.agenten[r].name}">\n${e.agenten[r].wissen.trim()}\n</wissen>\n` : "");
   const ersetzungen: Record<string, string> = {
     "[BRODOS-BRIEFING]": e.briefing.trim() || "(kein Briefing hinterlegt)",
-    "[AGENDA]": e.agenda.map((t, i) => `${i + 1}. ${t}`).join("\n"),
+    "[AGENDA]": protokoll.agenda.map((a, i) => `${i + 1}. ${a.titel}${a.status === "läuft" ? " (läuft gerade)" : ""}`).join("\n"),
     "[STAND]": JSON.stringify(protokoll),
     "[AGENTEN]": ROLLEN.map(agent).join("\n"),
   };
@@ -158,24 +155,12 @@ export function promptAgentenFertig(protokoll: Protokoll, an: Adressat = "alle")
 }
 
 /**
- * Überträgt die Agenda aus den Einstellungen ins laufende Protokoll.
- * Punkte mit gleichem Titel behalten ID und Status, neue bekommen eine freie ID.
- */
-export function agendaAnwenden(protokoll: Protokoll): void {
-  const alt = protokoll.agenda;
-  let zaehler = Math.max(0, ...alt.map((a) => Number(a.id.slice(1)) || 0));
-  protokoll.agenda = einstellungen.agenda.map((titel) => {
-    const bekannt = alt.find((a) => a.titel === titel);
-    return bekannt ?? { id: `A${++zaehler}`, titel, status: "offen" as const };
-  });
-}
-
-/**
  * Sicherheitsnetz nach jeder Antwort des Assistenten (gilt unabhängig vom Prompt):
  * Bestehende Einträge bleiben erhalten und behalten ihren Text, nur der Status darf sich ändern.
+ * Neue Einträge werden dem von Hand ausgewählten Agendapunkt zugeordnet.
  * Neue To-dos sind pro Zyklus gedeckelt, damit die Liste nicht geflutet wird; was darüber liegt, wird zum Vorschlag.
  */
-export function absichern(alt: Protokoll, neu: Protokoll): Protokoll {
+export function absichern(alt: Protokoll, neu: Protokoll, punkt = ""): Protokoll {
   const fuehreZusammen = <T extends { id: string }>(a: T[], n: T[], status: (x: T, y: T) => T, max = Infinity): T[] => [
     ...a.map((x) => {
       const y = n.find((k) => k.id === x.id);
@@ -193,16 +178,16 @@ export function absichern(alt: Protokoll, neu: Protokoll): Protokoll {
   const vorschlaege = [...alt.vorschlaege];
   for (const k of kandidaten) {
     const doppelt = [...vorschlaege, ...alt.todos, ...neueTodos.slice(0, einstellungen.maxTodosProZyklus)].some((x) => gleich(x.text, k.text));
-    if (!doppelt) vorschlaege.push({ ...k, id: `V-${randomUUID().slice(0, 8)}` }); // IDs vergibt der Server
+    if (!doppelt) vorschlaege.push({ ...k, agendapunkt: punkt, id: `V-${randomUUID().slice(0, 8)}` }); // IDs vergibt der Server
   }
   return {
     vorschlaege,
-    agenda: alt.agenda.map((x) => ({ ...x, status: neu.agenda.find((y) => y.id === x.id)?.status ?? x.status })),
+    agenda: alt.agenda, // die Agenda steuert die Moderation von Hand, nicht das Sprachmodell
     todos: fuehreZusammen(alt.todos, neu.todos, (x, y) => ({ ...x, status: y.status }), einstellungen.maxTodosProZyklus).map((t) =>
-      alt.todos.some((x) => x.id === t.id) ? t : { ...t, gruppe: "" },
-    ), // neue To-dos landen immer in der aktuellen Liste
-    entscheidungen: fuehreZusammen(alt.entscheidungen, neu.entscheidungen, (x) => x),
+      alt.todos.some((x) => x.id === t.id) ? t : { ...t, gruppe: "", agendapunkt: punkt },
+    ), // neue To-dos: aktuelle Liste, ausgewählter Agendapunkt
+    entscheidungen: fuehreZusammen(alt.entscheidungen, neu.entscheidungen, (x) => x).map((e) => (alt.entscheidungen.some((x) => x.id === e.id) ? e : { ...e, agendapunkt: punkt })),
     offene_fragen: fuehreZusammen(alt.offene_fragen, neu.offene_fragen, (x, y) => ({ ...x, status: y.status })),
-    notizen: [...alt.notizen, ...neu.notizen.slice(alt.notizen.length)],
+    notizen: [...alt.notizen, ...neu.notizen.slice(alt.notizen.length).map((n) => ({ ...n, agendapunkt: punkt }))],
   };
 }

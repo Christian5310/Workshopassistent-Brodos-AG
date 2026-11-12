@@ -6,10 +6,22 @@
   <div id="hinweis" class="hinweis"></div>
   <form id="formular">
     <main>
-      <section class="block">
-        <h2><label for="agenda">Agenda</label></h2>
-        <p>Ein Punkt pro Zeile. Punkte mit unverändertem Titel behalten in der laufenden Sitzung ihren Status.</p>
-        <textarea id="agenda" rows="7"></textarea>
+      <section id="tage" class="block breit tage">
+        <h2>Tage und Agenda</h2>
+        <p>Jeder Workshop-Tag hat einen Namen, ein Datum und eine eigene Agenda. Transkript, To-dos und Fragen werden unter dem Tag gespeichert, der im Transkriptions-Assistenten ausgewählt ist.</p>
+        <div class="tagformular">
+          <div class="feld"><label for="tag-wahl">Tag bearbeiten</label><select id="tag-wahl"></select></div>
+          <div class="feld"><label for="tag-name">Name</label><input id="tag-name" type="text" maxlength="80" placeholder="z. B. Sales Agentic Workshop"></div>
+          <div class="feld"><label for="tag-datum">Datum</label><input id="tag-datum" type="date"></div>
+        </div>
+        <label for="tag-agenda">Agenda (ein Punkt pro Zeile)</label>
+        <textarea id="tag-agenda" rows="6"></textarea>
+        <div class="reihe">
+          <button type="button" id="tag-speichern">Tag speichern</button>
+          <button type="button" id="tag-neu" class="zweit">Als neuen Tag anlegen</button>
+          <button type="button" id="tag-loeschen" class="zweit">Tag löschen</button>
+          <span id="tag-meldung" role="status"></span>
+        </div>
       </section>
 
       <section class="block">

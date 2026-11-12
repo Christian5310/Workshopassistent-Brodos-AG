@@ -6,21 +6,13 @@
   <main>
     <aside class="archivliste">
       <section class="block">
-        <h2>Aktuelle Sitzung speichern</h2>
-        <p id="aktuell-info"></p>
-        <form id="speichern" class="reihe">
-          <input id="titel" type="text" placeholder="Titel, z. B. Sales Workshop Vormittag" maxlength="120" autocomplete="off">
-          <button type="submit">Ins Archiv speichern</button>
-        </form>
-        <p id="meldung" role="status"></p>
-      </section>
-      <section class="block">
-        <h2>Gespeichert</h2>
+        <h2>Tage</h2>
+        <p>Jeder Tag wird laufend gespeichert: Transkript, To-dos, Entscheidungen sowie Fragen und Antworten.</p>
         <ul id="eintraege" class="eintraege"></ul>
-        <div class="reihe"><button id="alles-loeschen" class="zweit" hidden>Ganzes Archiv löschen</button></div>
+        
       </section>
     </aside>
-    <section id="detail" class="block detail"><p>Wähle links einen Eintrag aus.</p></section>
+    <section id="detail" class="block detail"><p>Wähle links einen Tag aus.</p></section>
   </main>
   <script type="module" src="/js/archiv.js"></script>
 </body>

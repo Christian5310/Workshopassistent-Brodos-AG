@@ -1,33 +1,25 @@
 import { el, sende, verbinde, ROLLEN } from "./common.js";
 
 const $ = (id) => document.querySelector(id);
-const datum = (zeit) => new Date(zeit).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
+const datum = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("de-DE", { dateStyle: "medium" });
 const uhr = (zeit) => new Date(zeit).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+const hole = async (pfad) => (await fetch(pfad)).json();
 let gewaehlt = null;
 
-const melde = (text) => ($("#meldung").textContent = text);
-const hole = async (pfad) => (await fetch(pfad)).json();
-
-// Aktuelle Sitzung: zeigt live, was beim Speichern im Archiv landen würde.
-verbinde(({ protokoll, chat }) => {
-  const fragen = chat.filter((n) => n.von === "frage").length;
-  $("#aktuell-info").textContent = `Laufende Sitzung: ${protokoll.todos.length} To-dos, ${protokoll.entscheidungen.length} Entscheidungen, ${fragen} Fragen an die Spezial-Agenten.`;
-});
+verbinde(() => ladeListe()); // hält Zahlen und Namen aktuell, auch während eine Aufnahme läuft
 
 async function ladeListe() {
-  const eintraege = await hole("/api/archiv");
+  const tage = await hole("/api/tage");
   const liste = $("#eintraege");
   liste.replaceChildren();
-  if (!eintraege.length) liste.append(el("li", "leer", "Noch nichts gespeichert."));
-  for (const e of eintraege) {
-    const knopf = el("button", `zweit${e.id === gewaehlt ? " gewaehlt" : ""}`);
-    knopf.append(el("b", "", e.titel), el("span", "", `${datum(e.zeit)} · ${e.todos} To-dos · ${e.fragen} Fragen · ${e.abschnitte} Transkript-Abschnitte`));
-    knopf.addEventListener("click", () => zeige(e.id));
+  for (const t of tage) {
+    const knopf = el("button", `zweit${t.id === gewaehlt ? " gewaehlt" : ""}`);
+    knopf.append(el("b", "", `${t.name}${t.aktiv ? " (aktiv)" : ""}`), el("span", "", `${datum(t.datum)} · ${t.todos} To-dos · ${t.fragen} Fragen · ${t.abschnitte} Transkript-Abschnitte`));
+    knopf.addEventListener("click", () => zeige(t.id));
     const li = el("li");
     li.append(knopf);
     liste.append(li);
   }
-  $("#alles-loeschen").hidden = !eintraege.length;
 }
 
 function abschnitt(titel, inhalt) {
@@ -53,44 +45,53 @@ function zusammenfassung(markdown) {
   return rahmen;
 }
 
+function link(text, href, klasse = "knopf") {
+  const a = el("a", klasse, text);
+  a.href = href;
+  return a;
+}
+
 async function zeige(id) {
   gewaehlt = id;
-  const e = await hole(`/api/archiv/${id}`);
+  const t = await hole(`/api/tage/${id}`);
   const detail = $("#detail");
   detail.replaceChildren();
-  if (e.fehler) return void detail.append(el("p", "", e.fehler));
+  if (t.fehler) return void detail.append(el("p", "", t.fehler));
 
   const kopf = el("div", "detailkopf");
   const titel = el("div");
-  titel.append(el("h2", "", e.titel), el("p", "", `Gespeichert am ${datum(e.zeit)}`));
-  const herunter = el("a", "knopf", "Als Markdown herunterladen");
-  herunter.href = `/api/archiv/${id}/markdown`;
-  const weg = el("button", "zweit", "Eintrag löschen");
-  weg.addEventListener("click", async () => {
-    if (!confirm(`„${e.titel}" wirklich unwiderruflich löschen?`)) return;
-    await sende(`/api/archiv/${id}`, {}, "DELETE");
-    gewaehlt = null;
-    detail.replaceChildren(el("p", "", "Eintrag gelöscht."));
-    ladeListe();
-  });
+  titel.append(el("h2", "", t.name), el("p", "", `${datum(t.datum)}${t.aktiv ? " · aktiver Tag" : ""}`));
+
   const broki = el("button", "", "Für Broki kopieren");
   broki.title = "Kopiert Zusammenfassungs-Prompt, Protokoll und Transkript in die Zwischenablage";
   broki.addEventListener("click", async () => {
     try {
-      await navigator.clipboard.writeText(await (await fetch(`/api/archiv/${id}/broki`)).text());
+      await navigator.clipboard.writeText(await (await fetch(`/api/tage/${id}/broki`)).text());
       broki.textContent = "Kopiert ✓ – jetzt in Broki einfügen";
     } catch {
-      window.open(`/api/archiv/${id}/broki`, "_blank"); // Zwischenablage gesperrt: Text in neuem Tab zum Kopieren
+      window.open(`/api/tage/${id}/broki`, "_blank"); // Zwischenablage gesperrt: Text in neuem Tab zum Kopieren
+    }
+  });
+  const weg = el("button", "zweit", "Tag löschen");
+  weg.addEventListener("click", async () => {
+    if (!confirm(`„${t.name}" mit Transkript, To-dos und Fragen wirklich unwiderruflich löschen?`)) return;
+    try {
+      await sende(`/api/tage/${id}`, {}, "DELETE");
+      gewaehlt = null;
+      detail.replaceChildren(el("p", "", "Tag gelöscht."));
+      ladeListe();
+    } catch (fehler) {
+      alert(fehler.message);
     }
   });
   const aktionen = el("div", "reihe");
-  aktionen.append(broki, herunter, weg);
+  aktionen.append(link("Transkript herunterladen", `/api/tage/${id}/markdown?art=transkript`), link("Alles herunterladen", `/api/tage/${id}/markdown`), broki, weg);
   kopf.append(titel, aktionen);
 
   // Fragen und Antworten: jede Frage mit den Antworten, die darauf folgten
   const qa = el("div", "qa");
   let block = null;
-  for (const n of e.chat) {
+  for (const n of t.chat) {
     if (n.von === "frage") {
       block = el("div", "qa-block");
       const an = n.an && n.an !== "alle" ? ROLLEN[n.an].name : "alle";
@@ -102,38 +103,22 @@ async function zeige(id) {
       block.append(antwort);
     }
   }
-  if (!e.chat.length) qa.append(el("p", "", "Keine Fragen gestellt."));
+  if (!t.chat.length) qa.append(el("p", "", "Keine Fragen gestellt."));
 
+  // Transkript, gegliedert nach dem Agendapunkt, der beim Sprechen ausgewählt war
   const transkript = el("div", "transkript");
-  for (const t of e.transkript) {
+  let letzter = null;
+  for (const a of t.transkript) {
+    const punkt = t.protokoll.agenda.find((p) => p.id === a.agendapunkt)?.titel ?? "Ohne Agendapunkt";
+    if (punkt !== letzter) transkript.append(el("h4", "", (letzter = punkt)));
     const p = el("div");
-    p.append(el("time", "", uhr(t.zeit)), t.text);
+    p.append(el("time", "", uhr(a.zeit)), a.text);
     transkript.append(p);
   }
-  if (!e.transkript.length) transkript.append(el("p", "", "Kein Transkript."));
+  if (!t.transkript.length) transkript.append(el("p", "", "Kein Transkript."));
 
-  detail.append(kopf, abschnitt("Zusammenfassung", zusammenfassung(e.zusammenfassung)), abschnitt("Fragen und Antworten", qa), abschnitt("Transkript", transkript));
+  detail.append(kopf, abschnitt("Zusammenfassung", zusammenfassung(t.zusammenfassung)), abschnitt("Fragen und Antworten", qa), abschnitt("Transkript", transkript));
   ladeListe();
 }
-
-$("#speichern").addEventListener("submit", async (ereignis) => {
-  ereignis.preventDefault();
-  try {
-    const { id } = await sende("/api/archiv", { titel: $("#titel").value });
-    $("#titel").value = "";
-    melde("Gespeichert.");
-    await zeige(id);
-  } catch (fehler) {
-    melde(fehler.message);
-  }
-});
-
-$("#alles-loeschen").addEventListener("click", async () => {
-  if (!confirm("Das ganze Archiv wirklich unwiderruflich löschen?")) return;
-  await sende("/api/archiv", {}, "DELETE");
-  gewaehlt = null;
-  $("#detail").replaceChildren(el("p", "", "Archiv gelöscht."));
-  ladeListe();
-});
 
 ladeListe();

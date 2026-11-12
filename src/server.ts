@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import express, { type Response } from "express";
+import { z } from "zod";
 import { erstelleAnbieter } from "./anbieter/index.ts";
 import * as archiv from "./archiv.ts";
 import { config, quelle, zyklusSekunden } from "./config.ts";
@@ -24,6 +25,7 @@ const zuhoerer = new Set<Response>();
 
 function schnappschuss(): Schnappschuss {
   return {
+    tag: { id: store.daten.id, name: store.daten.name, datum: store.daten.datum },
     protokoll: store.daten.protokoll,
     agenten: {
       sales: { name: admin.einstellungen.agenten.sales.name },
@@ -43,11 +45,12 @@ function senden(): void {
 // ── Chronist-Zyklus ──────────────────────────────────────────────────────────
 /** Ein neuer Transkript-Abschnitt: anhängen, Protokollstand vom LLM aktualisieren lassen, validieren. */
 async function verarbeiteAbschnitt(text: string): Promise<void> {
-  store.daten.transkript.push({ zeit: Date.now(), text });
+  const punkt = store.daten.protokoll.agenda.find((a) => a.status === "läuft")?.id ?? "";
+  store.daten.transkript.push({ zeit: Date.now(), text, agendapunkt: punkt });
   try {
     const antwort = await anbieter.sprachmodell.chronist(store.daten.protokoll, text);
     const geprueft = ProtokollSchema.safeParse(antwort);
-    if (geprueft.success) store.daten.protokoll = admin.absichern(store.daten.protokoll, geprueft.data);
+    if (geprueft.success) store.daten.protokoll = admin.absichern(store.daten.protokoll, geprueft.data, punkt);
     else console.warn("Assistent: ungültige Antwort verworfen, Stand bleibt unverändert.");
   } catch (fehler) {
     console.warn("Assistent: Aufruf fehlgeschlagen, Stand bleibt unverändert.", fehler);
@@ -209,13 +212,50 @@ app.post("/api/vorschlag/:id/:aktion", (req, res) => {
   res.json({ ok: true });
 });
 
+/** Agendapunkt von Hand auswählen: Er läuft ab jetzt; der bisher laufende gilt als erledigt. */
+app.post("/api/agenda/:id/aktiv", (req, res) => {
+  const agenda = store.daten.protokoll.agenda;
+  const punkt = agenda.find((a) => a.id === req.params.id);
+  if (!punkt) return void res.status(404).json({ fehler: "Agendapunkt nicht gefunden." });
+  for (const a of agenda) if (a.status === "läuft") a.status = "erledigt";
+  punkt.status = "läuft";
+  store.speichern();
+  senden();
+  res.json({ ok: true });
+});
+
+/** To-do von Hand ändern (Tippfehler, Owner, Frist, abhaken). Body: { text?, owner?, frist?, status? } */
+app.patch("/api/todos/:id", (req, res) => {
+  const todo = store.daten.protokoll.todos.find((t) => t.id === req.params.id);
+  if (!todo) return void res.status(404).json({ fehler: "To-do nicht gefunden." });
+  const feld = (wert: unknown, max: number) => (typeof wert === "string" && wert.trim() ? wert.trim().slice(0, max) : null);
+  todo.text = feld(req.body?.text, 300) ?? todo.text;
+  todo.owner = feld(req.body?.owner, 60) ?? todo.owner;
+  todo.frist = feld(req.body?.frist, 60) ?? todo.frist;
+  if (req.body?.status === "offen" || req.body?.status === "erledigt") todo.status = req.body.status;
+  store.speichern();
+  senden();
+  res.json({ ok: true });
+});
+
+app.delete("/api/todos/:id", (req, res) => {
+  const p = store.daten.protokoll;
+  if (!p.todos.some((t) => t.id === req.params.id)) return void res.status(404).json({ fehler: "To-do nicht gefunden." });
+  p.todos = p.todos.filter((t) => t.id !== req.params.id);
+  store.speichern();
+  senden();
+  res.json({ ok: true });
+});
+
 /**
  * To-dos der aktuellen Liste unter einer Kategorie ablegen (z. B. vor einer Pause), damit die Liste kurz bleibt.
  * Body: { name: string }. Mit { name, zurueck: true } kommt eine Kategorie wieder in die aktuelle Liste.
  */
 app.post("/api/todos/ablegen", (req, res) => {
-  const name = String(req.body?.name ?? "").trim().slice(0, 60);
-  if (!name) return void res.status(400).json({ fehler: "Bitte einen Namen für die Kategorie angeben." });
+  // Ohne Namen ist die Kategorie der gerade ausgewählte Agendapunkt.
+  const p = store.daten.protokoll;
+  const punkt = p.agenda.find((a) => a.status === "läuft") ?? p.agenda.findLast((a) => a.status === "erledigt");
+  const name = String(req.body?.name ?? punkt?.titel ?? "Ohne Agendapunkt").trim().slice(0, 120);
   const [von, nach] = req.body?.zurueck ? [name, ""] : ["", name];
   const betroffen = store.daten.protokoll.todos.filter((t) => t.gruppe === von);
   for (const t of betroffen) t.gruppe = nach;
@@ -236,7 +276,7 @@ app.post("/api/regie/pause", (_req, res) => {
 
 app.post("/api/regie/reset", (_req, res) => {
   pausieren();
-  store.loeschen();
+  store.leeren();
   senden();
   res.json({ ok: true });
 });
@@ -253,8 +293,6 @@ app.put("/api/admin/einstellungen", (req, res) => {
     return void res.status(400).json({ fehler: `Ungültige Eingabe bei „${erster?.path.join(".")}": ${erster?.message}` });
   }
   admin.speichere(geprueft.data);
-  admin.agendaAnwenden(store.daten.protokoll); // gilt sofort, auch in der laufenden Sitzung
-  store.speichern();
   senden();
   res.json({ ok: true });
 });
@@ -265,44 +303,76 @@ app.get("/api/admin/vorschau", (_req, res) => {
   res.json({ promptAgenten: fertig, zeichen: fertig.length });
 });
 
-// ── Archiv: Transkripte, Zusammenfassungen sowie Fragen und Antworten dauerhaft ablegen ──
-app.get("/api/archiv", (_req, res) => {
-  res.json(archiv.uebersicht());
+// ── Tage: Workshop-Tage mit Agenda anlegen, auswählen, ansehen, herunterladen, löschen ──
+const TagSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  datum: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  agenda: z.array(z.string().trim().min(1).max(120)).max(30),
+});
+const tagAusBody = (body: unknown, res: Response) => {
+  const geprueft = TagSchema.safeParse(body);
+  if (!geprueft.success) res.status(400).json({ fehler: "Bitte Name, Datum und Agenda prüfen (ein Agendapunkt pro Zeile, höchstens 120 Zeichen)." });
+  return geprueft.success ? geprueft.data : null;
+};
+const holeTag = (id: string, res: Response) => {
+  const tag = store.hole(id);
+  if (!tag) res.status(404).json({ fehler: "Tag nicht gefunden." });
+  return tag;
+};
+
+app.get("/api/tage", (_req, res) => {
+  res.json(store.liste().map((t) => archiv.kurzinfo(t, store.daten.id)));
 });
 
-/** Legt den aktuellen Stand im Archiv ab. Body: { titel?: string } */
-app.post("/api/archiv", (req, res) => {
-  const d = store.daten;
-  if (!d.transkript.length && !d.chat.length) return void res.status(400).json({ fehler: "Es gibt noch nichts zu archivieren." });
-  const eintrag = archiv.archiviere(String(req.body?.titel ?? ""));
-  res.json({ ok: true, id: eintrag.id });
+app.post("/api/tage", (req, res) => {
+  const d = tagAusBody(req.body, res);
+  if (!d) return;
+  const tag = store.erstelle(d.name, d.datum, d.agenda);
+  res.json({ ok: true, id: tag.id });
 });
 
-app.get("/api/archiv/:id", (req, res) => {
-  const eintrag = archiv.lies(req.params.id);
-  if (!eintrag) return void res.status(404).json({ fehler: "Eintrag nicht gefunden." });
-  res.json(eintrag);
-});
-
-app.get("/api/archiv/:id/markdown", (req, res) => {
-  const eintrag = archiv.lies(req.params.id);
-  if (!eintrag) return void res.status(404).json({ fehler: "Eintrag nicht gefunden." });
-  res.attachment(`workshop-${eintrag.id.slice(0, 10)}.md`).type("text/markdown; charset=utf-8").send(archiv.alsMarkdown(eintrag));
-});
-
-app.get("/api/archiv/:id/broki", (req, res) => {
-  const eintrag = archiv.lies(req.params.id);
-  if (!eintrag) return void res.status(404).json({ fehler: "Eintrag nicht gefunden." });
-  res.type("text/plain; charset=utf-8").send(archiv.fuerBroki(eintrag));
-});
-
-app.delete("/api/archiv/:id", (req, res) => {
-  if (!archiv.loesche(req.params.id)) return void res.status(404).json({ fehler: "Eintrag nicht gefunden." });
+app.put("/api/tage/:id", (req, res) => {
+  const d = tagAusBody(req.body, res);
+  if (!d) return;
+  if (!store.aendere(req.params.id, d.name, d.datum, d.agenda)) return void res.status(404).json({ fehler: "Tag nicht gefunden." });
+  senden();
   res.json({ ok: true });
 });
 
-app.delete("/api/archiv", (_req, res) => {
-  archiv.loescheAlles();
+/** Macht einen Tag zum aktiven: Ab jetzt laufen Transkript, To-dos und Chat dort. */
+app.post("/api/tage/:id/aktivieren", (req, res) => {
+  if (aufnahme) return void res.status(409).json({ fehler: "Bitte erst den Assistenten ausschalten, dann den Tag wechseln." });
+  if (!store.wechsle(req.params.id)) return void res.status(404).json({ fehler: "Tag nicht gefunden." });
+  hinweis = null;
+  senden();
+  res.json({ ok: true });
+});
+
+app.get("/api/tage/:id", (req, res) => {
+  const tag = holeTag(req.params.id, res);
+  if (tag) res.json({ ...tag, aktiv: tag.id === store.daten.id, zusammenfassung: archiv.zusammenfassung(tag.protokoll) });
+});
+
+/** Downloads: ?art=transkript liefert nur das Transkript, sonst den ganzen Tag. */
+app.get("/api/tage/:id/markdown", (req, res) => {
+  const tag = holeTag(req.params.id, res);
+  if (!tag) return;
+  const nurTranskript = req.query.art === "transkript";
+  res
+    .attachment(`${tag.datum}-${nurTranskript ? "transkript" : "protokoll"}.md`)
+    .type("text/markdown; charset=utf-8")
+    .send(nurTranskript ? archiv.transkriptMarkdown(tag) : archiv.alsMarkdown(tag));
+});
+
+app.get("/api/tage/:id/broki", (req, res) => {
+  const tag = holeTag(req.params.id, res);
+  if (tag) res.type("text/plain; charset=utf-8").send(archiv.fuerBroki(tag));
+});
+
+app.delete("/api/tage/:id", (req, res) => {
+  if (aufnahme && req.params.id === store.daten.id) return void res.status(409).json({ fehler: "Bitte erst den Assistenten ausschalten." });
+  if (!store.loesche(req.params.id)) return void res.status(404).json({ fehler: "Tag nicht gefunden." });
+  senden();
   res.json({ ok: true });
 });
 

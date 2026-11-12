@@ -3,11 +3,12 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Transkriptions-Assistent · Broki-Live</title></head>
 <body>
   <header class="kopf"><span class="logo">Brodos</span><h1><a href="/">Broki-Live</a> · Transkriptions-Assistent</h1><button id="transkript-knopf" type="button" class="schalter" aria-pressed="false">Transkript</button><button id="schalter" type="button" class="schalter" aria-pressed="false">Assistent ist aus</button><div class="status"><span id="mock" class="pille" hidden>MOCK-MODUS</span><span id="pegel" class="pegel" hidden title="Mikrofon-Pegel"><i></i></span><span id="mikro"><span class="punkt"></span><span>Pausiert</span></span><span id="zyklus"></span></div></header>
+  <div class="tagleiste"><label for="tagwahl">Tag</label><select id="tagwahl"></select><span id="tag-info"></span><a href="/admin#tage">Tage und Agenda verwalten</a></div>
   <div id="hinweis" class="hinweis"></div>
   <div id="mikrofehler" class="hinweis fehler" role="alert"></div>
   <main class="protokoll">
     <section class="spalte">
-      <div class="karte"><h2>Agenda</h2><ul id="agenda" class="liste agenda"></ul></div>
+      <div class="karte"><h2>Agenda <span class="zahl">anklicken = läuft</span></h2><ul id="agenda" class="liste agenda"></ul></div>
       <div id="transkript-karte" class="karte mitschrift" hidden><h2>Transkript <span class="zahl">letzte Abschnitte</span></h2><div id="transkript" class="mitschrift-text" aria-live="off"></div></div>
     </section>
     <section class="spalte"><div class="karte"><h2>To-dos <span id="todo-zahl" class="zahl"></span></h2><div id="gruppen" class="gruppen"></div><ul id="todos" class="liste todos"></ul></div>
@@ -21,12 +22,10 @@
     <form method="dialog">
       <h2>Assistent ausschalten</h2>
       <p id="ablage-text"></p>
-      <label for="ablage-name">Kategorie</label>
-      <input id="ablage-name" type="text" maxlength="60" autocomplete="off">
       <div class="reihe">
         <button value="ablegen">Ablegen und ausschalten</button>
         <button value="nur-aus" class="zweit">Nur ausschalten</button>
-        <button value="abbrechen" class="zweit" formnovalidate>Abbrechen</button>
+        <button value="abbrechen" class="zweit">Abbrechen</button>
       </div>
     </form>
   </dialog>
