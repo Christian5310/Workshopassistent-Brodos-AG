@@ -248,7 +248,7 @@ app.get("/api/regie/diagnose", (_req, res) => {
  * Langer Text wird an Satzgrenzen in Abschnitte von rund 900 Zeichen geteilt – so groß wie eine Minute Gespräch.
  */
 app.post("/api/regie/text", (req, res) => {
-  if (!store.istOffen) return void res.status(409).json({ fehler: "Bitte erst im Transkriptions-Assistenten ein Meeting auswählen." });
+  if (!store.istOffen) return void res.status(409).json({ fehler: "Bitte erst in der Übersicht ein Meeting anlegen oder öffnen." });
   const text = String(req.body?.text ?? "").replace(/\s+/g, " ").trim();
   if (!text) return void res.status(400).json({ fehler: "Bitte Text eingeben." });
   const abschnitte: string[] = [];
@@ -270,7 +270,7 @@ app.get("/api/transcript", (_req, res) => {
 
 /** Stellt eine Frage an die Spezial-Agenten und legt Frage und Antworten im Chat ab. */
 async function stelleFrage(holeFrage: () => Promise<string | null>, an: Adressat): Promise<{ ok: true } | { ok: false; code: number; fehler: string }> {
-  if (!store.istOffen) return { ok: false, code: 409, fehler: "Bitte erst im Transkriptions-Assistenten ein Meeting auswählen." };
+  if (!store.istOffen) return { ok: false, code: 409, fehler: "Bitte erst in der Übersicht ein Meeting anlegen oder öffnen." };
   if (an !== "alle" && !admin.agent(an)) return { ok: false, code: 400, fehler: "Unbekannter Adressat." };
   if (chatStatus !== "bereit") return { ok: false, code: 409, fehler: "Die Spezial-Agenten denken noch nach." };
 

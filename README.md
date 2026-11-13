@@ -27,13 +27,14 @@ Dann im Browser `http://localhost:3000` öffnen:
 | Adresse | Zweck |
 |---|---|
 | `/` | Einstiegsseite mit „Eintreten" (noch ohne Login) |
-| `/app` | App-Rahmen mit der Navigation Assistent · Agenten · Archiv · Admin · Regie |
+| `/app` | App-Rahmen mit der Navigation Übersicht · Assistent · Agenten · Archiv · Admin · Regie |
 
 Der Rahmen bleibt beim Wechsel der Bereiche stehen und hält das Mikrofon. Die Aufnahme läuft deshalb weiter, wenn du vom Assistenten ins Archiv oder in den Admin wechselst. Die Kopfzeile zeigt in jedem Bereich, ob aufgenommen wird.
 
 | Bereich | Inhalt |
 |---|---|
-| Assistent | Meeting auswählen, Aufnahme starten/pausieren, Meeting schließen; Agenda, To-dos, Vorschläge, Entscheidungen, offene Fragen |
+| Übersicht | Einstieg nach dem Eintreten: links „KI Transkriptionsassistent" oder „KI Wissensagenten" wählen, dann neu anlegen oder Bestehendes öffnen |
+| Assistent | Aufnahme starten/pausieren, Meeting schließen; Agenda, To-dos, Vorschläge, Entscheidungen, offene Fragen |
 | Agenten | Spezial-Agenten fragen, per Text oder Push-to-Talk (Leertaste halten) |
 | Archiv | Alle Meetings mit To-do-Liste, Entscheidungen, Fragen und Transkript, je mit Download |
 | Admin | Meetings, Spezial-Agenten, unter „Erweitert" Prompts, Takt und Aktivierungswort |

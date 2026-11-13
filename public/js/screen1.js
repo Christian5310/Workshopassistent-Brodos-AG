@@ -46,74 +46,13 @@ function fuelle(id, eintraege, leerText) {
   liste.querySelector(".neu")?.scrollIntoView({ block: "nearest" });
 }
 
-// ── Stufe vor dem Meeting: ein Feld, in dem man "Neues Meeting anlegen" oder ein bestehendes wählt ──
+// ── Meeting wählen und wechseln läuft über die Übersicht ──
 let abschlussInfo = null;
-const startwahl = $("#startwahl");
-const NEU = "__neu__";
-const merkeStart = (an) => { try { an ? sessionStorage.setItem("merlin-start", "1") : sessionStorage.removeItem("merlin-start"); } catch {} };
-const startGewuenscht = () => { try { return sessionStorage.getItem("merlin-start") === "1"; } catch { return false; } };
-let meetingListe = "";
-
-async function ladeStartwahl() {
-  const meetings = await (await fetch("/api/tage")).json();
-  const kennung = JSON.stringify(meetings.map((m) => [m.id, m.name, m.datum, m.abgeschlossen]));
-  if (kennung === meetingListe) return;
-  meetingListe = kennung;
-  const vorher = startwahl.value;
-  const option = (wert, text) => { const o = el("option", "", text); o.value = wert; return o; };
-  const gruppe = (titel, liste) => {
-    const g = el("optgroup");
-    g.label = titel;
-    g.append(...liste.map((m) => option(m.id, `${m.name} · ${new Date(`${m.datum}T12:00:00`).toLocaleDateString("de-DE")}`)));
-    return g;
-  };
-  const offene = meetings.filter((m) => !m.abgeschlossen);
-  const fertige = meetings.filter((m) => m.abgeschlossen);
-  startwahl.replaceChildren(option("", "Bitte wählen …"), option(NEU, "Neues Meeting anlegen"));
-  if (offene.length) startwahl.append(gruppe("Bestehendes Meeting öffnen", offene));
-  if (fertige.length) startwahl.append(gruppe("Abgeschlossenes Meeting wieder öffnen", fertige));
-  // Vorauswahl: bisherige Wahl, sonst das gerade geöffnete Meeting
-  startwahl.value = [...startwahl.options].some((o) => o.value === vorher) && vorher ? vorher : tagId ?? "";
-  zeigeStartwahl();
-}
-
-function zeigeStartwahl() {
-  const neu = startwahl.value === NEU;
-  $("#neu-felder").hidden = !neu;
-  if (neu && !$("#neu-datum").value) $("#neu-datum").value = new Date().toLocaleDateString("sv-SE");
-  const k = $("#start-weiter");
-  k.disabled = !startwahl.value;
-  beschrifte(k, neu ? "plus" : "pfeil", neu ? "Anlegen und öffnen" : startwahl.value && startwahl.value === tagId ? "Weiter mit diesem Meeting" : "Meeting öffnen");
-}
-startwahl.addEventListener("change", () => {
-  zeigeStartwahl();
-  if (startwahl.value === NEU) $("#neu-name").focus();
-});
-
-$("#startformular").addEventListener("submit", async (ereignis) => {
-  ereignis.preventDefault();
-  melde("");
-  try {
-    let id = startwahl.value;
-    if (id === NEU) {
-      const agenda = $("#neu-agenda").value.split("\n").map((z) => z.trim()).filter(Boolean);
-      id = (await sende("/api/tage", { name: $("#neu-name").value, datum: $("#neu-datum").value, agenda })).id;
-      $("#neu-name").value = $("#neu-agenda").value = "";
-    }
-    abschlussInfo = null;
-    merkeStart(false);
-    if (id !== tagId) await sende(`/api/tage/${id}/aktivieren`);
-    else zeige(letzterStand); // dasselbe Meeting: nur die Stufe verlassen
-  } catch (fehler) {
-    melde(fehler.message);
-  }
-});
-
-$("#wechseln").addEventListener("click", () => {
-  merkeStart(true);
-  startwahl.value = "";
-  zeige(letzterStand);
-});
+const zurUebersicht = () => {
+  try { sessionStorage.setItem("broki-uebersicht", "meeting"); } catch {}
+  gehe("uebersicht");
+};
+$("#wechseln").addEventListener("click", zurUebersicht);
 $("#verwalten").addEventListener("click", () => gehe("admin"));
 
 // ── Aufnahme: Starten und Pausieren laufen über den Rahmen, der das Mikrofon hält ──
@@ -291,26 +230,27 @@ function zeige(daten) {
   stand = protokoll;
   an = status.aufnahme;
   letzterZyklus = status.letzterZyklus;
-  // Stufe davor: wenn kein Meeting geöffnet ist oder man gerade frisch eingetreten ist (nie während der Aufnahme)
-  if (an) merkeStart(false);
-  const stufe = tag === null || startGewuenscht();
-  $("#startstufe").hidden = !stufe;
-  if (stufe) ladeStartwahl();
-  const hinweis = $("#start-hinweis");
-  hinweis.hidden = !abschlussInfo;
-  if (abschlussInfo) {
-    const link = el("button", "textlink", "Zum Archiv");
-    link.type = "button";
-    link.addEventListener("click", () => gehe("archiv"));
-    hinweis.replaceChildren(icon("archive"), `„${abschlussInfo.name}" ist abgeschlossen und liegt im Archiv. `, link);
-  }
   $("#meeting-name").textContent = tag ? `${tag.name} · ${new Date(`${tag.datum}T12:00:00`).toLocaleDateString("de-DE")}` : "Noch kein Meeting geöffnet";
-  $("#wechseln").hidden = tag === null || stufe;
+  $("#wechseln").hidden = tag === null;
   $("#wechseln").disabled = an;
   $("#wechseln").title = an ? "Zum Wechseln erst pausieren." : "";
 
   // Steuerung: ohne Meeting nichts; mit Meeting Starten/Fortsetzen oder Pausieren, dazu Schließen
-  const offen = tag !== null && !stufe;
+  const offen = tag !== null;
+  const leer = $("#leerzustand");
+  leer.hidden = offen;
+  if (!offen) {
+    const kreis = el("span", "kreis");
+    kreis.append(icon(abschlussInfo ? "archive" : "kalender"));
+    const weiter = knopf("Meeting anlegen oder öffnen", "pfeil");
+    weiter.addEventListener("click", zurUebersicht);
+    leer.replaceChildren(kreis, el("p", "", abschlussInfo ? `„${abschlussInfo.name}" ist abgeschlossen und liegt im Archiv.` : "Kein Meeting geöffnet."), weiter);
+    if (abschlussInfo) {
+      const archiv = knopf("Zum Archiv", "archive", "zweit");
+      archiv.addEventListener("click", () => gehe("archiv"));
+      leer.append(archiv);
+    }
+  }
   $("#start").hidden = !offen || an;
   beschrifte($("#start"), "play", status.letzterZyklus ? "Aufnahme fortsetzen" : "Aufnahme starten");
   $("#pause").hidden = !an;
@@ -327,7 +267,7 @@ function zeige(daten) {
   $("#protokoll").hidden = $("#spalten").hidden = !offen;
   $("#agenda-hilfe").hidden = $("#agenda-titel").hidden = $("#agenda").hidden = !offen;
   $("#arbeit").textContent = !offen
-    ? "Lege ein neues Meeting an oder öffne ein bestehendes."
+    ? "Hört im Meeting mit, schreibt das Transkript und führt die To-do-Liste."
     : status.arbeit ?? (an ? `Aufnahme läuft. Der erste Abschnitt wird nach 20 Sekunden gesendet, danach alle ${status.zyklusSekunden} Sekunden.` : status.letzterZyklus ? "Pausiert. Alles bleibt erhalten, bis du das Meeting schließt." : "Bereit. Wähle einen Agendapunkt und starte die Aufnahme.");
 
   // Kennzahlen

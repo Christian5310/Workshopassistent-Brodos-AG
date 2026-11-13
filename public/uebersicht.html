@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Übersicht · BroKI</title></head>
+<body class="ansicht">
+  <aside class="seitenleiste">
+    <h2>Auswahl</h2>
+    <div id="wahl" class="akkordeon"></div>
+  </aside>
+  <main class="inhalt">
+    <div class="seitenkopf">
+      <div><h1 id="titel">Übersicht</h1><p id="unterzeile" class="unterzeile"></p></div>
+    </div>
+    <div id="meldung" class="hinweisband" role="alert"></div>
+
+    <!-- Start: beide Möglichkeiten als Kacheln -->
+    <div id="b-start" class="kacheln" hidden></div>
+
+    <!-- KI Transkriptionsassistent: neues Meeting anlegen oder bestehendes öffnen -->
+    <div id="b-meeting" class="zweispaltig" hidden>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Neues Meeting</h2></div>
+        <form id="m-formular" class="kasten-inhalt stapel">
+          <p class="gedaempft">Lege ein Meeting mit Name, Datum und Agenda an. Der Assistent öffnet sich danach direkt.</p>
+          <div class="reihe"><button type="button" id="m-neu"></button></div>
+          <div id="m-felder" class="stapel" hidden>
+            <div class="feld"><label for="m-name">Name</label><input id="m-name" type="text" maxlength="80" placeholder="z. B. Sales Agentic Workshop"></div>
+            <div class="feld"><label for="m-datum">Datum</label><input id="m-datum" type="date"></div>
+            <div class="feld"><label for="m-agenda">Agenda</label><textarea id="m-agenda" rows="5" placeholder="Ein Punkt pro Zeile"></textarea><p>Hintergrundwissen und Fachbegriffe ergänzt du später im Admin.</p></div>
+            <div class="reihe"><button type="submit" id="m-anlegen"></button><button type="button" id="m-abbrechen" class="zweit"></button></div>
+          </div>
+        </form>
+      </section>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Bestehendes Meeting</h2></div>
+        <form id="m-oeffnen-formular" class="kasten-inhalt stapel">
+          <div class="feld"><label for="m-wahl">Meeting auswählen</label><select id="m-wahl"></select><p id="m-info"></p></div>
+          <div class="reihe"><button type="submit" id="m-oeffnen"></button></div>
+        </form>
+      </section>
+    </div>
+
+    <!-- KI Wissensagenten: neuen Agenten anlegen oder bestehenden öffnen -->
+    <div id="b-agenten" class="zweispaltig" hidden>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Neuer Agent</h2></div>
+        <form id="a-formular" class="kasten-inhalt stapel">
+          <p class="gedaempft">Lege einen Agenten mit eigener Rolle und eigenem Wissen an. Du kannst ihn danach sofort fragen.</p>
+          <div class="reihe"><button type="button" id="a-neu"></button></div>
+          <div id="a-felder" class="stapel" hidden>
+            <div class="feld"><label for="a-name">Name</label><input id="a-name" type="text" maxlength="40" placeholder="z. B. Legal Counsel"></div>
+            <div class="feld"><label for="a-symbol">Symbol</label><select id="a-symbol"><option value="kuerzel">Person (allgemein)</option><option value="sales">Aktentasche (Vertrieb)</option><option value="bpm">Ablauf (Prozesse)</option><option value="consultant">Trend (Strategie)</option></select></div>
+            <div class="feld"><label for="a-prompt">Prompt (Rolle)</label><textarea id="a-prompt" rows="4" maxlength="8000" placeholder="Wer ist der Agent? Welche Erfahrung hat er, worauf achtet er, wie antwortet er?"></textarea></div>
+            <div class="feld">
+              <label for="a-wissen">Wissensdatei (optional)</label>
+              <div class="wissenleiste"><span id="a-zaehler" class="zaehler">leer</span><button type="button" id="a-laden" class="zweit klein"></button><input id="a-datei" type="file" accept=".md,.txt,text/markdown,text/plain" multiple hidden></div>
+              <textarea id="a-wissen" rows="4" maxlength="300000" class="mono" placeholder="Text einfügen oder Datei laden."></textarea>
+            </div>
+            <div class="reihe"><button type="submit" id="a-anlegen"></button><button type="button" id="a-abbrechen" class="zweit"></button></div>
+          </div>
+        </form>
+      </section>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Bestehender Agent</h2></div>
+        <form id="a-oeffnen-formular" class="kasten-inhalt stapel">
+          <div class="feld"><label for="a-wahl">Agent auswählen</label><select id="a-wahl"></select><p>Prompt und Wissen bestehender Agenten pflegst du im Admin.</p></div>
+          <div class="reihe"><button type="submit" id="a-oeffnen"></button></div>
+        </form>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="/js/uebersicht.js"></script>
+</body>
+</html>

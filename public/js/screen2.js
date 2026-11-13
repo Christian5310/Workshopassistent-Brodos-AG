@@ -1,4 +1,4 @@
-import { AGENTEN, el, icon, imRahmen, sende, verbinde, zeigeChat } from "./common.js";
+import { AGENTEN, el, gehe, icon, imRahmen, sende, verbinde, zeigeChat } from "./common.js";
 
 imRahmen("agenten");
 
@@ -6,65 +6,32 @@ const chat = document.querySelector("#chat");
 const statusZeile = document.querySelector("#chatstatus");
 const formular = document.querySelector("#formular");
 const text = document.querySelector("#text");
-// Auswahlfeld links: "Alle Agenten", die bestehenden Agenten und "Neuen Agenten anlegen"
+// Auswahlfeld links: "Alle Agenten", die bestehenden Agenten und der Weg zur Neuanlage (Übersicht)
 const NEU = "__neu__";
 const an = { value: "alle" };
 const wahl = document.querySelector("#agentwahl");
 let wahlStand = "";
+/** In der Übersicht gewählter Agent: wird einmalig übernommen. */
+let gewuenscht = null;
+try { gewuenscht = sessionStorage.getItem("broki-agent"); sessionStorage.removeItem("broki-agent"); } catch {}
+
 function zeigeWahl() {
   const stand = JSON.stringify([...AGENTEN.values()]);
-  if (stand !== wahlStand) {
-    wahlStand = stand;
-    const vorher = wahl.value || an.value;
-    const option = (wert, text) => { const o = el("option", "", text); o.value = wert; return o; };
-    const gruppe = el("optgroup");
-    gruppe.label = "Bestehenden Agenten fragen";
-    gruppe.append(...[...AGENTEN.values()].map((a) => option(a.id, a.name)));
-    wahl.replaceChildren(option("alle", "Alle Agenten"), gruppe, option(NEU, "Neuen Agenten anlegen"));
-    wahl.value = [...wahl.options].some((o) => o.value === (gewuenscht ?? vorher)) ? (gewuenscht ?? vorher) : "alle";
-    if (wahl.value === gewuenscht) gewuenscht = null;
-  }
-  const neu = wahl.value === NEU;
-  if (!neu) an.value = wahl.value;
-  document.querySelector("#agent-neu").hidden = !neu;
-  document.querySelector("#chat").hidden = neu;
-  document.querySelector("#formular").hidden = neu || ohneMeeting;
+  if (stand === wahlStand) return;
+  wahlStand = stand;
+  const vorher = gewuenscht ?? wahl.value ?? an.value;
+  const option = (wert, text) => { const o = el("option", "", text); o.value = wert; return o; };
+  wahl.replaceChildren(option("alle", "Alle Agenten"), ...[...AGENTEN.values()].map((a) => option(a.id, a.name)), option(NEU, "Neuen Agenten anlegen …"));
+  wahl.value = [...wahl.options].some((o) => o.value === vorher) && vorher !== NEU ? vorher : "alle";
+  if (wahl.value === gewuenscht || AGENTEN.size) gewuenscht = null;
+  an.value = wahl.value;
 }
-/** ID eines gerade angelegten Agenten: wird ausgewählt, sobald er in der Liste erscheint. */
-let gewuenscht = null;
 wahl.addEventListener("change", () => {
-  zeigeWahl();
-  if (wahl.value === NEU) document.querySelector("#a-name").focus();
-});
-
-// ── Neuen Agenten anlegen ──
-const $a = (id) => document.querySelector(id);
-const zaehle = () => ($a("#a-zaehler").textContent = $a("#a-wissen").value.length ? `${$a("#a-wissen").value.length.toLocaleString("de-DE")} Zeichen` : "leer");
-$a("#a-wissen").addEventListener("input", zaehle);
-$a("#a-laden").addEventListener("click", () => $a("#a-datei").click());
-$a("#a-datei").addEventListener("change", async () => {
-  const texte = await Promise.all([...$a("#a-datei").files].map((f) => f.text()));
-  const neu = [$a("#a-wissen").value.trim(), ...texte.map((t) => t.trim())].filter(Boolean).join("\n\n");
-  if (neu.length > 300000) return void ($a("#a-meldung").textContent = "Zu groß: höchstens 300.000 Zeichen.");
-  $a("#a-wissen").value = neu;
-  $a("#a-datei").value = "";
-  zaehle();
-});
-$a("#a-abbrechen").addEventListener("click", () => { wahl.value = an.value; zeigeWahl(); });
-$a("#agentformular").addEventListener("submit", async (ereignis) => {
-  ereignis.preventDefault();
-  try {
-    const farben = ["#0069b4", "#004080", "#31435e"];
-    const { id } = await sende("/api/agenten", { name: $a("#a-name").value, beschreibung: $a("#a-prompt").value, wissen: $a("#a-wissen").value, figur: $a("#a-symbol").value, farbe: farben[AGENTEN.size % farben.length] });
-    $a("#agentformular").reset();
-    zaehle();
-    $a("#a-meldung").textContent = "";
-    gewuenscht = id; // das Update vom Server bringt den neuen Agenten in die Liste
-    wahlStand = "";
-    if (AGENTEN.has(id)) zeigeWahl();
-  } catch (fehler) {
-    $a("#a-meldung").textContent = fehler.message;
+  if (wahl.value === NEU) {
+    try { sessionStorage.setItem("broki-uebersicht", "agenten"); } catch {}
+    return void gehe("uebersicht");
   }
+  an.value = wahl.value;
 });
 
 let hoertZu = false;
@@ -80,7 +47,8 @@ function zeigeChatStatus(fehler = "") {
 let ohneMeeting = false;
 verbinde(({ chat: nachrichten, status, tag }) => {
   ohneMeeting = tag === null;
-  if (ohneMeeting) statusZeile.textContent = "Kein Meeting geöffnet. Bitte im Transkriptions-Assistenten ein Meeting auswählen.";
+  document.querySelector("#formular").hidden = ohneMeeting;
+  if (ohneMeeting) statusZeile.textContent = "Kein Meeting geöffnet. Bitte in der Übersicht ein Meeting anlegen oder öffnen.";
   zeigeWahl();
   denkt = status.chat === "denkt nach";
   quelle = status.quelle;
@@ -160,7 +128,4 @@ document.addEventListener("keyup", (e) => {
 
 // Beschriftung der Knöpfe mit Linien-Icons
 ptt.replaceChildren(icon("mic"), "Halten zum Sprechen");
-$a("#a-laden").replaceChildren(icon("plus"), "Datei laden (.md)");
-$a("#a-anlegen").replaceChildren(icon("plus"), "Agent anlegen");
-$a("#a-abbrechen").replaceChildren(icon("x"), "Abbrechen");
 document.querySelector("#senden").replaceChildren(icon("senden"), "Senden");

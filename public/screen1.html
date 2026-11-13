@@ -14,7 +14,7 @@
   <main class="inhalt">
     <div class="seitenkopf">
       <div>
-        <h1>Transkriptions-Assistent</h1>
+        <h1>KI Transkriptionsassistent</h1>
         <p id="arbeit" class="unterzeile" role="status"></p>
       </div>
       <div class="aktionen">
@@ -26,29 +26,7 @@
       </div>
     </div>
     <div id="meldung" class="hinweisband" role="alert"></div>
-    <!-- Stufe vor dem Meeting: neu anlegen oder ein bestehendes öffnen -->
-    <section id="startstufe" class="kasten" hidden>
-      <div class="kasten-kopf"><h2>Mit welchem Meeting möchtest du arbeiten?</h2></div>
-      <form id="startformular" class="kasten-inhalt startformular">
-        <p id="start-hinweis" class="hinweisband" hidden></p>
-        <div class="feld">
-          <label for="startwahl">Meeting</label>
-          <select id="startwahl"></select>
-        </div>
-        <div id="neu-felder" hidden>
-          <div class="zweispaltig">
-            <div class="feld"><label for="neu-name">Name</label><input id="neu-name" type="text" maxlength="80" placeholder="z. B. Sales Agentic Workshop"></div>
-            <div class="feld"><label for="neu-datum">Datum</label><input id="neu-datum" type="date"></div>
-          </div>
-          <div class="feld">
-            <label for="neu-agenda">Agenda</label>
-            <textarea id="neu-agenda" rows="5" placeholder="Ein Punkt pro Zeile"></textarea>
-            <p>Hintergrundwissen und Fachbegriffe kannst du später im Admin ergänzen.</p>
-          </div>
-        </div>
-        <div class="reihe"><button type="submit" id="start-weiter" disabled></button></div>
-      </form>
-    </section>
+    <div id="leerzustand" class="leerzustand" hidden></div>
 
     <div id="protokoll" hidden>
       <div class="kennzahlen">
