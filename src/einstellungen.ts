@@ -8,7 +8,8 @@ import type { Adressat, Protokoll } from "./types.ts";
 // Globale Einstellungen: Spezial-Agenten, Prompts, Obergrenze. Gespeichert in data/einstellungen.json.
 // Hintergrundwissen, Fachbegriffe und Agenda gehören zum jeweiligen Meeting (store.ts).
 export const FIGUREN = ["sales", "bpm", "consultant", "kuerzel"] as const;
-export const FARBEN = ["#0069b4", "#004080", "#31435e", "#0f7c8a", "#6b4fa0", "#a8530f"] as const;
+/** Nur Farben aus der Brodos-Palette (Designvorlage Abschnitt 4). */
+export const FARBEN = ["#0069b4", "#004080", "#31435e"] as const;
 
 /** Was sich an einem Spezial-Agenten einstellen lässt (ohne ID). */
 export const AgentEingabeSchema = z.object({
@@ -17,9 +18,9 @@ export const AgentEingabeSchema = z.object({
   beschreibung: z.string().trim().max(8000),
   /** Wissensdatei (Markdown/Text). Wird bei jeder Frage an diesen Agenten mitgeschickt. */
   wissen: z.string().max(300_000).default(""),
-  /** Gezeichnete Figur oder "kuerzel" (Kreis mit Anfangsbuchstaben) */
+  /** Symbol des Agenten (Linien-Icon); die Werte heißen aus historischen Gründen wie die ersten drei Agenten */
   figur: z.enum(FIGUREN).default("kuerzel"),
-  farbe: z.enum(FARBEN).default("#0069b4"),
+  farbe: z.enum(FARBEN).catch("#0069b4"), // früher erlaubte Farben außerhalb der Palette fallen auf die Primärfarbe zurück
 });
 const AgentSchema = AgentEingabeSchema.extend({ id: z.string().regex(/^[a-z0-9-]{1,40}$/) });
 export type Agent = z.infer<typeof AgentSchema>;

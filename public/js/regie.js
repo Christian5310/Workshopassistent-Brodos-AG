@@ -1,4 +1,6 @@
-import { el, fuelleAgentenWahl, sende, verbinde, zeigeStatus } from "./common.js";
+import { el, fuelleAgentenWahl, icon, imRahmen, merlin, sende, verbinde } from "./common.js";
+
+imRahmen("regie");
 
 const $ = (id) => document.querySelector(id);
 let letzterZyklus = undefined;
@@ -17,16 +19,15 @@ async function ladeTranskript() {
 }
 
 verbinde(({ status, chat, tag }) => {
-  document.querySelector("#reset").textContent = tag ? `Inhalte von „${tag.name}" löschen` : "Kein Meeting geöffnet";
+  document.querySelector("#reset").replaceChildren(icon("trash"), tag ? `Inhalte von „${tag.name}" löschen` : "Kein Meeting geöffnet");
   document.querySelector("#reset").disabled = !tag;
-  zeigeStatus(status);
   fuelleAgentenWahl($("#an"));
-  $("#start").disabled = status.aufnahme || status.quelle === "mikro" || !tag;
+  $("#start").disabled = status.aufnahme || !tag;
   $("#pause").disabled = !status.aufnahme;
   $("#aufnahme-info").textContent = status.mock
     ? `Mock-Modus: Alle ${status.zyklusSekunden} s kommt ein Abschnitt aus dem Fake-Transkript.`
     : "";
-  if (status.quelle === "mikro") $("#aufnahme-info").textContent = `Alle ${status.zyklusSekunden} s wird ein Audio-Schnipsel transkribiert. Eingeschaltet wird am Gerät mit dem Mikrofon, in der Ansicht „Transkriptions-Assistent".`;
+  if (status.quelle === "mikro") $("#aufnahme-info").textContent = `Alle ${status.zyklusSekunden} s wird ein Audio-Abschnitt transkribiert. Diagnose, Text-Einspeisung und Löschen für die Moderation.`;
   $("#chat-info").textContent =
     status.chat === "denkt nach" ? "Die Spezial-Agenten denken nach …" : `${chat.length} Nachrichten im Verlauf. Antworten erscheinen bei den Spezial-Agenten.`;
   if (status.letzterZyklus !== letzterZyklus) {
@@ -62,8 +63,8 @@ $("#textformular").addEventListener("submit", async (ereignis) => {
 
 const melde = (fehler) => ($("#chat-info").textContent = fehler.message);
 
-$("#start").addEventListener("click", () => sende("/api/regie/start").catch(melde));
-$("#pause").addEventListener("click", () => sende("/api/regie/pause").catch(melde));
+$("#start").addEventListener("click", () => merlin().starten().catch(melde));
+$("#pause").addEventListener("click", () => merlin().pausieren().catch(melde));
 $("#reset").addEventListener("click", () => {
   if (confirm("Transkript, Protokoll und Chat dieses Meetings wirklich unwiderruflich löschen?")) sende("/api/regie/reset").catch(melde);
 });
@@ -74,3 +75,9 @@ $("#formular").addEventListener("submit", (ereignis) => {
   $("#text").value = "";
   sende("/api/chat", { text, an: $("#an").value }).catch(melde);
 });
+
+// Beschriftung der Knöpfe mit Linien-Icons
+$("#start").replaceChildren(icon("play"), "Aufnahme starten");
+$("#pause").replaceChildren(icon("pause"), "Pausieren");
+$("#verarbeiten").replaceChildren(icon("pfeil"), "Verarbeiten");
+$("#fragen").replaceChildren(icon("senden"), "Frage senden");

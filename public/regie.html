@@ -1,55 +1,49 @@
 <!doctype html>
 <html lang="de">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Regie · Merlin</title></head>
-<body class="regie">
-  <header class="kopf"><a class="logo" href="/start" title="Zur Auswahl"><img src="/img/merlin-wort.png" alt="Merlin"></a><h1>Regie</h1><div class="status"><span id="mock" class="pille" hidden>MOCK-MODUS</span><span id="mikro"><span class="punkt"></span><span>Pausiert</span></span><span id="zyklus"></span></div></header>
-  <div id="hinweis" class="hinweis"></div>
-  <main>
-    <section class="block">
-      <h2>Transkriptions-Assistent</h2>
-      <p id="aufnahme-info"></p>
-      <div class="reihe">
-        <button id="start">Starten</button>
-        <button id="pause" class="zweit">Pausieren</button>
-      </div>
-      <p><a href="/screen1" target="_blank">Transkriptions-Assistent öffnen</a> · <a href="/screen2" target="_blank">Spezial-Agenten öffnen</a></p>
-    </section>
-
-    <section class="block">
-      <h2>Frage an die Spezial-Agenten</h2>
-      <form id="formular" class="reihe">
-        <select id="an" aria-label="An wen geht die Frage?"></select>
-        <input id="text" type="text" placeholder="Frage tippen …" autocomplete="off">
-        <button type="submit">Senden</button>
-      </form>
-      <p id="chat-info"></p>
-    </section>
-
-    <section class="block">
-      <h2>Transkript (nur Regie)</h2>
-      <div id="transkript" class="transkript"></div>
-    </section>
-
-    <section class="block">
-      <h2>Diagnose: Was hat der Assistent erkannt?</h2>
-      <p>Pro Abschnitt: was gehört wurde und was daraus entstanden ist. Hilft, wenn To-dos fehlen.</p>
-      <div id="diagnose" class="transkript"></div>
-    </section>
-
-    <section class="block">
-      <h2>Text einspeisen</h2>
-      <p>Zum Testen ohne Mikrofon oder als Plan B: Der Text wird wie ein gehörter Abschnitt verarbeitet. Lange Texte werden automatisch aufgeteilt.</p>
-      <form id="textformular">
-        <textarea id="einspeisen" rows="4" placeholder="z. B. Tom erstellt bis Freitag die Liste der Freigabeschritte."></textarea>
-        <div class="reihe" style="margin-top:0.5rem"><button type="submit">Verarbeiten</button></div>
-      </form>
-    </section>
-
-    <section class="block">
-      <h2>Inhalte löschen</h2>
-      <p id="reset-info">Leert Transkript, Protokoll und Chat des aktiven Meetings unwiderruflich. Name, Datum und Agenda bleiben. Andere Meetings sind nicht betroffen. Ganze Meetings löschst du im <a href="/archiv">Archiv</a>.</p>
-      <div class="reihe"><button id="reset" class="zweit">Inhalte dieses Meetings löschen</button></div>
-    </section>
+<body class="ansicht">
+  <main class="inhalt">
+    <div class="seitenkopf">
+      <div><h1>Regie</h1><p id="aufnahme-info" class="unterzeile"></p></div>
+      <div class="aktionen"><button id="pause" type="button" class="zweit"></button><button id="start" type="button"></button></div>
+    </div>
+    <div id="chat-info" class="hinweisband" role="status"></div>
+    <div class="raster">
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Diagnose</h2><span class="klein-text gedaempft">was gehört wurde und was daraus entstand</span></div>
+        <div id="diagnose" class="transkript kasten-inhalt"></div>
+      </section>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Transkript</h2></div>
+        <div id="transkript" class="transkript kasten-inhalt"></div>
+      </section>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Text einspeisen</h2></div>
+        <form id="textformular" class="kasten-inhalt feld">
+          <label for="einspeisen">Text statt Audio</label>
+          <textarea id="einspeisen" rows="4" placeholder="z. B. Tom erstellt bis Freitag die Liste der Freigabeschritte."></textarea>
+          <p>Zum Testen ohne Mikrofon oder als Plan B. Lange Texte werden automatisch aufgeteilt.</p>
+          <div class="reihe"><button type="submit" id="verarbeiten"></button></div>
+        </form>
+      </section>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Frage an die Spezial-Agenten</h2></div>
+        <form id="formular" class="kasten-inhalt feld">
+          <label for="an">An</label>
+          <select id="an"></select>
+          <label for="text">Frage</label>
+          <input id="text" type="text" autocomplete="off">
+          <div class="reihe"><button type="submit" id="fragen"></button></div>
+        </form>
+      </section>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Inhalte löschen</h2></div>
+        <div class="kasten-inhalt feld">
+          <p>Leert Transkript, Protokoll und Chat des geöffneten Meetings unwiderruflich. Name, Datum und Agenda bleiben. Ganze Meetings löschst du im Archiv.</p>
+          <div class="reihe"><button id="reset" type="button" class="zweit"></button></div>
+        </div>
+      </section>
+    </div>
   </main>
   <script type="module" src="/js/regie.js"></script>
 </body>

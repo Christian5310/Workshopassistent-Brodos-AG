@@ -1,10 +1,12 @@
-import { AGENTEN, el, figur, sende, verbinde, zeigeChat, zeigeStatus } from "./common.js";
+import { AGENTEN, el, icon, imRahmen, sende, verbinde, zeigeChat } from "./common.js";
+
+imRahmen("agenten");
 
 const chat = document.querySelector("#chat");
 const statusZeile = document.querySelector("#chatstatus");
 const formular = document.querySelector("#formular");
 const text = document.querySelector("#text");
-// Auswahl des Spezial-Agenten: "Alle" plus ein Knopf je Agent (aus der Admin-Ansicht)
+// Auswahl links: "Alle" plus ein Auswahlfeld je Agent (aus der Admin-Ansicht)
 const an = { value: "alle" };
 const wahl = document.querySelector("#an");
 let wahlStand = "";
@@ -13,17 +15,16 @@ function zeigeWahl() {
   if (stand === wahlStand) return;
   wahlStand = stand;
   if (an.value !== "alle" && !AGENTEN.has(an.value)) an.value = "alle";
-  const knopf = (wert, inhalt, farbe) => {
-    const k = el("button");
+  const feld = (wert, vorne, text) => {
+    const k = el("button", `select-item${an.value === wert ? " is-active" : ""}`);
     k.type = "button";
     k.setAttribute("role", "radio");
     k.setAttribute("aria-checked", String(an.value === wert));
-    if (farbe) k.style.setProperty("--rolle", farbe);
-    k.append(...inhalt);
+    k.append(vorne, el("span", "", text));
     k.addEventListener("click", () => { an.value = wert; zeigeWahl(); });
     return k;
   };
-  wahl.replaceChildren(knopf("alle", ["Alle"]), ...[...AGENTEN.values()].map((a) => knopf(a.id, [figur(a), el("span", "name", a.name)], a.farbe)));
+  wahl.replaceChildren(feld("alle", icon("users"), "Alle Agenten"), ...[...AGENTEN.values()].map((a) => feld(a.id, icon(a.figur), a.name)));
 }
 
 let hoertZu = false;
@@ -31,17 +32,16 @@ let denkt = false;
 
 function zeigeChatStatus(fehler = "") {
   if (ohneMeeting && !fehler) return;
-  statusZeile.textContent = fehler || (hoertZu ? "hört zu …" : denkt ? "denkt nach …" : "");
-  ptt.classList.toggle("aktiv", hoertZu);
+  statusZeile.textContent = fehler || (hoertZu ? "hört zu …" : denkt ? "denkt nach …" : "Antworten nur auf Frage, per Sprache oder Text.");
+  ptt.classList.toggle("hoert", hoertZu);
   formular.querySelector("button[type=submit]").disabled = denkt;
 }
 
 let ohneMeeting = false;
 verbinde(({ chat: nachrichten, status, tag }) => {
   ohneMeeting = tag === null;
-  document.querySelector("#formular").hidden = document.querySelector(".wahlzeile").hidden = ohneMeeting;
+  document.querySelector("#formular").hidden = ohneMeeting;
   if (ohneMeeting) statusZeile.textContent = "Kein Meeting geöffnet. Bitte im Transkriptions-Assistenten ein Meeting auswählen.";
-  zeigeStatus(status);
   zeigeWahl();
   denkt = status.chat === "denkt nach";
   quelle = status.quelle;
@@ -118,3 +118,7 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener("keyup", (e) => {
   if (e.code === "Space" && hoertZu) { e.preventDefault(); pttEnde(); }
 });
+
+// Beschriftung der Knöpfe mit Linien-Icons
+ptt.replaceChildren(icon("mic"), "Halten zum Sprechen");
+document.querySelector("#senden").replaceChildren(icon("senden"), "Senden");

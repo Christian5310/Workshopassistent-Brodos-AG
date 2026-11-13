@@ -1,30 +1,60 @@
 <!doctype html>
 <html lang="de">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Transkriptions-Assistent · Merlin</title></head>
-<body>
-  <header class="kopf"><a class="logo" href="/start" title="Zur Auswahl"><img src="/img/merlin-wort.png" alt="Merlin"></a><h1>Transkriptions-Assistent</h1><div class="steuerung">
-      <button id="transkript-knopf" type="button" class="schalter" aria-pressed="false" hidden>Transkript</button>
-      <button id="start" type="button" class="haupt" hidden>▶ Aufnahme starten</button>
-      <button id="pause" type="button" class="haupt laeuft" hidden>⏸ Pausieren</button>
-      <button id="rueckgaengig" type="button" class="schalter" hidden>↶ Rückgängig</button>
-      <button id="schliessen" type="button" class="schalter" hidden>Meeting schließen</button>
-    </div><div class="status"><span id="mock" class="pille" hidden>MOCK-MODUS</span><span id="pegel" class="pegel" hidden title="Mikrofon-Pegel"><i></i></span><span id="mikro"><span class="punkt"></span><span>Pausiert</span></span><span id="zyklus"></span><span id="countdown"></span></div></header>
-  <div class="tagleiste"><label for="tagwahl">Meeting</label><select id="tagwahl"></select><span id="tag-info"></span><span id="arbeit" class="arbeit" role="status"></span><a href="/admin" target="_blank" rel="noopener">Meetings verwalten</a></div>
-  <div id="hinweis" class="hinweis"></div>
-  <div id="mikrofehler" class="hinweis fehler" role="alert"></div>
-  <div id="leerhinweis" class="leerhinweis" hidden></div>
-  <main class="protokoll">
-    <section class="spalte">
-      <div class="karte"><h2>Agenda <span class="zahl">anklicken = läuft</span></h2><ul id="agenda" class="liste agenda"></ul></div>
-      <div id="transkript-karte" class="karte mitschrift" hidden><h2>Transkript <span class="zahl">letzte Abschnitte</span></h2><div id="transkript" class="mitschrift-text" aria-live="off"></div></div>
-    </section>
-    <section class="spalte"><div class="karte"><h2>To-dos <span class="rechts"><span id="todo-zahl" class="zahl"></span><button id="ablegen" type="button" class="zweit klein" hidden title="Legt die aktuelle Liste unter dem laufenden Agendapunkt ab, damit sie kurz bleibt">Liste ablegen</button></span></h2><div id="gruppen" class="gruppen"></div><ul id="todos" class="liste todos"></ul></div>
-      <div id="vorschlag-karte" class="karte vorschlaege" hidden><h2>Vorschläge <span class="zahl">unsicher – bitte entscheiden</span></h2><ul id="vorschlaege" class="liste"></ul></div></section>
-    <section class="spalte">
-      <div class="karte"><h2>Entscheidungen</h2><ul id="entscheidungen" class="liste seite"></ul></div>
-      <div class="karte"><h2>Offene Fragen</h2><ul id="fragen" class="liste seite"></ul></div>
-    </section>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Assistent · Merlin</title></head>
+<body class="ansicht">
+  <aside class="seitenleiste">
+    <h2><label for="tagwahl">Meeting</label></h2>
+    <select id="tagwahl"></select>
+    <button id="verwalten" type="button" class="textlink klein-text">Meetings verwalten</button>
+    <h2>Agenda</h2>
+    <p class="hilfe" id="agenda-hilfe">Anklicken: Der Punkt läuft, Transkript und To-dos gehören dazu.</p>
+    <div id="agenda" class="akkordeon"></div>
+  </aside>
+  <main class="inhalt">
+    <div class="seitenkopf">
+      <div>
+        <h1>Transkriptions-Assistent</h1>
+        <p id="arbeit" class="unterzeile" role="status"></p>
+      </div>
+      <div class="aktionen">
+        <button id="transkript-knopf" type="button" class="zweit" aria-pressed="false" hidden></button>
+        <button id="rueckgaengig" type="button" class="zweit" hidden></button>
+        <button id="schliessen" type="button" class="zweit" hidden></button>
+        <button id="pause" type="button" hidden></button>
+        <button id="start" type="button" hidden></button>
+      </div>
+    </div>
+    <div id="meldung" class="hinweisband" role="alert"></div>
+    <div id="leerzustand" class="leerzustand" hidden></div>
+
+    <div id="protokoll" hidden>
+      <div class="kennzahlen">
+        <div class="kennzahl"><div class="bezeichnung">Offene To-dos</div><div class="wert" id="k-todos">0</div></div>
+        <div class="kennzahl"><div class="bezeichnung">Vorschläge</div><div class="wert" id="k-vorschlaege">0</div></div>
+        <div class="kennzahl"><div class="bezeichnung">Entscheidungen</div><div class="wert" id="k-entscheidungen">0</div></div>
+        <div class="kennzahl"><div class="bezeichnung">Offene Fragen</div><div class="wert" id="k-fragen">0</div></div>
+      </div>
+    </div>
+    <div id="spalten" class="spalten" hidden>
+      <div class="spalte">
+        <section class="kasten">
+          <div class="kasten-kopf"><h2>To-dos</h2><button id="ablegen" type="button" class="zweit klein" hidden title="Legt die aktuelle Liste unter dem laufenden Agendapunkt ab, damit sie kurz bleibt"></button></div>
+          <div id="gruppen" class="gruppen"></div>
+          <ul id="todos" class="liste todos"></ul>
+        </section>
+        <section id="vorschlag-karte" class="kasten" hidden>
+          <div class="kasten-kopf"><h2>Vorschläge</h2><span class="badge arbeit">unsicher – bitte entscheiden</span></div>
+          <ul id="vorschlaege" class="liste"></ul>
+        </section>
+      </div>
+      <div class="spalte">
+        <section class="kasten"><div class="kasten-kopf"><h2>Entscheidungen</h2></div><ul id="entscheidungen" class="liste"></ul></section>
+        <section class="kasten"><div class="kasten-kopf"><h2>Offene Fragen</h2></div><ul id="fragen" class="liste"></ul></section>
+        <section id="transkript-karte" class="kasten" hidden><div class="kasten-kopf"><h2>Transkript</h2><span class="klein-text gedaempft">letzte Abschnitte</span></div><div id="transkript" class="mitschrift"></div></section>
+      </div>
+    </div>
   </main>
+
   <dialog id="schluss">
     <form method="dialog">
       <h2>Meeting schließen?</h2>

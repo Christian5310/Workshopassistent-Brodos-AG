@@ -1,18 +1,11 @@
 <!doctype html>
 <html lang="de">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Archiv · Merlin</title></head>
-<body class="regie archiv">
-  <header class="kopf"><a class="logo" href="/start" title="Zur Auswahl"><img src="/img/merlin-wort.png" alt="Merlin"></a><h1>Archiv</h1></header>
-  <main>
-    <aside class="archivliste">
-      <section class="block">
-        <h2>Meetings</h2>
-        <p>Nach „Meeting schließen" liegt hier alles ab: To-dos, Entscheidungen, Fragen und Transkript, je mit Download.</p>
-        <ul id="eintraege" class="eintraege"></ul>
-      </section>
-    </aside>
-    <section id="detail" class="detail"><div class="block"><p>Wähle links ein Meeting aus.</p></div></section>
-  </main>
+<body class="ansicht">
+  <aside class="seitenleiste">
+    <div id="eintraege" class="akkordeon"></div>
+  </aside>
+  <main id="detail" class="inhalt"></main>
   <script type="module" src="/js/archiv.js"></script>
 </body>
 </html>

@@ -1,17 +1,26 @@
 <!doctype html>
 <html lang="de">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Spezial-Agenten · Merlin</title></head>
-<body>
-  <header class="kopf"><a class="logo" href="/start" title="Zur Auswahl"><img src="/img/merlin-wort.png" alt="Merlin"></a><h1>Spezial-Agenten</h1><div class="status"><span id="mock" class="pille" hidden>MOCK-MODUS</span></div></header>
-  <main id="chat" class="chat" aria-live="polite"></main>
-  <div id="chatstatus" class="chatstatus" role="status"></div>
-  <div class="wahlzeile"><span>Frage an:</span><div id="an" class="wahl" role="radiogroup" aria-label="Welcher Spezial-Agent soll antworten?"></div></div>
-  <form id="formular" class="eingabe">
-    
-    <input id="text" type="text" placeholder="Frage tippen …" autocomplete="off">
-    <button type="submit">Senden</button>
-    <button type="button" id="ptt" class="zweit" title="Gedrückt halten (oder Leertaste halten)">🎙 Halten zum Sprechen</button>
-  </form>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Agenten · Merlin</title></head>
+<body class="ansicht">
+  <aside class="seitenleiste">
+    <h2 id="wahl-titel">Frage an</h2>
+    <div id="an" class="akkordeon" role="radiogroup" aria-labelledby="wahl-titel"></div>
+    <p class="hilfe">Agenten und ihr Wissen pflegst du im Admin.</p>
+  </aside>
+  <main class="inhalt">
+    <div class="seitenkopf">
+      <div>
+        <h1>Spezial-Agenten</h1>
+        <p id="chatstatus" class="unterzeile" role="status"></p>
+      </div>
+    </div>
+    <div id="chat" class="chat" aria-live="polite"></div>
+    <form id="formular" class="eingabe">
+      <input id="text" type="text" placeholder="Frage tippen …" autocomplete="off" aria-label="Frage an die Spezial-Agenten">
+      <button type="button" id="ptt" class="zweit" title="Gedrückt halten (oder Leertaste halten), sprechen, loslassen"></button>
+      <button type="submit" id="senden"></button>
+    </form>
+  </main>
   <script type="module" src="/js/screen2.js"></script>
 </body>
 </html>

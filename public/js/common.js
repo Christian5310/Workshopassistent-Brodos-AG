@@ -1,4 +1,4 @@
-// Gemeinsame Helfer für alle drei Ansichten. Kein Build-Schritt, kein Framework.
+// Gemeinsame Helfer für den App-Rahmen und alle Ansichten. Kein Build-Schritt, kein Framework.
 
 /** Spezial-Agenten (aus der Admin-Ansicht): id → { name, figur, farbe }. Wird mit jedem Update aktualisiert. */
 export const AGENTEN = new Map();
@@ -12,11 +12,80 @@ export function el(tag, klasse = "", text = "") {
   return e;
 }
 
+// ── Linien-Icons im Stil von Lucide (lucide.dev, ISC-Lizenz), lokal eingebettet ──
+const ICONS = {
+  play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+  pause: '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  mic: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  text: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  liste: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+  regler: '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
+  kalender: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  vollbild: '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
+  senden: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  kreis: '<circle cx="12" cy="12" r="9"/>',
+  laeuft: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/>',
+  erledigt: '<circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/>',
+  pfeil: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  frage: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  runter: '<path d="m6 9 6 6 6-6"/>',
+  ablage: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/>',
+  kopieren: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  // Icons für Spezial-Agenten
+  sales: '<rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  bpm: '<rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/>',
+  consultant: '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  kuerzel: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+};
+
+/** Liefert ein Linien-Icon als SVG-Element (rein dekorativ; der Text steht immer daneben oder im Titel). */
+export function icon(name) {
+  const rahmen = document.createElement("span");
+  rahmen.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] ?? ICONS.kreis}</svg>`;
+  return rahmen.firstElementChild;
+}
+
+/** Knopf mit Icon und Text. */
+export function knopf(text, iconName, klasse = "") {
+  const k = el("button", klasse);
+  k.type = "button";
+  if (iconName) k.append(icon(iconName));
+  k.append(text);
+  return k;
+}
+
+// ── App-Rahmen: Die Ansichten laufen in einem Fenster des Rahmens (app.html), der das Mikrofon hält. ──
+const rahmen = window.parent !== window ? window.parent : null;
+
+/** Ansichten gehören in den Rahmen. Wird eine direkt aufgerufen, leitet sie dorthin um. */
+export function imRahmen(bereich) {
+  if (!rahmen) location.replace(`/app#${bereich}`);
+  else if (rahmen.document.documentElement.classList.contains("praesentation")) document.documentElement.classList.add("praesentation");
+}
+
+/** Wechselt im Rahmen den Bereich (z. B. "archiv"), ohne die Aufnahme zu unterbrechen. */
+export function gehe(bereich) {
+  if (rahmen) rahmen.location.hash = bereich;
+  else location.href = `/app#${bereich}`;
+}
+
+/** Die Aufnahme-Steuerung des Rahmens (starten, pausieren). */
+export const merlin = () => rahmen?.merlin;
+
 /**
  * Hält die Ansicht live über Server-Sent Events.
- * Browser erlauben nur etwa sechs gleichzeitige Verbindungen pro Adresse. Damit viele offene Broki-Live-Tabs
- * (Assistent, Agenten, Regie, Admin, Archiv …) sich nicht gegenseitig blockieren, hält immer nur EIN Tab die
- * Verbindung zum Server und gibt die Updates über einen BroadcastChannel an die anderen Tabs weiter.
+ * Browser erlauben nur etwa sechs gleichzeitige Verbindungen pro Adresse. Deshalb hält immer nur EIN Dokument
+ * (in der Regel der Rahmen) die Verbindung zum Server und gibt die Updates über einen BroadcastChannel weiter.
  */
 export function verbinde(beiUpdate) {
   const anwenden = (stand) => {
@@ -39,7 +108,7 @@ export function verbinde(beiUpdate) {
   kanal = new BroadcastChannel("broki-live-updates");
   kanal.onmessage = (ereignis) => anwenden(ereignis.data);
   fetch("/api/state").then((a) => a.json()).then(anwenden).catch(() => {}); // Startzustand, bis das erste Update kommt
-  // Wer die Sperre bekommt, hält die Verbindung – bis der Tab geschlossen wird; dann übernimmt der nächste.
+  // Wer die Sperre bekommt, hält die Verbindung – bis das Dokument geschlossen wird; dann übernimmt das nächste.
   navigator.locks.request("broki-live-verbindung", () => new Promise(() => direkt()));
 }
 
@@ -56,88 +125,33 @@ export async function sende(pfad, daten = {}, methode = "POST") {
   return antwort.json();
 }
 
-/** Füllt die Statusanzeige in der Kopfzeile und hält "vor X s" im Sekundentakt aktuell. */
-let letzterStatus = null;
-export function zeigeStatus(status) {
-  letzterStatus = status;
-  const mikro = document.querySelector("#mikro");
-  if (mikro) {
-    mikro.querySelector(".punkt").classList.toggle("an", status.aufnahme);
-    mikro.querySelector("span:last-child").textContent = !status.aufnahme ? "Pausiert" : status.quelle === "mikro" ? "Hört zu" : "Läuft (Mock-Skript)";
-  }
-  const mock = document.querySelector("#mock");
-  if (mock) mock.hidden = !status.mock;
-  const hinweis = document.querySelector("#hinweis");
-  if (hinweis) hinweis.textContent = status.hinweis ?? "";
-  tick();
-}
-function tick() {
-  const ziel = document.querySelector("#zyklus");
-  if (!ziel || !letzterStatus) return;
-  const t = letzterStatus.letzterZyklus;
-  ziel.textContent = t ? `Letzter Zyklus vor ${Math.max(0, Math.round((Date.now() - t) / 1000))} s` : "Noch kein Zyklus";
-}
-setInterval(tick, 1000);
+// ── Spezial-Agenten: Kreis mit Initialen in einer Farbe der Palette ──
+const PALETTE = ["#0069b4", "#004080", "#31435e"];
+export const agentFarbe = (agent) => (PALETTE.includes(agent?.farbe) ? agent.farbe : PALETTE[0]);
 
-// ── Virtuelle Personen: flache Illustrationen in den Brodos-Farben (frei gezeichnet, keine echten Personen) ──
-// "FARBE" wird durch die Farbe des Agenten ersetzt.
-const FIGUREN = {
-  sales: `<circle cx="32" cy="32" r="32" fill="FARBE"/>
-    <path d="M10 64c0-13 9-20 22-20s22 7 22 20z" fill="#fff"/>
-    <path d="M32 46l-4 5 4 13 4-13z" fill="#ffd50d"/>
-    <path d="M24 44l8 6 8-6v-6H24z" fill="#e9b88f"/>
-    <circle cx="32" cy="27" r="12" fill="#f2c9a5"/>
-    <path d="M19.5 27c-1-9 4-15 12.5-15S45.5 18 44.5 27c-2-5-5-8-12.5-8s-10.5 3-12.5 8z" fill="#102636"/>`,
-  bpm: `<circle cx="32" cy="32" r="32" fill="FARBE"/>
-    <path d="M17 26c0-10 6-16 15-16s15 6 15 16v16H17z" fill="#31435e"/>
-    <path d="M10 64c0-13 9-20 22-20s22 7 22 20z" fill="#c8d9ee"/>
-    <path d="M25 44l7 7 7-7v-6H25z" fill="#c68f62"/>
-    <circle cx="32" cy="28" r="11.5" fill="#d9a074"/>
-    <path d="M20.5 27c0-8 5-12 11.5-12s11.5 4 11.5 12c-4-1-8-4-10-8-2 4-8 7-13 8z" fill="#31435e"/>
-    <g fill="none" stroke="#fff" stroke-width="1.8"><circle cx="27" cy="29.5" r="4"/><circle cx="37" cy="29.5" r="4"/><path d="M31 29.5h2"/></g>`,
-  consultant: `<circle cx="32" cy="32" r="32" fill="FARBE"/>
-    <path d="M10 64c0-13 9-20 22-20s22 7 22 20z" fill="#c8d9ee"/>
-    <path d="M26 44l6 9 6-9z" fill="#fff"/>
-    <path d="M25 44l7 6 7-6v-6H25z" fill="#7a4c30"/>
-    <circle cx="32" cy="27" r="12" fill="#8d5a3b"/>
-    <path d="M20 31c0 8 5 12 12 12s12-4 12-12c-2 3-6 4-12 4s-10-1-12-4z" fill="#102636"/>
-    <g fill="#102636"><circle cx="23" cy="19" r="5"/><circle cx="29" cy="15" r="5.5"/><circle cx="36" cy="15" r="5.5"/><circle cx="41.5" cy="19" r="5"/></g>`,
-};
-let figurNr = 0;
-
-/** Figur eines Spezial-Agenten als SVG (rein dekorativ, der Name steht daneben). Ohne Zeichnung: Kreis mit Anfangsbuchstaben. */
-export function figur(agent) {
-  const farbe = /^#[0-9a-f]{6}$/i.test(agent?.farbe ?? "") ? agent.farbe : "#0069b4";
-  const rahmen = el("span", "figur");
-  const zeichnung = FIGUREN[agent?.figur];
-  if (zeichnung) {
-    const id = `rund-${figurNr++}`;
-    rahmen.innerHTML = `<svg viewBox="0 0 64 64" aria-hidden="true"><clipPath id="${id}"><circle cx="32" cy="32" r="32"/></clipPath><g clip-path="url(#${id})">${zeichnung.replaceAll("FARBE", farbe)}</g></svg>`;
-  } else {
-    rahmen.classList.add("kuerzel");
-    rahmen.style.background = farbe;
-    rahmen.textContent = (agent?.name ?? "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-    rahmen.setAttribute("aria-hidden", "true");
-  }
-  return rahmen;
+export function avatar(agent, klasse = "") {
+  const kreis = el("span", `avatar ${klasse}`.trim(), (agent?.name ?? "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase());
+  kreis.style.setProperty("--agent", agentFarbe(agent));
+  kreis.setAttribute("aria-hidden", "true");
+  return kreis;
 }
 
-/** Baut den Chatverlauf mit Figuren und Sprechblasen. Während die Agenten nachdenken, zeigen sie "…". */
+/** Baut den Chatverlauf. Während die Agenten nachdenken, zeigen die gefragten drei Punkte. */
 let chatStand = "";
 export function zeigeChat(ziel, nachrichten, denkt = false) {
-  const stand = `${nachrichten.length}/${denkt}/${[...AGENTEN.values()].map((a) => a.name + a.figur + a.farbe)}`;
+  const stand = `${nachrichten.length}/${denkt}/${[...AGENTEN.values()].map((a) => a.name + a.farbe)}`;
   if (stand === chatStand) return false;
   chatStand = stand;
   ziel.replaceChildren();
   if (!nachrichten.length) ziel.append(el("p", "leer", "Noch keine Fragen. Die Spezial-Agenten antworten nur, wenn sie gefragt werden."));
 
   const antwortZeile = (id, name, inhalt) => {
-    const agent = AGENTEN.get(id) ?? { name, figur: "kuerzel", farbe: "#31435e" };
+    const agent = AGENTEN.get(id) ?? { name, farbe: "#31435e" };
     const zeile = el("div", "zeile");
-    zeile.style.setProperty("--rolle", agent.farbe);
+    zeile.style.setProperty("--agent", agentFarbe(agent));
     const blase = el("div", "blase antwort");
     blase.append(el("div", "rolle", agent.name), inhalt);
-    zeile.append(figur(agent), blase);
+    zeile.append(avatar(agent), blase);
     return zeile;
   };
 
@@ -151,7 +165,6 @@ export function zeigeChat(ziel, nachrichten, denkt = false) {
     }
   }
 
-  // Wer gerade gefragt ist, "überlegt" sichtbar.
   const letzte = nachrichten.at(-1);
   if (denkt && letzte?.von === "frage") {
     const gefragt = !letzte.an || letzte.an === "alle" ? [...AGENTEN.keys()] : [letzte.an];

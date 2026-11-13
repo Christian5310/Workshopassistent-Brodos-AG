@@ -1,6 +1,6 @@
-import { Aufnahme } from "./aufnahme.js";
-import { el, sende, verbinde, zeigeStatus } from "./common.js";
+import { el, gehe, icon, imRahmen, knopf, merlin, sende, verbinde } from "./common.js";
 
+imRahmen("assistent");
 const $ = (id) => document.querySelector(id);
 
 // Merkt sich, was schon gezeigt wurde: so erkennen wir Neues und frisch Erledigtes für die Animation.
@@ -9,37 +9,49 @@ let ersterAufbau = true;
 let stand = null; // aktuelles Protokoll
 let tagId = null;
 let an = false;
-let quelle = "timer";
 let letzterZyklus = null;
 
-function zeile(schluessel, status, inhalt, { box = true, marke = "" } = {}) {
+const melde = (text) => ($("#meldung").textContent = text);
+const versuche = (aktion) => async () => {
+  melde("");
+  try {
+    await aktion();
+  } catch (fehler) {
+    melde(fehler.message);
+  }
+};
+/** Setzt Icon und Text eines Knopfs. */
+function beschrifte(k, iconName, text) {
+  k.replaceChildren(icon(iconName), text);
+}
+
+function zeile(schluessel, status, inhalt, marke = null) {
   const li = el("li", status);
   const vorher = bekannt.get(schluessel);
   if (!ersterAufbau && vorher === undefined) li.classList.add("neu");
-  if (!ersterAufbau && vorher !== undefined && vorher !== status && (status === "erledigt" || status === "beantwortet")) {
-    li.classList.add("frisch", "neu");
-  }
+  if (!ersterAufbau && vorher !== undefined && vorher !== status && (status === "erledigt" || status === "beantwortet")) li.classList.add("frisch", "neu");
   bekannt.set(schluessel, status);
-  if (box) li.append(el("span", "box"));
-  if (marke) li.append(el("span", "marke", marke));
+  if (marke) {
+    const m = el("span", "marke");
+    m.append(icon(marke));
+    li.append(m);
+  }
   li.append(inhalt);
   return li;
 }
 
 function fuelle(id, eintraege, leerText) {
   const liste = $(id);
-  liste.replaceChildren(...(eintraege.length ? eintraege : [el("li", "leer", leerText)]));
-  const neu = liste.querySelector(".neu");
-  if (neu) neu.scrollIntoView({ block: "nearest" });
+  liste.replaceChildren(...(eintraege.length ? eintraege : leerText ? [el("li", "leer", leerText)] : []));
+  liste.querySelector(".neu")?.scrollIntoView({ block: "nearest" });
 }
-
-const melde = (text) => ($("#mikrofehler").textContent = text);
 
 // ── Meeting auswählen: Erst danach füllt sich die Ansicht. Abgeschlossene Meetings liegen im Archiv. ──
 const tagwahl = $("#tagwahl");
+let abschlussInfo = null;
 async function ladeTage() {
   const meetings = (await (await fetch("/api/tage")).json()).filter((t) => !t.abgeschlossen);
-  const platzhalter = el("option", "", meetings.length ? "Meeting auswählen …" : "Noch kein Meeting – im Admin anlegen");
+  const platzhalter = el("option", "", meetings.length ? "Meeting auswählen …" : "Noch kein Meeting angelegt");
   platzhalter.value = "";
   tagwahl.replaceChildren(
     platzhalter,
@@ -61,45 +73,13 @@ tagwahl.addEventListener("change", async () => {
     tagwahl.value = tagId ?? "";
   }
 });
+$("#verwalten").addEventListener("click", () => gehe("admin"));
 
-// ── Aufnahme: Starten, Pausieren, Meeting schließen ──
-const pegel = $("#pegel");
-
-// Dieses Gerät ist das Aufnahmegerät, sobald hier gestartet wurde (übersteht ein Neuladen der Seite).
-const MERKER = "broki-live-aufnahmegeraet";
-const merke = (wert) => { try { wert ? localStorage.setItem(MERKER, "1") : localStorage.removeItem(MERKER); } catch {} };
-const istAufnahmegeraet = () => { try { return localStorage.getItem(MERKER) === "1"; } catch { return false; } };
-
-const aufnahme = new Aufnahme({
-  beiPegel: (wert) => (pegel.firstElementChild.style.width = `${Math.round(wert * 100)}%`),
-  beiFehler: melde,
-});
-
-const versuche = (aktion) => async () => {
-  melde("");
-  try {
-    await aktion();
-  } catch (fehler) {
-    melde(fehler.message);
-  }
-};
-
-$("#start").addEventListener("click", versuche(async () => {
-  if (quelle === "mikro") await aufnahme.mikrofonOeffnen(); // erst fragen, dann starten
-  merke(true);
-  await sende("/api/regie/start");
-}));
-
-// Pausieren: Aufnahme anhalten, sonst bleibt alles, wie es ist. Nichts wird abgelegt oder geleert.
-async function pausiere() {
-  merke(false);
-  await aufnahme.stopp(); // der angebrochene Abschnitt geht noch raus
-  await sende("/api/regie/pause");
-}
-$("#pause").addEventListener("click", versuche(pausiere));
+// ── Aufnahme: Starten und Pausieren laufen über den Rahmen, der das Mikrofon hält ──
+$("#start").addEventListener("click", versuche(() => merlin().starten()));
+$("#pause").addEventListener("click", versuche(() => merlin().pausieren()));
 
 // Meeting schließen: alles liegt danach im Archiv, die Ansicht wird geleert.
-let abschlussInfo = null;
 $("#schliessen").addEventListener("click", versuche(async () => {
   const name = tagwahl.selectedOptions[0]?.textContent ?? "Meeting";
   $("#schluss-text").textContent = `„${name}" wird abgeschlossen${an ? ", die Aufnahme endet" : ""}. Transkript, To-dos, Entscheidungen und Fragen liegen danach im Archiv und lassen sich dort herunterladen. Die Ansicht hier wird geleert. Im Archiv kannst du das Meeting bei Bedarf wieder öffnen.`;
@@ -108,7 +88,7 @@ $("#schliessen").addEventListener("click", versuche(async () => {
   dialog.showModal();
   await new Promise((fertig) => dialog.addEventListener("close", fertig, { once: true }));
   if (dialog.returnValue !== "schliessen") return;
-  if (an) await pausiere();
+  if (an) await merlin().pausieren();
   abschlussInfo = { name }; // vor dem Aufruf setzen: das Update vom Server kommt schneller als die Antwort
   try {
     await sende("/api/meeting/schliessen");
@@ -118,24 +98,10 @@ $("#schliessen").addEventListener("click", versuche(async () => {
   }
 }));
 
-// Rückgängig: nimmt die letzte Änderung zurück, egal ob sie vom Assistenten oder von Hand kam.
 $("#rueckgaengig").addEventListener("click", versuche(() => sende("/api/rueckgaengig")));
-
-// Liste ablegen: aktuelle To-dos unter dem laufenden Agendapunkt einsortieren, damit die Liste kurz bleibt.
 $("#ablegen").addEventListener("click", versuche(() => sende("/api/todos/ablegen")));
 
-// Solange aufgenommen wird, vor dem Verlassen der Seite warnen: Die Aufnahme läuft nur in diesem Tab.
-window.addEventListener("beforeunload", (ereignis) => {
-  if (aufnahme.laeuft) ereignis.preventDefault();
-});
-
-// Zeigt, dass wirklich aufgenommen wird: Sekunden bis der laufende Abschnitt gesendet wird.
-setInterval(() => {
-  const rest = Math.max(0, Math.ceil((aufnahme.naechsterVersand - Date.now()) / 1000));
-  $("#countdown").textContent = aufnahme.laeuft ? `· Aufnahme läuft, sendet in ${rest} s` : "";
-}, 500);
-
-// ── Kleines Transkript-Fenster unter der Agenda (ein-/ausblendbar) ──
+// ── Transkript-Kasten (ein-/ausblendbar) ──
 const tKnopf = $("#transkript-knopf");
 let tOffen = false;
 let tStand = null;
@@ -143,14 +109,14 @@ try { tOffen = localStorage.getItem("broki-live-transkript") === "1"; } catch {}
 
 async function zeigeTranskript(erzwingen = false) {
   $("#transkript-karte").hidden = !tOffen || tagId === null;
-  tKnopf.classList.toggle("aktiv", tOffen);
   tKnopf.setAttribute("aria-pressed", String(tOffen));
+  beschrifte(tKnopf, "text", tOffen ? "Transkript ausblenden" : "Transkript");
   const marke = `${tagId}/${letzterZyklus}`;
   if (!tOffen || (!erzwingen && tStand === marke)) return;
   tStand = marke;
   const abschnitte = (await (await fetch("/api/transcript")).json()).slice(-6);
   const ziel = $("#transkript");
-  ziel.replaceChildren(...(abschnitte.length ? abschnitte.map((a, i) => el("p", i === abschnitte.length - 1 ? "neuester" : "", a.text)) : [el("p", "leer", "Noch kein Transkript.")]));
+  ziel.replaceChildren(...(abschnitte.length ? abschnitte.map((a, i) => el("p", i === abschnitte.length - 1 ? "neuester" : "", a.text)) : [el("p", "", "Noch kein Transkript.")]));
   ziel.scrollTop = ziel.scrollHeight;
 }
 tKnopf.addEventListener("click", () => {
@@ -167,20 +133,28 @@ function zeigeGruppen(todos) {
     ...namen.map((name) => {
       const eintraege = todos.filter((t) => t.gruppe === name);
       const offen = eintraege.filter((t) => t.status === "offen").length;
-      const d = el("details", "gruppe");
+      const d = el("details", "eintrag");
       d.open = offeneGruppen.has(name);
       d.addEventListener("toggle", () => (d.open ? offeneGruppen.add(name) : offeneGruppen.delete(name)));
       const kopf = el("summary");
-      kopf.append(el("b", "", name), el("span", "", `${eintraege.length} To-do${eintraege.length === 1 ? "" : "s"} · ${offen} offen`));
+      const pfeil = el("span", "pfeil");
+      pfeil.append(icon("runter"));
+      kopf.append(icon("ablage"), el("span", "titel", name), el("span", "info", `${eintraege.length} To-do${eintraege.length === 1 ? "" : "s"} · ${offen} offen`), pfeil);
       const liste = el("ul", "liste");
       for (const t of eintraege) {
         const li = el("li", t.status);
-        li.append(el("span", "box"), el("span", "text", `${t.text} · ${t.owner} · ${t.frist}`));
+        const box = el("span", "box");
+        box.append(icon("check"));
+        li.append(box, el("span", "text", `${t.text} · ${t.owner} · ${t.frist}`));
         liste.append(li);
       }
-      const zurueck = el("button", "zweit klein", "Zurück in die aktuelle Liste");
-      zurueck.addEventListener("click", () => sende("/api/todos/ablegen", { name, zurueck: true }).catch(console.warn));
-      d.append(kopf, liste, zurueck);
+      const zurueck = knopf("Zurück in die aktuelle Liste", "undo", "zweit klein");
+      zurueck.addEventListener("click", versuche(() => sende("/api/todos/ablegen", { name, zurueck: true })));
+      const inhalt = el("div", "eintrag-inhalt");
+      const reihe = el("div", "reihe");
+      reihe.append(zurueck);
+      inhalt.append(liste, reihe);
+      d.append(kopf, inhalt);
       return d;
     }),
   );
@@ -191,27 +165,29 @@ let bearbeite = null; // ID des To-dos, das gerade bearbeitet wird; solange wird
 
 function todoZeile(t) {
   if (t.id === bearbeite) return todoEditor(t);
-  const knopf = el("button", "todo-text");
-  knopf.type = "button";
-  knopf.title = "Anklicken zum Bearbeiten";
+  const text = el("button", "todo-text");
+  text.type = "button";
+  text.title = "Anklicken zum Bearbeiten";
   const meta = el("span", "meta");
   meta.append("Wer: ", el("b", "", t.owner), "  ·  Bis: ", el("b", "", t.frist));
-  knopf.append(el("span", "text", t.text), meta);
-  knopf.addEventListener("click", () => {
+  text.append(el("span", "text", t.text), meta);
+  text.addEventListener("click", () => {
     bearbeite = t.id;
     zeigeTodos();
     document.querySelector("#todos .editor input")?.focus();
   });
-  const li = zeile(t.id, t.status, knopf);
-  const box = li.querySelector(".box");
+  const box = el("span", "box");
+  box.append(icon("check"));
   box.setAttribute("role", "checkbox");
   box.setAttribute("aria-checked", String(t.status === "erledigt"));
-  box.setAttribute("aria-label", "Erledigt");
+  box.setAttribute("aria-label", `Erledigt: ${t.text}`);
   box.tabIndex = 0;
-  const haken = () => sende(`/api/todos/${t.id}`, { status: t.status === "erledigt" ? "offen" : "erledigt" }, "PATCH").catch(console.warn);
+  const haken = versuche(() => sende(`/api/todos/${t.id}`, { status: t.status === "erledigt" ? "offen" : "erledigt" }, "PATCH"));
   box.addEventListener("click", haken);
   box.addEventListener("keydown", (e) => (e.key === " " || e.key === "Enter") && (e.preventDefault(), haken()));
-  return li;
+  const rahmen = document.createDocumentFragment();
+  rahmen.append(box, text);
+  return zeile(t.id, t.status, rahmen);
 }
 
 function todoEditor(t) {
@@ -226,15 +202,14 @@ function todoEditor(t) {
     return eingabe;
   };
   const ende = () => { bearbeite = null; zeigeTodos(); };
-  const speichern = el("button", "", "Speichern");
-  const abbrechen = el("button", "zweit", "Abbrechen");
-  abbrechen.type = "button";
+  const speichern = knopf("Speichern", "check");
+  speichern.type = "submit";
+  const abbrechen = knopf("Abbrechen", "x", "zweit");
   abbrechen.addEventListener("click", ende);
-  const loeschen = el("button", "zweit", "Löschen");
-  loeschen.type = "button";
+  const loeschen = knopf("Löschen", "trash", "zweit");
   loeschen.addEventListener("click", async () => {
     if (!confirm("Dieses To-do wirklich löschen?")) return;
-    await sende(`/api/todos/${t.id}`, {}, "DELETE").catch(console.warn);
+    await sende(`/api/todos/${t.id}`, {}, "DELETE").catch((f) => melde(f.message));
     ende();
   });
   const knoepfe = el("div", "reihe");
@@ -243,7 +218,7 @@ function todoEditor(t) {
   formular.addEventListener("submit", async (e) => {
     e.preventDefault();
     const d = new FormData(formular);
-    await sende(`/api/todos/${t.id}`, { text: d.get("text"), owner: d.get("owner") || "offen", frist: d.get("frist") || "offen" }, "PATCH").catch(console.warn);
+    await sende(`/api/todos/${t.id}`, { text: d.get("text"), owner: d.get("owner") || "offen", frist: d.get("frist") || "offen" }, "PATCH").catch((f) => melde(f.message));
     ende();
   });
   formular.addEventListener("keydown", (e) => e.key === "Escape" && ende());
@@ -255,14 +230,11 @@ function todoEditor(t) {
 function zeigeTodos() {
   const aktuell = stand.todos.filter((t) => !t.gruppe);
   if (bearbeite && !aktuell.some((t) => t.id === bearbeite)) bearbeite = null;
-  fuelle("#todos", aktuell.map(todoZeile), tagId === null ? "" : stand.todos.length ? "Aktuelle Liste ist leer." : "Noch keine To-dos.");
-  const offen = aktuell.filter((t) => t.status === "offen").length;
-  $("#todo-zahl").textContent = aktuell.length ? `${offen} offen` : "";
+  fuelle("#todos", aktuell.map(todoZeile), stand.todos.length ? "Aktuelle Liste ist leer." : "Noch keine To-dos.");
 }
 
 // ── Alles anzeigen ──
 function zeige({ protokoll, status, tag }) {
-  zeigeStatus(status);
   const neueId = tag?.id ?? null;
   if (neueId !== tagId) {
     // Meeting gewechselt oder geschlossen: nichts davon ist "neu", also ohne Animation aufbauen
@@ -274,7 +246,6 @@ function zeige({ protokoll, status, tag }) {
   }
   stand = protokoll;
   an = status.aufnahme;
-  quelle = status.quelle;
   letzterZyklus = status.letzterZyklus;
   ladeTage();
   tagwahl.disabled = an;
@@ -283,56 +254,57 @@ function zeige({ protokoll, status, tag }) {
   // Steuerung: ohne Meeting nichts; mit Meeting Starten/Fortsetzen oder Pausieren, dazu Schließen
   const offen = tag !== null;
   $("#start").hidden = !offen || an;
-  $("#start").textContent = status.letzterZyklus ? "▶ Aufnahme fortsetzen" : "▶ Aufnahme starten";
+  beschrifte($("#start"), "play", status.letzterZyklus ? "Aufnahme fortsetzen" : "Aufnahme starten");
   $("#pause").hidden = !an;
+  beschrifte($("#pause"), "pause", "Pausieren");
   $("#schliessen").hidden = !offen;
-  $("#transkript-knopf").hidden = !offen;
+  beschrifte($("#schliessen"), "archive", "Meeting schließen");
+  tKnopf.hidden = !offen;
   $("#rueckgaengig").hidden = !offen || !status.rueckgaengig;
+  beschrifte($("#rueckgaengig"), "undo", "Rückgängig");
   $("#rueckgaengig").title = status.rueckgaengig ? `Zurücknehmen: ${status.rueckgaengig}` : "";
-  aufnahme.sekunden = status.zyklusSekunden; // ein neuer Takt aus dem Admin gilt ab dem nächsten Abschnitt
   $("#ablegen").hidden = !protokoll.todos.some((t) => !t.gruppe);
-  document.body.classList.toggle("ohne-meeting", !offen);
+  beschrifte($("#ablegen"), "ablage", "Liste ablegen");
 
-  const leer = $("#leerhinweis");
+  $("#protokoll").hidden = $("#spalten").hidden = !offen;
+  $("#agenda-hilfe").hidden = !offen;
+  const leer = $("#leerzustand");
   leer.hidden = offen;
   if (!offen) {
-    leer.replaceChildren(
-      el("b", "", abschlussInfo ? `„${abschlussInfo.name}" ist abgeschlossen und liegt im Archiv.` : "Kein Meeting geöffnet."),
-      el("span", "", abschlussInfo ? " Für ein weiteres Meeting oben eines auswählen." : " Wähle oben ein Meeting aus, dann füllt sich diese Ansicht."),
-    );
-    if (abschlussInfo) {
-      const link = el("a", "", "Zum Archiv");
-      link.href = "/archiv";
-      leer.append(" ", link);
-    }
+    const kreis = el("span", "kreis");
+    kreis.append(icon(abschlussInfo ? "archive" : "kalender"));
+    leer.replaceChildren(kreis, el("p", "", abschlussInfo ? `„${abschlussInfo.name}" ist abgeschlossen und liegt im Archiv.` : "Kein Meeting geöffnet. Wähle links ein Meeting aus."));
+    const weiter = knopf(abschlussInfo ? "Zum Archiv" : "Meeting anlegen", abschlussInfo ? "archive" : "plus");
+    weiter.addEventListener("click", () => gehe(abschlussInfo ? "archiv" : "admin"));
+    leer.append(weiter);
   }
-  $("#arbeit").textContent = !offen ? "" : status.arbeit ?? (an && quelle === "mikro" ? `Aufnahme läuft. Der erste Abschnitt wird nach 20 Sekunden gesendet, danach alle ${status.zyklusSekunden} Sekunden.` : !an && status.letzterZyklus ? "Pausiert. Alles bleibt erhalten, bis du das Meeting schließt." : "");
+  $("#arbeit").textContent = !offen
+    ? "Hört mit, schreibt das Transkript und führt die To-do-Liste."
+    : status.arbeit ?? (an ? `Aufnahme läuft. Der erste Abschnitt wird nach 20 Sekunden gesendet, danach alle ${status.zyklusSekunden} Sekunden.` : status.letzterZyklus ? "Pausiert. Alles bleibt erhalten, bis du das Meeting schließt." : "Bereit. Wähle einen Agendapunkt und starte die Aufnahme.");
 
-  // Aufnahme folgt dem Serverstatus: läuft nur auf dem Aufnahmegerät und nur, wenn echte Schnipsel gefragt sind.
-  const sollAufnehmen = an && quelle === "mikro" && istAufnahmegeraet();
-  if (sollAufnehmen && !aufnahme.laeuft) aufnahme.start(status.zyklusSekunden).catch((f) => melde(f.message));
-  if (!sollAufnehmen && aufnahme.laeuft) aufnahme.stopp();
-  pegel.hidden = !aufnahme.laeuft && !sollAufnehmen;
-  const fremd = "Der Assistent läuft auf einem anderen Gerät. Dieses Gerät zeigt nur an.";
-  if (an && quelle === "mikro" && !istAufnahmegeraet()) $("#mikrofehler").textContent ||= fremd;
-  if (!an && $("#mikrofehler").textContent === fremd) melde("");
+  // Kennzahlen
+  const aktuell = protokoll.todos.filter((t) => !t.gruppe);
+  $("#k-todos").textContent = protokoll.todos.filter((t) => t.status === "offen").length;
+  $("#k-vorschlaege").textContent = protokoll.vorschlaege.length;
+  $("#k-entscheidungen").textContent = protokoll.entscheidungen.length;
+  $("#k-fragen").textContent = protokoll.offene_fragen.filter((f) => f.status === "offen").length;
 
   zeigeTranskript();
   zeigeGruppen(protokoll.todos);
 
-  // Agenda: Anklicken wählt den Punkt aus. Transkript und neue Einträge laufen dann unter diesem Punkt.
-  fuelle(
-    "#agenda",
-    protokoll.agenda.map((a) => {
-      const knopf = el("button", "agenda-knopf");
-      knopf.type = "button";
-      knopf.setAttribute("aria-pressed", String(a.status === "läuft"));
-      knopf.append(el("span", "box"), el("span", "text", a.titel));
-      knopf.addEventListener("click", () => sende(`/api/agenda/${a.id}/aktiv`).catch(console.warn));
-      return zeile(a.id, a.status, knopf, { box: false });
+  // Agenda als Auswahlfelder: Anklicken wählt den Punkt aus, er läuft dann.
+  $("#agenda").replaceChildren(
+    ...protokoll.agenda.map((a) => {
+      const k = el("button", `select-item agenda-item${a.status === "läuft" ? " is-active" : ""}`);
+      k.type = "button";
+      k.setAttribute("aria-pressed", String(a.status === "läuft"));
+      k.title = a.status === "läuft" ? "Läuft gerade" : a.status === "erledigt" ? "Erledigt – anklicken, um ihn wieder aufzunehmen" : "Anklicken, um diesen Punkt zu starten";
+      k.append(icon(a.status === "läuft" ? "laeuft" : a.status === "erledigt" ? "erledigt" : "kreis"), el("span", "", a.titel));
+      k.addEventListener("click", versuche(() => sende(`/api/agenda/${a.id}/aktiv`)));
+      return k;
     }),
-    offen ? "Keine Agenda hinterlegt. Im Admin beim Meeting eintragen." : "",
   );
+  if (offen && !protokoll.agenda.length) $("#agenda").append(el("p", "hilfe", "Keine Agenda hinterlegt. Im Admin beim Meeting eintragen."));
 
   if (!bearbeite) zeigeTodos();
 
@@ -343,22 +315,22 @@ function zeige({ protokoll, status, tag }) {
     protokoll.vorschlaege.map((v) => {
       const rahmen = el("div", "vorschlag");
       const knoepfe = el("div", "reihe");
-      for (const [aktion, titel, klasse] of [["annehmen", "✓ Übernehmen", ""], ["verwerfen", "✕ Verwerfen", "zweit"]]) {
-        const knopf = el("button", klasse, titel);
-        knopf.addEventListener("click", () => sende(`/api/vorschlag/${v.id}/${aktion}`).catch(console.warn));
-        knoepfe.append(knopf);
+      for (const [aktion, titel, iconName, klasse] of [["annehmen", "Übernehmen", "check", "klein"], ["verwerfen", "Verwerfen", "x", "zweit klein"]]) {
+        const k = knopf(titel, iconName, klasse);
+        k.addEventListener("click", versuche(() => sende(`/api/vorschlag/${v.id}/${aktion}`)));
+        knoepfe.append(k);
       }
       rahmen.append(el("div", "text", v.text), knoepfe);
-      return zeile(v.id, "vorschlag", rahmen, { box: false, marke: "?" });
+      return zeile(v.id, "vorschlag", rahmen, "frage");
     }),
     "",
   );
 
-  fuelle("#entscheidungen", protokoll.entscheidungen.map((e) => zeile(e.id, "fest", el("span", "text", e.text), { box: false, marke: "→" })), offen ? "Noch keine Entscheidungen." : "");
+  fuelle("#entscheidungen", protokoll.entscheidungen.map((e) => zeile(e.id, "fest", el("span", "text", e.text), "pfeil")), "Noch keine Entscheidungen.");
   fuelle(
     "#fragen",
-    protokoll.offene_fragen.map((f) => zeile(f.id, f.status, el("span", "text", f.text), { box: false, marke: f.status === "beantwortet" ? "✓" : "?" })),
-    offen ? "Keine offenen Fragen." : "",
+    protokoll.offene_fragen.map((f) => zeile(f.id, f.status, el("span", "text", f.text), f.status === "beantwortet" ? "check" : "frage")),
+    "Keine offenen Fragen.",
   );
 
   ersterAufbau = false;

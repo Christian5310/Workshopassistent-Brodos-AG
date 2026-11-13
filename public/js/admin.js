@@ -1,4 +1,6 @@
-import { el, figur, sende } from "./common.js";
+import { avatar, el, icon, imRahmen, knopf, sende } from "./common.js";
+
+imRahmen("admin");
 
 const $ = (id) => document.querySelector(id);
 const hole = async (pfad) => (await fetch(pfad)).json();
@@ -29,7 +31,9 @@ function eintrag({ titel, info, vorne, offen }) {
   d.open = offen;
   const kopf = el("summary");
   if (vorne) kopf.append(vorne);
-  kopf.append(el("span", "titel", titel), el("span", "info", info));
+  const pfeil = el("span", "pfeil");
+  pfeil.append(icon("runter"));
+  kopf.append(el("span", "titel", titel), el("span", "info", info), pfeil);
   const inhalt = el("div", "eintrag-inhalt");
   d.append(kopf, inhalt);
   return { d, inhalt };
@@ -38,8 +42,7 @@ function aktionen(speichern, loeschen) {
   const reihe = el("div", "reihe");
   const meldung = el("span", "meldung");
   meldung.setAttribute("role", "status");
-  const s = el("button", "", "Speichern");
-  s.type = "button";
+  const s = knopf("Speichern", "check");
   s.addEventListener("click", async () => {
     try {
       meldung.textContent = "Speichert …";
@@ -50,8 +53,7 @@ function aktionen(speichern, loeschen) {
   });
   reihe.append(s);
   if (loeschen) {
-    const l = el("button", "zweit", "Löschen");
-    l.type = "button";
+    const l = knopf("Löschen", "trash", "zweit");
     l.addEventListener("click", () => loeschen().catch((f) => (meldung.textContent = f.message)));
     reihe.append(l);
   }
@@ -121,7 +123,7 @@ let offenerAgent = null;
 let agentGespeichert = null;
 let figuren = [];
 let farben = [];
-const FIGURNAMEN = { sales: "Figur 1 (kurze Haare, Krawatte)", bpm: "Figur 2 (Brille, Bob)", consultant: "Figur 3 (Locken, Bart)", kuerzel: "Kreis mit Anfangsbuchstaben" };
+const FIGURNAMEN = { sales: "Aktentasche (Vertrieb)", bpm: "Ablauf (Prozesse)", consultant: "Trend (Strategie)", kuerzel: "Person (allgemein)" };
 
 async function zeigeAgenten() {
   const { einstellungen } = await hole("/api/admin/einstellungen");
@@ -133,7 +135,7 @@ async function zeigeAgenten() {
     const { d, inhalt } = eintrag({
       titel: a.neu ? "Neuer Agent" : a.name,
       info: a.neu ? "noch nicht gespeichert" : a.wissen.length ? `Wissen: ${a.wissen.length.toLocaleString("de-DE")} Zeichen` : "ohne Wissensdatei",
-      vorne: figur(a.neu ? { ...a, name: "Neu" } : a),
+      vorne: avatar(a.neu ? { ...a, name: "Neu" } : a, "klein"),
       offen: offenerAgent === a.id,
     });
     d.addEventListener("toggle", () => { if (d.open) offenerAgent = a.id; else if (offenerAgent === a.id) offenerAgent = null; });
@@ -172,11 +174,9 @@ async function zeigeAgenten() {
       datei.value = "";
       zaehle();
     });
-    const laden = el("button", "zweit klein", "Datei laden (.md)");
-    laden.type = "button";
+    const laden = knopf("Datei laden (.md)", "plus", "zweit klein");
     laden.addEventListener("click", () => datei.click());
-    const leeren = el("button", "zweit klein", "Leeren");
-    leeren.type = "button";
+    const leeren = knopf("Leeren", "x", "zweit klein");
     leeren.addEventListener("click", () => { wissen.value = ""; zaehle(); });
     const wissenFeld = feld("Wissensdateien", wissen, "Fachwissen des Agenten. Wird nur mitgeschickt, wenn er gefragt ist. Mehrere Dateien werden aneinandergehängt.");
     const leiste = el("div", "wissenleiste");
@@ -201,7 +201,7 @@ async function zeigeAgenten() {
     if (agentGespeichert === a.id) knoepfe.querySelector(".meldung").textContent = "Gespeichert. Gilt ab der nächsten Frage.";
 
     const aussehen = el("div", "zweispaltig");
-    aussehen.append(feld("Figur", figurWahl), feld("Farbe", farbWahl));
+    aussehen.append(feld("Symbol", figurWahl), feld("Farbe", farbWahl));
     inhalt.append(feld("Name", name), aussehen, feld("Prompt (Rolle)", prompt), wissenFeld, knoepfe);
     liste.append(d);
     if (a.neu) name.focus();
@@ -259,6 +259,32 @@ for (const knopf of document.querySelectorAll("[data-standard]")) {
   });
 }
 
+// ── Auswahl links: ein Bereich ist sichtbar ──
+const BEREICHE = [["meetings", "Meetings", "kalender"], ["agenten", "Spezial-Agenten", "users"], ["erweitert", "Erweitert", "regler"]];
+let bereich = "meetings";
+try { bereich = sessionStorage.getItem("merlin-admin") ?? bereich; } catch {}
+function zeigeBereich() {
+  $("#bereichswahl").replaceChildren(
+    ...BEREICHE.map(([id, name, iconName]) => {
+      const k = el("button", `select-item${id === bereich ? " is-active" : ""}`);
+      k.type = "button";
+      k.setAttribute("aria-pressed", String(id === bereich));
+      k.append(icon(iconName), el("span", "", name));
+      k.addEventListener("click", () => {
+        bereich = id;
+        try { sessionStorage.setItem("merlin-admin", id); } catch {}
+        zeigeBereich();
+      });
+      return k;
+    }),
+  );
+  for (const [id] of BEREICHE) $(`#b-${id}`).hidden = id !== bereich;
+}
+
+$("#meeting-neu").append(icon("plus"), "Neues Meeting");
+$("#agent-neu").append(icon("plus"), "Neuer Agent");
+$("#erweitert-speichern").append(icon("check"), "Speichern");
+zeigeBereich();
 await ladeErweitert();
 zeigeMeetings();
 zeigeAgenten();

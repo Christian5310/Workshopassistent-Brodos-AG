@@ -1,67 +1,78 @@
 <!doctype html>
 <html lang="de">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Admin · Merlin</title></head>
-<body class="regie admin">
-  <header class="kopf"><a class="logo" href="/start" title="Zur Auswahl"><img src="/img/merlin-wort.png" alt="Merlin"></a><h1>Admin</h1></header>
-  <div id="hinweis" class="hinweis"></div>
-  <main>
-    <section class="bereich" aria-labelledby="t-meetings">
-      <div class="bereichskopf">
-        <div><h2 id="t-meetings">Meetings</h2><p>Name, Datum, Agenda, Hintergrundwissen und Fachbegriffe je Meeting.</p></div>
-        <button type="button" id="meeting-neu">+ Neues Meeting</button>
+<body class="ansicht">
+  <aside class="seitenleiste">
+    <h2>Auswahl</h2>
+    <div id="bereichswahl" class="akkordeon"></div>
+  </aside>
+  <main class="inhalt">
+    <div id="hinweis" class="hinweisband"></div>
+
+    <section id="b-meetings" hidden>
+      <div class="seitenkopf">
+        <div><h1>Meetings</h1><p class="unterzeile">Name, Datum, Agenda, Hintergrundwissen und Fachbegriffe je Meeting.</p></div>
+        <div class="aktionen"><button type="button" id="meeting-neu"></button></div>
       </div>
       <div id="meeting-liste" class="akkordeon"></div>
     </section>
 
-    <section class="bereich" aria-labelledby="t-agenten">
-      <div class="bereichskopf">
-        <div><h2 id="t-agenten">Spezial-Agenten</h2><p>Rolle, Prompt und Wissensdateien je Agent.</p></div>
-        <button type="button" id="agent-neu">+ Neuer Agent</button>
+    <section id="b-agenten" hidden>
+      <div class="seitenkopf">
+        <div><h1>Spezial-Agenten</h1><p class="unterzeile">Rolle, Prompt und Wissensdateien je Agent.</p></div>
+        <div class="aktionen"><button type="button" id="agent-neu"></button></div>
       </div>
       <div id="agent-liste" class="akkordeon"></div>
     </section>
 
-    <section class="bereich breit" aria-labelledby="t-erweitert">
-      <details class="eintrag" id="erweitert">
-        <summary><span class="titel" id="t-erweitert">Erweitert: Prompts und Obergrenze</span><span class="info">für alle Meetings</span></summary>
-        <form id="formular" class="eintrag-inhalt">
-          <div class="zweispaltig">
-            <div class="feld">
-              <div class="titelzeile"><label for="promptAssistent">Prompt Transkriptions-Assistent</label><button type="button" class="zweit klein" data-standard="promptAssistent">Standard</button></div>
-              <p>Regeln, wann To-dos, Vorschläge, Entscheidungen und offene Fragen angelegt werden. Sprachbefehle zum Löschen, Ändern und für Fragen an die Agenten sind fest eingebaut und brauchen hier keinen Eintrag.</p>
-              <textarea id="promptAssistent" rows="14" class="mono"></textarea>
-            </div>
-            <div class="feld">
-              <div class="titelzeile"><label for="promptAgenten">Rahmen-Prompt Spezial-Agenten</label><button type="button" class="zweit klein" data-standard="promptAgenten">Standard</button></div>
-              <p>Gilt für alle Agenten. Platzhalter: [BRODOS-BRIEFING] = Hintergrundwissen des Meetings, [AGENDA], [STAND], [AGENTEN] = Prompts und Wissen der Agenten.</p>
-              <textarea id="promptAgenten" rows="14" class="mono"></textarea>
-              <details id="vorschau"><summary>Vorschau</summary><pre></pre></details>
-            </div>
-            <div class="feld">
-              <div class="titelzeile"><label for="promptZusammenfassung">Prompt Zusammenfassung (für Broki)</label><button type="button" class="zweit klein" data-standard="promptZusammenfassung">Standard</button></div>
-              <p>Wird im Archiv zusammen mit Protokoll und Transkript kopiert.</p>
-              <textarea id="promptZusammenfassung" rows="10" class="mono"></textarea>
-            </div>
-            <div class="feld">
-              <label for="takt">Takt der Transkription</label>
-              <p>Wie oft ein Abschnitt gesendet wird. Kürzer: To-dos erscheinen schneller, dafür werden häufiger Sätze zerschnitten.</p>
-              <select id="takt">
-                <option value="30">alle 30 Sekunden (empfohlen)</option>
-                <option value="45">alle 45 Sekunden</option>
-                <option value="60">alle 60 Sekunden</option>
-              </select>
-              <label for="wort">Aktivierungswort</label>
-              <p>Darauf hört der Assistent im Raum, z. B. „Merlin, To-do für Anna: …", „Merlin, lösche das To-do …", „Merlin, ändere beim To-do … die Frist auf Montag".</p>
-              <input id="wort" type="text" maxlength="30">
-              <label class="haken"><input id="sprachfragen" type="checkbox"> Spezial-Agenten per Sprache fragen („Merlin, Frage an …: …")</label>
-              <label for="maxTodos">Höchstzahl neuer To-dos pro Abschnitt</label>
-              <p>Was darüber liegt, landet als Vorschlag und geht nicht verloren.</p>
-              <input id="maxTodos" type="number" min="1" max="10" step="1">
-            </div>
+    <section id="b-erweitert" hidden>
+      <div class="seitenkopf">
+        <div><h1>Erweitert</h1><p class="unterzeile">Prompts, Takt und Aktivierungswort. Gilt für alle Meetings.</p></div>
+      </div>
+      <form id="formular">
+        <div class="zweispaltig">
+          <div class="feld">
+            <label for="takt">Takt der Transkription</label>
+            <select id="takt">
+              <option value="30">alle 30 Sekunden (empfohlen)</option>
+              <option value="45">alle 45 Sekunden</option>
+              <option value="60">alle 60 Sekunden</option>
+            </select>
+            <p>Kürzer: To-dos erscheinen schneller, dafür werden häufiger Sätze zerschnitten.</p>
           </div>
-          <div class="reihe"><button type="submit">Speichern</button><span id="meldung" class="meldung" role="status"></span></div>
-        </form>
-      </details>
+          <div class="feld">
+            <label for="wort">Aktivierungswort</label>
+            <input id="wort" type="text" maxlength="30">
+            <p>Darauf hört der Assistent, z. B. „Merlin, To-do für Anna: …" oder „Merlin, lösche das To-do …".</p>
+          </div>
+          <div class="feld">
+            <label for="maxTodos">Höchstzahl neuer To-dos pro Abschnitt</label>
+            <input id="maxTodos" type="number" min="1" max="10" step="1">
+            <p>Was darüber liegt, landet als Vorschlag und geht nicht verloren.</p>
+          </div>
+          <div class="feld">
+            <label class="haken"><input id="sprachfragen" type="checkbox"> Spezial-Agenten per Sprache fragen</label>
+            <p>„Merlin, Frage an den BPM Specialist: …" stellt die Frage automatisch.</p>
+          </div>
+          <div class="feld">
+            <div class="reihe"><label for="promptAssistent">Prompt Transkriptions-Assistent</label><button type="button" class="textlink klein-text" data-standard="promptAssistent">Standard</button></div>
+            <textarea id="promptAssistent" rows="14" class="mono"></textarea>
+            <p>Regeln, wann To-dos, Vorschläge, Entscheidungen und offene Fragen angelegt werden. Die Sprachbefehle sind fest eingebaut.</p>
+          </div>
+          <div class="feld">
+            <div class="reihe"><label for="promptAgenten">Rahmen-Prompt Spezial-Agenten</label><button type="button" class="textlink klein-text" data-standard="promptAgenten">Standard</button></div>
+            <textarea id="promptAgenten" rows="14" class="mono"></textarea>
+            <p>Platzhalter: [BRODOS-BRIEFING] = Hintergrundwissen des Meetings, [AGENDA], [STAND], [AGENTEN] = Prompts und Wissen der Agenten.</p>
+            <details id="vorschau"><summary class="klein-text">Vorschau</summary><pre class="vorschau"></pre></details>
+          </div>
+          <div class="feld">
+            <div class="reihe"><label for="promptZusammenfassung">Prompt Zusammenfassung (für Broki)</label><button type="button" class="textlink klein-text" data-standard="promptZusammenfassung">Standard</button></div>
+            <textarea id="promptZusammenfassung" rows="10" class="mono"></textarea>
+            <p>Wird im Archiv zusammen mit Protokoll und Transkript kopiert.</p>
+          </div>
+        </div>
+        <div class="reihe" style="margin-top: var(--space-3)"><button type="submit" id="erweitert-speichern"></button><span id="meldung" class="meldung" role="status"></span></div>
+      </form>
     </section>
   </main>
   <script type="module" src="/js/admin.js"></script>

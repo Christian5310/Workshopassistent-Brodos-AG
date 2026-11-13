@@ -24,20 +24,33 @@ npm start
 
 Dann im Browser `http://localhost:3000` öffnen:
 
-| Ansicht | Zweck |
+| Adresse | Zweck |
 |---|---|
-| `/` | Eröffnungsbildschirm mit „Eintreten" (noch ohne Login) |
-| `/start` | Auswahl: Transkriptions-Assistent oder Spezial-Agenten, dazu Archiv, Admin, Regie |
-| `/screen1` | Transkriptions-Assistent: Meeting auswählen, Aufnahme starten/pausieren, Meeting schließen; Agenda, To-dos, Vorschläge, Entscheidungen, offene Fragen |
-| `/screen2` | Spezial-Agenten: Agent wählen, Chat mit Texteingabe und Push-to-Talk (Leertaste halten) |
-| `/archiv` | Alle Meetings: To-do-Liste, Entscheidungen, Fragen und Antworten, Transkript – je mit Download (Markdown, To-dos auch als CSV) |
-| `/admin` | Meetings und Spezial-Agenten zum Aufklappen und Neuanlegen; unter „Erweitert" Prompts und Obergrenze für To-dos |
-| `/regie` | Start/Pause, Fragen tippen, Transkript einsehen, Daten löschen |
+| `/` | Einstiegsseite mit „Eintreten" (noch ohne Login) |
+| `/app` | App-Rahmen mit der Navigation Assistent · Agenten · Archiv · Admin · Regie |
 
-Den Transkriptions-Assistenten einschalten (Knopf oben in der Ansicht): Alle 8 s (`MOCK_CHUNK_SECONDS`) kommt ein Abschnitt aus dem Fake-Transkript, der Fake-Chronist aktualisiert Screen 1.
-Ist das Skript durch, in der Regie die Inhalte des Tages löschen für einen neuen Durchlauf.
+Der Rahmen bleibt beim Wechsel der Bereiche stehen und hält das Mikrofon. Die Aufnahme läuft deshalb weiter, wenn du vom Assistenten ins Archiv oder in den Admin wechselst. Die Kopfzeile zeigt in jedem Bereich, ob aufgenommen wird.
+
+| Bereich | Inhalt |
+|---|---|
+| Assistent | Meeting auswählen, Aufnahme starten/pausieren, Meeting schließen; Agenda, To-dos, Vorschläge, Entscheidungen, offene Fragen |
+| Agenten | Spezial-Agenten fragen, per Text oder Push-to-Talk (Leertaste halten) |
+| Archiv | Alle Meetings mit To-do-Liste, Entscheidungen, Fragen und Transkript, je mit Download |
+| Admin | Meetings, Spezial-Agenten, unter „Erweitert" Prompts, Takt und Aktivierungswort |
+| Regie | Diagnose, Text einspeisen, Inhalte löschen |
+
+Der Knopf mit dem Vollbild-Symbol schaltet den Präsentationsmodus: Das Fenster füllt den Bildschirm, die Schrift wächst für den Beamer.
 
 Entwicklung mit automatischem Neustart: `npm run dev`. Typprüfung: `npm run typecheck`.
+
+## Gestaltung
+
+Die Oberfläche folgt der Web-App-Designvorlage Brodos (Version 0.1): Farben, Schrift, Abstände, Einstiegsseite mit Foto, App-Rahmen mit Wellenbild und weißem Fenster, Navigation oben, Auswahlfelder links. Bewusste Abweichungen:
+
+- Neben dem Brodos-Logo steht das Merlin-Logo als App-Name (enthält Gelb).
+- Der Hinweis lautet nur „Prototyp", nicht „Beispieldaten": Die App verarbeitet echte Inhalte des Meetings.
+- Präsentationsmodus für den Beamer (größeres Fenster, größere Schrift).
+- Montserrat ist lokal eingebunden statt über Google Fonts.
 
 ## Sprachbefehle
 
@@ -64,7 +77,8 @@ src/einstellungen.ts        Admin-Einstellungen (data/einstellungen.json), Promp
 src/archiv.ts               Aufbereitung eines Tages für Ansicht und Download
 src/anbieter/               Schnittstellen + Mock (hier kommen Mistral und Broki dazu)
 src/mock/skript.ts          Fake-Transkript und Fake-Fragen
-public/                     Die drei Ansichten (HTML/CSS/JS ohne Build-Schritt)
+public/                     Einstiegsseite, App-Rahmen (app.html, js/shell.js) und die Ansichten (HTML/CSS/JS ohne Build-Schritt)
+public/assets/              Logo und Bilder aus der Designvorlage
 ```
 
 ## API (schmal gehalten, damit das Backend tauschbar bleibt)
