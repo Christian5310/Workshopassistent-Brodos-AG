@@ -10,10 +10,45 @@
         <span class="badge prototyp">Prototyp</span>
         <h1><img src="/img/broki-logo.png" alt="BroKI – KI Meeting Agent"></h1>
         <p>Dein Meeting-Assistent: hört mit, führt die To-do-Liste und bringt Experten an den Tisch.</p>
-        <a class="btn" href="/app#start">Eintreten <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+        <form id="einwilligung" class="einwilligung">
+          <details>
+            <summary>Was beim Aufzeichnen mit den Daten passiert</summary>
+            <ul>
+              <li><b>Was verarbeitet wird:</b> Das Gespräch im Raum wird in kurzen Abschnitten aufgenommen und in Text umgewandelt. Daraus entstehen To-dos, Entscheidungen und offene Fragen.</li>
+              <li><b>Keine Zuordnung zu Personen:</b> Die App erkennt nicht, wer spricht. Namen erscheinen nur, wenn sie im Gespräch genannt werden.</li>
+              <li><b>Tonaufnahmen:</b> werden nur zur Umwandlung in Text übertragen und von der App nicht gespeichert.</li>
+              <li><b>Wer verarbeitet:</b> Transkription und Auswertung übernimmt der eingebundene KI-Dienst (derzeit Mistral AI) im Auftrag der Brodos AG.</li>
+              <li><b>Speicherung:</b> Transkript und Protokoll liegen auf dem Rechner, auf dem die App läuft, bis sie dort gelöscht werden.</li>
+              <li><b>Eure Rechte:</b> Jede Person kann der Aufzeichnung jederzeit widersprechen. Die Aufnahme lässt sich sofort pausieren, Inhalte lassen sich löschen (Regie oder Archiv). Fragen beantwortet die Moderation oder der Datenschutz der Brodos AG.</li>
+            </ul>
+          </details>
+          <label class="haken" for="zustimmung">
+            <input id="zustimmung" type="checkbox" required>
+            <span>Ich bestätige, dass alle Teilnehmenden dieses Meetings vorab über Aufzeichnung, Transkription und KI-Auswertung informiert wurden und damit einverstanden sind.</span>
+          </label>
+          <button type="submit" id="eintreten" disabled>Eintreten <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+          <p id="eintreten-hinweis" class="hilfe">Bitte bestätige zuerst das Einverständnis der Teilnehmenden.</p>
+        </form>
       </div>
       <p class="einstieg-fuss">Prototyp · verarbeitet die Inhalte deines Meetings, ohne Sprecherzuordnung · Brodos AG</p>
     </main>
   </div>
+  <script>
+    // Ohne Bestätigung kein Zutritt. Der Zeitpunkt wird gemerkt und beim Start jeder Aufnahme am Meeting dokumentiert.
+    const haken = document.querySelector("#zustimmung");
+    const knopf = document.querySelector("#eintreten");
+    const zeige = () => {
+      knopf.disabled = !haken.checked;
+      document.querySelector("#eintreten-hinweis").hidden = haken.checked;
+    };
+    haken.addEventListener("change", zeige);
+    zeige();
+    document.querySelector("#einwilligung").addEventListener("submit", (ereignis) => {
+      ereignis.preventDefault();
+      if (!haken.checked) return;
+      try { sessionStorage.setItem("broki-einwilligung", new Date().toISOString()); } catch {}
+      location.href = "/app#start";
+    });
+  </script>
 </body>
 </html>

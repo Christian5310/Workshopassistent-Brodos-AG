@@ -70,9 +70,17 @@ export function zusammenfassung(p: Protokoll): string {
   ].join("\n");
 }
 
+/** Nachweis des bestätigten Einverständnisses, wie er am Meeting dokumentiert ist. */
+export function einwilligungText(tag: Tag): string {
+  const e = tag.einwilligungen ?? [];
+  if (!e.length) return "## Einverständnis\n\n- Für dieses Meeting ist keine Bestätigung dokumentiert.\n";
+  const zeit = (z: number | string) => new Date(z).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
+  return `## Einverständnis\n\n„${e[0]!.wortlaut}"\n\n${e.map((x) => `- bestätigt am ${zeit(x.bestaetigtUm)}, Aufnahme gestartet am ${zeit(x.aufnahmeStart)}`).join("\n")}\n`;
+}
+
 /** Einzelne Downloads als Markdown. */
 export const DOWNLOADS = {
-  alles: (t: Tag) => [kopf(t), zusammenfassung(t.protokoll), "\n## Fragen und Antworten\n", chatText(t), "\n## Transkript\n", transkriptText(t), ""].join("\n"),
+  alles: (t: Tag) => [kopf(t), einwilligungText(t), zusammenfassung(t.protokoll), "\n## Fragen und Antworten\n", chatText(t), "\n## Transkript\n", transkriptText(t), ""].join("\n"),
   transkript: (t: Tag) => `${kopf(t, "Transkript")}\n${transkriptText(t)}\n`,
   todos: (t: Tag) => `${kopf(t, "To-do-Liste")}\n${todosText(t.protokoll)}\n`,
   entscheidungen: (t: Tag) => `${kopf(t, "Entscheidungen und offene Fragen")}\n## Entscheidungen\n\n${entscheidungenText(t.protokoll)}\n\n## Offene Fragen\n\n${fragenText(t.protokoll)}\n`,

@@ -144,6 +144,12 @@ async function zeige(id) {
   aktionen.append(broki, download("Alles herunterladen", md("alles"), "btn"));
   kopf.append(titel, aktionen);
 
+  // Nachweis des bestätigten Einverständnisses
+  const nachweis = el("div", "hinweisband");
+  const e = m.einwilligungen ?? [];
+  const zeit = (z) => new Date(z).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
+  nachweis.append(icon(e.length ? "check" : "info"), e.length ? `Einverständnis der Teilnehmenden bestätigt: ${[...new Set(e.map((x) => zeit(x.bestaetigtUm)))].join(" · ")}` : "Für dieses Meeting ist kein Einverständnis dokumentiert.");
+
   // Kennzahlen
   const kennzahlen = el("div", "kennzahlen");
   for (const [bez, wert] of [["To-dos", p.todos.length], ["davon offen", p.todos.filter((t) => t.status === "offen").length], ["Entscheidungen", p.entscheidungen.length], ["Fragen an Agenten", m.chat.filter((n) => n.von === "frage").length]]) {
@@ -198,6 +204,7 @@ async function zeige(id) {
 
   detail.replaceChildren(
     kopf,
+    nachweis,
     kennzahlen,
     kasten("To-do-Liste", p.todos.length, [download("Markdown", md("todos")), download("Excel (CSV)", `/api/tage/${id}/todos.csv`)], todoTabelle),
     kasten("Entscheidungen", p.entscheidungen.length, [download("Markdown", md("entscheidungen"))], entscheidungen),

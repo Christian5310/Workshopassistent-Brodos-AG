@@ -26,7 +26,7 @@ Dann im Browser `http://localhost:3000` öffnen:
 
 | Adresse | Zweck |
 |---|---|
-| `/` | Einstiegsseite mit „Eintreten" (noch ohne Login) |
+| `/` | Einstiegsseite: Hinweise zur Verarbeitung, Bestätigung des Einverständnisses, „Eintreten" (noch ohne Login) |
 | `/app` | App-Rahmen mit der Navigation Übersicht · Assistent · Agenten · Archiv · Admin · Regie |
 
 Der Rahmen bleibt beim Wechsel der Bereiche stehen und hält das Mikrofon. Die Aufnahme läuft deshalb weiter, wenn du vom Assistenten ins Archiv oder in den Admin wechselst. Die Kopfzeile zeigt in jedem Bereich, ob aufgenommen wird.
@@ -52,6 +52,14 @@ Die Oberfläche folgt der Web-App-Designvorlage Brodos (Version 0.1): Farben, Sc
 - Der Hinweis lautet nur „Prototyp", nicht „Beispieldaten": Die App verarbeitet echte Inhalte des Meetings.
 - Präsentationsmodus für den Beamer (größeres Fenster, größere Schrift).
 - Montserrat ist lokal eingebunden statt über Google Fonts.
+
+## Einverständnis der Teilnehmenden
+
+- Die Einstiegsseite erklärt, was mit den Daten passiert, und verlangt die Bestätigung, dass alle Teilnehmenden informiert und einverstanden sind. Ohne Haken kein Zutritt; ein direkter Aufruf von `/app` führt zurück zur Einstiegsseite.
+- Der Server startet keine Aufnahme ohne diese Bestätigung (`POST /api/regie/start` verlangt `einwilligung`).
+- Bei jedem Start einer Aufnahme wird die Bestätigung mit Zeitpunkt und Wortlaut am Meeting dokumentiert. Der Nachweis steht im Archiv und im Download.
+
+Das ist eine technische Absicherung, keine rechtliche Prüfung. Rechtsgrundlage, Informationspflichten, Auftragsverarbeitung und die Beteiligung des Betriebsrats sind mit dem Datenschutz der Brodos AG zu klären.
 
 ## Sprachbefehle
 

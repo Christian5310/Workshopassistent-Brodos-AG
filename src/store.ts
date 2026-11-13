@@ -18,6 +18,8 @@ export interface Tag {
   /** Abgeschlossene Meetings liegen im Archiv und werden im Assistenten nicht mehr zur Auswahl angeboten. */
   abgeschlossen?: boolean;
   geschlossenAm?: number;
+  /** Nachweis: wann das Einverständnis der Teilnehmenden bestätigt und die Aufnahme gestartet wurde */
+  einwilligungen?: { bestaetigtUm: string; aufnahmeStart: number; wortlaut: string }[];
   /** Hintergrundwissen zu diesem Meeting (Kontext für die Spezial-Agenten) */
   briefing: string;
   /** Fachbegriffe und Namen, die die Transkription richtig schreiben soll (mit Komma getrennt) */

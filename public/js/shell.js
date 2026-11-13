@@ -4,6 +4,10 @@ import { Aufnahme } from "./aufnahme.js";
 import { sende, verbinde } from "./common.js";
 
 const $ = (id) => document.querySelector(id);
+
+// Zutritt nur mit bestätigtem Einverständnis der Teilnehmenden (Einstiegsseite). Gilt je Browser-Tab.
+const einwilligung = (() => { try { return sessionStorage.getItem("broki-einwilligung"); } catch { return null; } })();
+if (!einwilligung) location.replace("/");
 const BEREICHE = { uebersicht: "/uebersicht", assistent: "/screen1", agenten: "/screen2", archiv: "/archiv", admin: "/admin", regie: "/regie" };
 
 // ── Navigation: Der Bereich steht in der Adresse hinter dem #, der Inhalt lädt im Fenster darunter ──
@@ -67,7 +71,7 @@ window.merlin = {
     melde("");
     if (quelle === "mikro") await aufnahme.mikrofonOeffnen(); // erst fragen, dann starten
     merke(true);
-    await sende("/api/regie/start");
+    await sende("/api/regie/start", { einwilligung }); // der Server dokumentiert die Bestätigung am Meeting
   },
   /** Hält nur die Aufnahme an. Der angebrochene Abschnitt geht noch raus, sonst bleibt alles erhalten. */
   async pausieren() {
