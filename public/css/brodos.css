@@ -360,5 +360,10 @@ dialog h2 { color: var(--brand); }
 .kachel-text { font-size: 0.75rem; line-height: 1rem; font-weight: 400; color: var(--ink-muted); }
 .stapel { display: flex; flex-direction: column; gap: var(--space-2); }
 .kasten-inhalt.stapel { padding: var(--space-3) 1.25rem; }
-.zweispaltig > .kasten { align-self: start; }
+/* Beide Kästen sind gleich hoch, die Knöpfe sitzen unten: so stehen sie in einer Linie. */
+.zweispaltig > .kasten { align-self: stretch; }
+.zweispaltig > .kasten > form.stapel { flex: 1; }
+.zweispaltig > .kasten > form.stapel > .reihe { margin-top: auto; }
+.reihe:has(> [hidden]:only-child) { display: none; } /* Zeile verschwindet mit ihrem einzigen, ausgeblendeten Knopf */
+#m-info:empty { display: none; }
 @media (max-width: 900px) { .kacheln { grid-template-columns: 1fr; } }

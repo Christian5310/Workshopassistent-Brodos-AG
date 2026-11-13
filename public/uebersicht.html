@@ -33,7 +33,8 @@
       <section class="kasten">
         <div class="kasten-kopf"><h2>Bestehendes Meeting</h2></div>
         <form id="m-oeffnen-formular" class="kasten-inhalt stapel">
-          <div class="feld"><label for="m-wahl">Meeting auswählen</label><select id="m-wahl"></select><p id="m-info"></p></div>
+          <p class="gedaempft">Wähle ein bestehendes Meeting aus.</p>
+          <div class="feld"><select id="m-wahl" aria-label="Bestehendes Meeting"></select><p id="m-info"></p></div>
           <div class="reihe"><button type="submit" id="m-oeffnen"></button></div>
         </form>
       </section>
@@ -62,7 +63,8 @@
       <section class="kasten">
         <div class="kasten-kopf"><h2>Bestehender Agent</h2></div>
         <form id="a-oeffnen-formular" class="kasten-inhalt stapel">
-          <div class="feld"><label for="a-wahl">Agent auswählen</label><select id="a-wahl"></select><p>Prompt und Wissen bestehender Agenten pflegst du im Admin.</p></div>
+          <p class="gedaempft">Wähle einen bestehenden Agenten aus.</p>
+          <div class="feld"><select id="a-wahl" aria-label="Bestehender Agent"></select><p>Prompt und Wissen pflegst du im Admin.</p></div>
           <div class="reihe"><button type="submit" id="a-oeffnen"></button></div>
         </form>
       </section>
