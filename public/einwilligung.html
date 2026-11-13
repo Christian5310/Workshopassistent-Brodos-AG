@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Einverständnis · BroKI</title></head>
+<body>
+  <div class="app-bg zustimmung-bg">
+    <div class="app-window zustimmung-fenster">
+      <header class="app-kopf">
+        <a href="/" title="Zur Einstiegsseite"><img class="brodos" src="/assets/brodos-logo.png" alt="Brodos"></a>
+        <span class="strich" aria-hidden="true"></span>
+        <img class="applogo" src="/img/broki-wort.png" alt="BroKI">
+        <div class="rechts" style="margin-left: auto"><span class="badge prototyp">Prototyp</span></div>
+      </header>
+      <main class="inhalt">
+        <div class="seitenkopf">
+          <div><h1>Bevor es losgeht</h1><p class="unterzeile">BroKI zeichnet das Meeting auf und wertet es mit KI aus. Dafür brauchen wir das Einverständnis aller im Raum.</p></div>
+        </div>
+        <form id="einwilligung" class="einwilligung">
+          <details>
+            <summary>Was beim Aufzeichnen mit den Daten passiert</summary>
+            <ul>
+              <li><b>Was verarbeitet wird:</b> Das Gespräch im Raum wird in kurzen Abschnitten aufgenommen und in Text umgewandelt. Daraus entstehen To-dos, Entscheidungen und offene Fragen.</li>
+              <li><b>Keine Zuordnung zu Personen:</b> Die App erkennt nicht, wer spricht. Namen erscheinen nur, wenn sie im Gespräch genannt werden.</li>
+              <li><b>Tonaufnahmen:</b> werden nur zur Umwandlung in Text übertragen und von der App nicht gespeichert.</li>
+              <li><b>Wer verarbeitet:</b> Transkription und Auswertung übernimmt der eingebundene KI-Dienst (derzeit Mistral AI) im Auftrag der Brodos AG.</li>
+              <li><b>Speicherung:</b> Transkript und Protokoll liegen auf dem Rechner, auf dem die App läuft, bis sie dort gelöscht werden.</li>
+              <li><b>Eure Rechte:</b> Jede Person kann der Aufzeichnung jederzeit widersprechen. Die Aufnahme lässt sich sofort pausieren, Inhalte lassen sich löschen (Regie oder Archiv). Fragen beantwortet die Moderation oder der Datenschutz der Brodos AG.</li>
+            </ul>
+          </details>
+          <label class="haken" for="zustimmung">
+            <input id="zustimmung" type="checkbox" required>
+            <span>Ich bestätige, dass alle Teilnehmenden dieses Meetings vorab über Aufzeichnung, Transkription und KI-Auswertung informiert wurden und damit einverstanden sind.</span>
+          </label>
+          <div class="reihe">
+            <button type="submit" id="weiter" disabled>Weiter <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+            <a class="btn zweit" href="/">Zurück</a>
+          </div>
+          <p id="weiter-hinweis" class="hilfe">Der Knopf „Weiter" wird aktiv, sobald du das Einverständnis bestätigt hast.</p>
+        </form>
+      </main>
+    </div>
+  </div>
+  <script>
+    // Ohne Bestätigung geht es nicht weiter. Der Zeitpunkt wird gemerkt und beim Start jeder Aufnahme am Meeting dokumentiert.
+    const haken = document.querySelector("#zustimmung");
+    const knopf = document.querySelector("#weiter");
+    const zeige = () => {
+      knopf.disabled = !haken.checked;
+      document.querySelector("#weiter-hinweis").hidden = haken.checked;
+    };
+    haken.addEventListener("change", zeige);
+    zeige();
+    document.querySelector("#einwilligung").addEventListener("submit", (ereignis) => {
+      ereignis.preventDefault();
+      if (!haken.checked) return;
+      try { sessionStorage.setItem("broki-einwilligung", new Date().toISOString()); } catch {}
+      location.href = "/app#start";
+    });
+  </script>
+</body>
+</html>

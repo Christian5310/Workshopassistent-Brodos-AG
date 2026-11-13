@@ -26,7 +26,8 @@ Dann im Browser `http://localhost:3000` öffnen:
 
 | Adresse | Zweck |
 |---|---|
-| `/` | Einstiegsseite: Hinweise zur Verarbeitung, Bestätigung des Einverständnisses, „Eintreten" (noch ohne Login) |
+| `/` | Einstiegsseite mit „Eintreten" (noch ohne Login) |
+| `/einwilligung` | Zweiter Bildschirm: Hinweise zur Verarbeitung zum Aufklappen, Bestätigung des Einverständnisses, „Weiter" |
 | `/app` | App-Rahmen mit der Navigation Übersicht · Assistent · Agenten · Archiv · Admin · Regie |
 
 Der Rahmen bleibt beim Wechsel der Bereiche stehen und hält das Mikrofon. Die Aufnahme läuft deshalb weiter, wenn du vom Assistenten ins Archiv oder in den Admin wechselst. Die Kopfzeile zeigt in jedem Bereich, ob aufgenommen wird.
@@ -55,7 +56,7 @@ Die Oberfläche folgt der Web-App-Designvorlage Brodos (Version 0.1): Farben, Sc
 
 ## Einverständnis der Teilnehmenden
 
-- Die Einstiegsseite erklärt, was mit den Daten passiert, und verlangt die Bestätigung, dass alle Teilnehmenden informiert und einverstanden sind. Ohne Haken kein Zutritt; ein direkter Aufruf von `/app` führt zurück zur Einstiegsseite.
+- Nach dem Eintreten erklärt ein eigener Bildschirm, was mit den Daten passiert, und verlangt die Bestätigung, dass alle Teilnehmenden informiert und einverstanden sind. Ohne Haken bleibt „Weiter" gesperrt; ein direkter Aufruf von `/app` führt auf diesen Bildschirm.
 - Der Server startet keine Aufnahme ohne diese Bestätigung (`POST /api/regie/start` verlangt `einwilligung`).
 - Bei jedem Start einer Aufnahme wird die Bestätigung mit Zeitpunkt und Wortlaut am Meeting dokumentiert. Der Nachweis steht im Archiv und im Download.
 

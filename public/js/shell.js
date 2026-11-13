@@ -5,9 +5,9 @@ import { sende, verbinde } from "./common.js";
 
 const $ = (id) => document.querySelector(id);
 
-// Zutritt nur mit bestätigtem Einverständnis der Teilnehmenden (Einstiegsseite). Gilt je Browser-Tab.
+// Zutritt nur mit bestätigtem Einverständnis der Teilnehmenden (Bildschirm nach dem Eintreten). Gilt je Browser-Tab.
 const einwilligung = (() => { try { return sessionStorage.getItem("broki-einwilligung"); } catch { return null; } })();
-if (!einwilligung) location.replace("/");
+if (!einwilligung) location.replace("/einwilligung");
 const BEREICHE = { uebersicht: "/uebersicht", assistent: "/screen1", agenten: "/screen2", archiv: "/archiv", admin: "/admin", regie: "/regie" };
 
 // ── Navigation: Der Bereich steht in der Adresse hinter dem #, der Inhalt lädt im Fenster darunter ──

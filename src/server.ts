@@ -411,7 +411,7 @@ app.post("/api/todos/ablegen", (req, res) => {
   res.json({ ok: true, anzahl: betroffen.length });
 });
 
-/** Wortlaut der Bestätigung auf der Einstiegsseite. Bei Änderungen dort auch hier anpassen. */
+/** Wortlaut der Bestätigung (public/einwilligung.html). Bei Änderungen dort auch hier anpassen. */
 const EINWILLIGUNG =
   "Ich bestätige, dass alle Teilnehmenden dieses Meetings vorab über Aufzeichnung, Transkription und KI-Auswertung informiert wurden und damit einverstanden sind.";
 
@@ -420,7 +420,7 @@ app.post("/api/regie/start", (req, res) => {
   // Ohne bestätigtes Einverständnis keine Aufnahme. Die Bestätigung wird als Nachweis am Meeting abgelegt.
   const bestaetigtUm = String(req.body?.einwilligung ?? "");
   if (Number.isNaN(Date.parse(bestaetigtUm))) {
-    return void res.status(412).json({ fehler: "Bitte zuerst auf der Einstiegsseite bestätigen, dass alle Teilnehmenden mit der Aufzeichnung einverstanden sind." });
+    return void res.status(412).json({ fehler: "Bitte zuerst bestätigen, dass alle Teilnehmenden mit der Aufzeichnung einverstanden sind (Bildschirm nach dem Eintreten)." });
   }
   if (!aufnahme) {
     const liste = (store.daten.einwilligungen ??= []);
