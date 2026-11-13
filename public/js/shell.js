@@ -23,7 +23,7 @@ function zeigeBereich() {
     rahmen.dataset.bereich = bereich;
     rahmen.src = BEREICHE[bereich];
   }
-  document.title = `${document.querySelector('.app-kopf nav a[aria-current="page"]').textContent} · Merlin`;
+  document.title = `${document.querySelector('.app-kopf nav a[aria-current="page"]').textContent} · BroKI`;
 }
 window.addEventListener("hashchange", zeigeBereich);
 zeigeBereich();

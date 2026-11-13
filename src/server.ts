@@ -587,6 +587,6 @@ app.get("/start", (_req, res) => res.redirect("/app"));
 app.use(express.static(config.pfade.public, { extensions: ["html"] }));
 
 app.listen(config.port, config.host, () => {
-  console.log(`Merlin läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"}, Quelle: ${quelle})`);
+  console.log(`BroKI läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"}, Quelle: ${quelle})`);
   console.log("  /  Einstieg   ·   /app  Assistent, Agenten, Archiv, Admin, Regie");
 });

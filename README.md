@@ -1,4 +1,4 @@
-# Merlin – powered by BroKI (MVP)
+# BroKI – KI Transkription & Agenten (MVP)
 
 Transkriptions-Assistent und Spezial-Agenten für den Sales Agentic Workshop am 26.11.2026.
 Der interne Projektkontext (`CLAUDE.md`) liegt bewusst nicht im Repository.
@@ -47,7 +47,7 @@ Entwicklung mit automatischem Neustart: `npm run dev`. Typprüfung: `npm run typ
 
 Die Oberfläche folgt der Web-App-Designvorlage Brodos (Version 0.1): Farben, Schrift, Abstände, Einstiegsseite mit Foto, App-Rahmen mit Wellenbild und weißem Fenster, Navigation oben, Auswahlfelder links. Bewusste Abweichungen:
 
-- Neben dem Brodos-Logo steht das Merlin-Logo als App-Name (enthält Gelb).
+- Neben dem Brodos-Logo steht das BroKI-Logo als App-Name (enthält Gelb).
 - Der Hinweis lautet nur „Prototyp", nicht „Beispieldaten": Die App verarbeitet echte Inhalte des Meetings.
 - Präsentationsmodus für den Beamer (größeres Fenster, größere Schrift).
 - Montserrat ist lokal eingebunden statt über Google Fonts.
