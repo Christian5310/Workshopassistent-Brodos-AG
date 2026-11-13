@@ -3,7 +3,7 @@ import express, { type Response } from "express";
 import { z } from "zod";
 import { erstelleAnbieter } from "./anbieter/index.ts";
 import * as archiv from "./archiv.ts";
-import { config, quelle, zyklusSekunden } from "./config.ts";
+import { config, quelle } from "./config.ts";
 import * as admin from "./einstellungen.ts";
 import { store } from "./store.ts";
 import { ProtokollSchema, type Adressat, type ChatStatus, type Schnappschuss } from "./types.ts";
@@ -22,6 +22,17 @@ let pausiertUm = 0;
 /** Audio-Schnipsel werden strikt nacheinander verarbeitet, damit die Reihenfolge im Transkript stimmt. */
 let warteschlange: Promise<void> = Promise.resolve();
 
+/** Takt der Abschnitte: im Mock aus der .env (für Tests), sonst aus der Admin-Ansicht. */
+const takt = () => (config.mock ? config.mockChunkSekunden : admin.einstellungen.zyklusSekunden);
+
+// ── Rückgängig: Protokollstände vor den letzten Änderungen (nur im Arbeitsspeicher, je geöffnetem Meeting) ──
+const schritte: { was: string; protokoll: Schnappschuss["protokoll"] }[] = [];
+/** Vor jeder Änderung aufrufen: merkt sich den Stand, damit die Änderung rückgängig gemacht werden kann. */
+function merkeSchritt(was: string): void {
+  schritte.push({ was, protokoll: structuredClone(store.daten.protokoll) });
+  if (schritte.length > 30) schritte.shift();
+}
+
 // ── Live-Updates per Server-Sent Events ──────────────────────────────────────
 const zuhoerer = new Set<Response>();
 
@@ -31,7 +42,7 @@ function schnappschuss(): Schnappschuss {
     protokoll: store.daten.protokoll,
     agenten: admin.einstellungen.agenten.map(({ id, name, figur, farbe }) => ({ id, name, figur, farbe })),
     chat: store.daten.chat,
-    status: { aufnahme, quelle, letzterZyklus: store.daten.letzterZyklus, zyklusSekunden, mock: config.mock, chat: chatStatus, hinweis, arbeit },
+    status: { aufnahme, quelle, letzterZyklus: store.daten.letzterZyklus, zyklusSekunden: takt(), mock: config.mock, chat: chatStatus, hinweis, arbeit, rueckgaengig: schritte.at(-1)?.was ?? null },
   };
 }
 
@@ -50,6 +61,50 @@ function protokolliere(text: string, ergebnis: string, ok = true): void {
   arbeit = `Letzter Abschnitt (${new Date().toLocaleTimeString("de-DE")}): ${ergebnis}`;
 }
 
+/** Zusatzfelder in der Antwort des Assistenten: Sprachbefehle und per Sprache gestellte Fragen. */
+const BefehlSchema = z.object({
+  aktion: z.enum(["loeschen", "aendern"]),
+  id: z.coerce.string(),
+  text: z.string().trim().min(1).max(300).optional().catch(undefined),
+  owner: z.string().trim().min(1).max(60).optional().catch(undefined),
+  frist: z.string().trim().min(1).max(60).optional().catch(undefined),
+});
+const ZusatzSchema = z.object({
+  befehle: z.array(z.unknown()).catch([]).transform((w) => w.flatMap((x) => { const r = BefehlSchema.safeParse(x); return r.success ? [r.data] : []; })),
+  frage: z.object({ an: z.string(), text: z.string().trim().min(3).max(500) }).nullable().catch(null),
+});
+
+/** Führt Sprachbefehle ("Merlin, lösche …", "Merlin, ändere …") auf dem Protokoll aus. */
+function fuehreBefehleAus(p: Schnappschuss["protokoll"], befehle: z.infer<typeof BefehlSchema>[]) {
+  const neu = structuredClone(p);
+  const meldungen: string[] = [];
+  for (const b of befehle) {
+    const todo = neu.todos.find((t) => t.id === b.id);
+    const vorschlag = neu.vorschlaege.find((v) => v.id === b.id);
+    const entscheidung = neu.entscheidungen.find((e) => e.id === b.id);
+    const frage = neu.offene_fragen.find((f) => f.id === b.id);
+    const ziel = todo ?? vorschlag ?? entscheidung ?? frage;
+    if (!ziel) continue;
+    if (b.aktion === "loeschen") {
+      neu.todos = neu.todos.filter((t) => t !== ziel);
+      neu.vorschlaege = neu.vorschlaege.filter((v) => v !== ziel);
+      neu.entscheidungen = neu.entscheidungen.filter((e) => e !== ziel);
+      neu.offene_fragen = neu.offene_fragen.filter((f) => f !== ziel);
+      meldungen.push(`gelöscht: „${ziel.text}"`);
+    } else {
+      const vorher = ziel.text;
+      if (b.text) ziel.text = b.text;
+      if (todo ?? vorschlag) {
+        const t = (todo ?? vorschlag)!;
+        if (b.owner) t.owner = b.owner;
+        if (b.frist) t.frist = b.frist;
+      }
+      meldungen.push(`geändert: „${vorher}"`);
+    }
+  }
+  return { protokoll: neu, meldungen };
+}
+
 /** Ein neuer Transkript-Abschnitt: anhängen, Protokollstand vom LLM aktualisieren lassen, validieren. */
 async function verarbeiteAbschnitt(text: string): Promise<void> {
   const punkt = store.daten.protokoll.agenda.find((a) => a.status === "läuft")?.id ?? "";
@@ -60,18 +115,34 @@ async function verarbeiteAbschnitt(text: string): Promise<void> {
     const geprueft = ProtokollSchema.safeParse(antwort);
     if (geprueft.success) {
       const alt = store.daten.protokoll;
-      const neu = admin.absichern(alt, geprueft.data, punkt);
+      let neu = admin.absichern(alt, geprueft.data, punkt);
+
+      // Sprachbefehle und Sprachfragen gelten nur, wenn das Aktivierungswort wirklich im Abschnitt steht.
+      const zusatz = ZusatzSchema.safeParse(antwort);
+      const angesprochen = text.toLowerCase().includes(admin.einstellungen.aktivierungswort.toLowerCase());
+      const ausgefuehrt = angesprochen && zusatz.success ? fuehreBefehleAus(neu, zusatz.data.befehle) : { protokoll: neu, meldungen: [] };
+      neu = ausgefuehrt.protokoll;
+
       const plus = (n: number, wort: string) => (n > 0 ? [`${n} ${wort}`] : []);
       const teile = [
-        ...plus(neu.todos.length - alt.todos.length, "To-do(s)"),
-        ...plus(neu.vorschlaege.length - alt.vorschlaege.length, "Vorschlag/Vorschläge"),
+        ...plus(neu.todos.filter((t) => !alt.todos.some((x) => x.id === t.id)).length, "To-do(s)"),
+        ...plus(neu.vorschlaege.filter((v) => !alt.vorschlaege.some((x) => x.id === v.id)).length, "Vorschlag/Vorschläge"),
         ...plus(neu.entscheidungen.length - alt.entscheidungen.length, "Entscheidung(en)"),
         ...plus(neu.offene_fragen.length - alt.offene_fragen.length, "offene Frage(n)"),
         ...plus(neu.notizen.length - alt.notizen.length, "Notiz(en)"),
         ...plus(neu.todos.filter((t) => t.status === "erledigt").length - alt.todos.filter((t) => t.status === "erledigt").length, "abgehakt"),
       ];
+      const ergebnis = [...(teile.length ? [`neu: ${teile.join(", ")}`] : []), ...ausgefuehrt.meldungen];
+      if (ergebnis.length) merkeSchritt(`Assistent: ${ergebnis.join("; ")}`);
       store.daten.protokoll = neu;
-      protokolliere(text, teile.length ? `neu: ${teile.join(", ")}` : "nichts Neues erkannt");
+
+      const frage = angesprochen && zusatz.success ? zusatz.data.frage : null;
+      if (frage && admin.einstellungen.sprachfragen) {
+        ergebnis.push(`Frage an die Spezial-Agenten: „${frage.text}"`);
+        // nicht abwarten: die Antwort der Agenten soll den nächsten Abschnitt nicht aufhalten
+        void stelleFrage(async () => frage.text, frage.an === "alle" || admin.agent(frage.an) ? frage.an : "alle").then((r) => r.ok || console.warn("Sprachfrage:", r.fehler));
+      }
+      protokolliere(text, ergebnis.length ? ergebnis.join("; ") : "nichts Neues erkannt");
     } else {
       protokolliere(text, "Antwort des Sprachmodells war unbrauchbar und wurde verworfen", false);
     }
@@ -105,7 +176,7 @@ function starten(): void {
   hinweis = null;
   arbeit = null;
   if (quelle === "timer") {
-    zyklusTimer = setInterval(() => void zyklus(), zyklusSekunden * 1000);
+    zyklusTimer = setInterval(() => void zyklus(), takt() * 1000);
     void zyklus(); // erster Abschnitt sofort, damit die Demo nicht mit Warten beginnt
   }
   senden();
@@ -198,16 +269,16 @@ app.get("/api/transcript", (_req, res) => {
 });
 
 /** Stellt eine Frage an die Spezial-Agenten und legt Frage und Antworten im Chat ab. */
-async function frageStellen(holeFrage: () => Promise<string | null>, an: Adressat, res: Response): Promise<void> {
-  if (!store.istOffen) return void res.status(409).json({ fehler: "Bitte erst im Transkriptions-Assistenten ein Meeting auswählen." });
-  if (an !== "alle" && !admin.agent(an)) return void res.status(400).json({ fehler: "Unbekannter Adressat." });
-  if (chatStatus !== "bereit") return void res.status(409).json({ fehler: "Die Spezial-Agenten denken noch nach." });
+async function stelleFrage(holeFrage: () => Promise<string | null>, an: Adressat): Promise<{ ok: true } | { ok: false; code: number; fehler: string }> {
+  if (!store.istOffen) return { ok: false, code: 409, fehler: "Bitte erst im Transkriptions-Assistenten ein Meeting auswählen." };
+  if (an !== "alle" && !admin.agent(an)) return { ok: false, code: 400, fehler: "Unbekannter Adressat." };
+  if (chatStatus !== "bereit") return { ok: false, code: 409, fehler: "Die Spezial-Agenten denken noch nach." };
 
   chatStatus = "denkt nach";
   senden();
   try {
     const frage = (await holeFrage())?.trim();
-    if (!frage) return void res.status(400).json({ fehler: "Keine Frage erkannt." });
+    if (!frage) return { ok: false, code: 400, fehler: "Keine Frage erkannt." };
 
     const verlauf = [...store.daten.chat];
     store.daten.chat.push({ id: randomUUID(), von: "frage", an, text: frage, zeit: Date.now() });
@@ -217,14 +288,20 @@ async function frageStellen(holeFrage: () => Promise<string | null>, an: Adressa
     const antworten = await anbieter.sprachmodell.expertenrunde({ frage, an, verlauf, protokoll: store.daten.protokoll });
     for (const a of antworten) store.daten.chat.push({ id: randomUUID(), von: a.von, name: admin.agent(a.von)?.name, text: a.text, zeit: Date.now() });
     store.speichern();
-    res.json({ ok: true });
+    return { ok: true };
   } catch (fehler) {
     console.warn("Spezial-Agenten: Aufruf fehlgeschlagen.", fehler);
-    res.status(502).json({ fehler: "Die Spezial-Agenten sind gerade nicht erreichbar." });
+    return { ok: false, code: 502, fehler: "Die Spezial-Agenten sind gerade nicht erreichbar." };
   } finally {
     chatStatus = "bereit";
     senden();
   }
+}
+
+async function frageStellen(holeFrage: () => Promise<string | null>, an: Adressat, res: Response): Promise<void> {
+  const r = await stelleFrage(holeFrage, an);
+  if (r.ok) res.json({ ok: true });
+  else res.status(r.code).json({ fehler: r.fehler });
 }
 
 /**
@@ -256,6 +333,7 @@ app.post("/api/vorschlag/:id/:aktion", (req, res) => {
   const vorschlag = p.vorschlaege.find((v) => v.id === req.params.id);
   const { aktion } = req.params;
   if (!vorschlag || (aktion !== "annehmen" && aktion !== "verwerfen")) return void res.status(404).json({ fehler: "Vorschlag nicht gefunden." });
+  merkeSchritt(aktion === "annehmen" ? `Vorschlag übernommen: „${vorschlag.text}"` : `Vorschlag verworfen: „${vorschlag.text}"`);
   p.vorschlaege = p.vorschlaege.filter((v) => v !== vorschlag);
   if (aktion === "annehmen") {
     const nummer = Math.max(0, ...p.todos.map((t) => Number(t.id.slice(1)) || 0)) + 1;
@@ -264,6 +342,18 @@ app.post("/api/vorschlag/:id/:aktion", (req, res) => {
   store.speichern();
   senden();
   res.json({ ok: true });
+});
+
+/** Macht die letzte Änderung am Protokoll rückgängig (KI oder Hand). Mehrfach möglich, bis zu 30 Schritte. */
+app.post("/api/rueckgaengig", (_req, res) => {
+  const schritt = schritte.pop();
+  if (!schritt || !store.istOffen) return void res.status(409).json({ fehler: "Es gibt nichts rückgängig zu machen." });
+  // Die Agenda steuert die Moderation: ihr aktueller Stand bleibt, nur die Einträge gehen zurück.
+  store.daten.protokoll = { ...schritt.protokoll, agenda: store.daten.protokoll.agenda };
+  store.speichern();
+  arbeit = `Rückgängig gemacht: ${schritt.was}`;
+  senden();
+  res.json({ ok: true, was: schritt.was });
 });
 
 /** Agendapunkt von Hand auswählen: Er läuft ab jetzt; der bisher laufende gilt als erledigt. */
@@ -282,6 +372,7 @@ app.post("/api/agenda/:id/aktiv", (req, res) => {
 app.patch("/api/todos/:id", (req, res) => {
   const todo = store.daten.protokoll.todos.find((t) => t.id === req.params.id);
   if (!todo) return void res.status(404).json({ fehler: "To-do nicht gefunden." });
+  merkeSchritt(`To-do geändert: „${todo.text}"`);
   const feld = (wert: unknown, max: number) => (typeof wert === "string" && wert.trim() ? wert.trim().slice(0, max) : null);
   todo.text = feld(req.body?.text, 300) ?? todo.text;
   todo.owner = feld(req.body?.owner, 60) ?? todo.owner;
@@ -295,6 +386,7 @@ app.patch("/api/todos/:id", (req, res) => {
 app.delete("/api/todos/:id", (req, res) => {
   const p = store.daten.protokoll;
   if (!p.todos.some((t) => t.id === req.params.id)) return void res.status(404).json({ fehler: "To-do nicht gefunden." });
+  merkeSchritt(`To-do gelöscht: „${p.todos.find((t) => t.id === req.params.id)?.text}"`);
   p.todos = p.todos.filter((t) => t.id !== req.params.id);
   store.speichern();
   senden();
@@ -311,6 +403,7 @@ app.post("/api/todos/ablegen", (req, res) => {
   const punkt = p.agenda.find((a) => a.status === "läuft") ?? p.agenda.findLast((a) => a.status === "erledigt");
   const name = String(req.body?.name ?? punkt?.titel ?? "Ohne Agendapunkt").trim().slice(0, 120);
   const [von, nach] = req.body?.zurueck ? [name, ""] : ["", name];
+  merkeSchritt(req.body?.zurueck ? `Kategorie „${name}" zurückgeholt` : `Liste abgelegt unter „${name}"`);
   const betroffen = store.daten.protokoll.todos.filter((t) => t.gruppe === von);
   for (const t of betroffen) t.gruppe = nach;
   store.speichern();
@@ -331,6 +424,7 @@ app.post("/api/regie/pause", (_req, res) => {
 
 app.post("/api/regie/reset", (_req, res) => {
   pausieren();
+  schritte.length = 0;
   store.leeren();
   senden();
   res.json({ ok: true });
@@ -349,6 +443,7 @@ app.put("/api/admin/einstellungen", (req, res) => {
     return void res.status(400).json({ fehler: `Ungültige Eingabe bei „${erster?.path.join(".")}": ${erster?.message}` });
   }
   admin.speichere({ ...admin.einstellungen, ...geprueft.data });
+  senden(); // neuer Takt gilt ab dem nächsten Abschnitt
   res.json({ ok: true });
 });
 
@@ -433,6 +528,7 @@ app.put("/api/tage/:id", (req, res) => {
 app.post("/api/tage/:id/aktivieren", (req, res) => {
   if (aufnahme) return void res.status(409).json({ fehler: "Bitte erst pausieren, dann das Meeting wechseln." });
   if (!store.wechsle(req.params.id)) return void res.status(404).json({ fehler: "Meeting nicht gefunden." });
+  schritte.length = 0;
   hinweis = null;
   senden();
   res.json({ ok: true });
@@ -447,6 +543,7 @@ app.post("/api/meeting/schliessen", async (_req, res) => {
   pausieren();
   await warteschlange.catch(() => {}); // der letzte Abschnitt soll noch ins Protokoll
   const tag = store.schliesse();
+  schritte.length = 0;
   hinweis = null;
   arbeit = null;
   senden();

@@ -17,6 +17,20 @@ const FORMAT_STAND = `Format von STAND (genau diese Felder, IDs bestehender Eint
   "notizen": [{"agendapunkt": "A1", "text": "…"}]
 }`;
 
+/** Anleitung für Sprachbefehle. Greift nur, wenn im Abschnitt das Aktivierungswort fällt (der Server prüft das zusätzlich). */
+function sprachbefehle(): string {
+  const wort = einstellungen.aktivierungswort;
+  const agenten = einstellungen.agenten.map((a) => `"${a.id}" (${a.name})`).join(", ");
+  return `Zusätzlich zu den Feldern von STAND gibst du zwei weitere Felder zurück. Fülle sie NUR, wenn im ABSCHNITT jemand ausdrücklich "${wort}" anspricht; sonst "befehle": [] und "frage": null.
+- "befehle": Änderungen an bestehenden Einträgen, die "${wort}" ausdrücklich aufgetragen werden.
+  Löschen ("${wort}, lösche das To-do …"): {"aktion": "loeschen", "id": "T3"}
+  Ändern ("${wort}, ändere beim To-do … die Frist auf Montag"): {"aktion": "aendern", "id": "T3", "text": "…", "owner": "…", "frist": "…"} – nur die Felder angeben, die sich ändern.
+  Nimm die ID des gemeinten Eintrags aus STAND. Ist nicht eindeutig, welcher Eintrag gemeint ist: kein Befehl.
+- "frage": wenn "${wort}" eine Frage an die Spezial-Agenten weitergeben soll ("${wort}, Frage an …: …", "${wort}, was sagen die Experten zu …").
+  Format: {"an": "alle", "text": "die Frage als ganzer Satz"}. Für "an" ist erlaubt: "alle" oder ${agenten}.
+"${wort}, To-do für …", "${wort}, notiere …" und "${wort}, hake … ab" sind keine Befehle in diesem Sinn: Sie ändern wie bisher direkt den STAND.`;
+}
+
 const AntwortSchema = z.object({ antworten: z.array(z.object({ rolle: z.string(), text: z.string().min(1) })).min(1) });
 
 /**
@@ -41,7 +55,7 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
     const davor = store.daten.transkript.at(-2)?.text ?? "";
     return this.#frage(
       [
-        { role: "system", content: `${einstellungen.promptAssistent}\n\n${FORMAT_STAND}` },
+        { role: "system", content: `${einstellungen.promptAssistent}\n\n${FORMAT_STAND}\n\n${sprachbefehle()}` },
         {
           role: "user",
           content: `STAND:\n${JSON.stringify(stand)}\n\nAKTUELLER AGENDAPUNKT: ${stand.agenda.find((a) => a.status === "läuft")?.titel ?? "(keiner ausgewählt)"}\n\nVORHERIGER ABSCHNITT (nur zum Verständnis, bereits verarbeitet):\n${davor || "(keiner)"}\n\nABSCHNITT:\n${abschnitt}`,

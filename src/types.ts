@@ -76,5 +76,7 @@ export interface Schnappschuss {
     hinweis: string | null;
     /** Was gerade mit dem letzten Abschnitt passiert bzw. zuletzt passiert ist (für die Anzeige) */
     arbeit: string | null;
+    /** Beschreibung der letzten Änderung, die sich rückgängig machen lässt – oder null */
+    rueckgaengig: string | null;
   };
 }

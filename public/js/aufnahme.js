@@ -8,6 +8,8 @@ export class Aufnahme {
   laeuft = false;
   /** Zeitpunkt, zu dem der laufende Schnipsel abgeschlossen und gesendet wird */
   naechsterVersand = 0;
+  /** Länge eines Abschnitts in Sekunden; lässt sich während der Aufnahme ändern */
+  sekunden = 60;
   #strom = null;
   #rekorder = null;
   #wechsel = null;
@@ -44,6 +46,7 @@ export class Aufnahme {
 
   async start(sekunden) {
     if (this.laeuft) return;
+    this.sekunden = sekunden;
     this.laeuft = true;
     try {
       await this.mikrofonOeffnen();
@@ -55,7 +58,7 @@ export class Aufnahme {
     // Bildschirm wach halten, damit der Laptop mitten im Workshop nicht einschläft.
     navigator.wakeLock?.request("screen").then((s) => (this.#sperre = s)).catch(() => {});
     // Der erste Schnipsel ist kurz, damit nach dem Einschalten schnell sichtbar wird, dass alles funktioniert.
-    this.#neuerSchnipsel(sekunden, Math.min(20, sekunden));
+    this.#neuerSchnipsel(Math.min(20, sekunden));
   }
 
   /** Beendet die Aufnahme; der angebrochene Schnipsel wird noch hochgeladen. */
@@ -78,7 +81,7 @@ export class Aufnahme {
 
   // Jeder Schnipsel ist eine eigene, vollständige Aufnahme (stop + neuer Rekorder).
   // Mit einem durchlaufenden Rekorder wären nur die ersten Daten abspielbar, weil nur sie den Datei-Kopf enthalten.
-  #neuerSchnipsel(sekunden, dieser = sekunden) {
+  #neuerSchnipsel(dieser = this.sekunden) {
     if (!this.laeuft) return;
     const format = FORMATE.find((f) => MediaRecorder.isTypeSupported(f));
     const rekorder = new MediaRecorder(this.#strom, { ...(format ? { mimeType: format } : {}), audioBitsPerSecond: 32000 });
@@ -97,7 +100,7 @@ export class Aufnahme {
     this.#rekorder = rekorder;
     this.naechsterVersand = Date.now() + dieser * 1000;
     this.#wechsel = setTimeout(() => {
-      this.#neuerSchnipsel(sekunden); // erst den neuen starten, dann den alten beenden: keine Lücke
+      this.#neuerSchnipsel(); // erst den neuen starten, dann den alten beenden: keine Lücke
       rekorder.stop();
     }, dieser * 1000);
   }

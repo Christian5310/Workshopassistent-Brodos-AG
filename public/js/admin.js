@@ -67,7 +67,7 @@ async function zeigeMeetings() {
   const meetings = await hole("/api/tage");
   const liste = $("#meeting-liste");
   liste.replaceChildren();
-  const alle = offenesMeeting === "neu" ? [{ id: "neu", name: "", datum: heute(), agenda: [], briefing: "", begriffe: "Brodos, Broki, Darling", neu: true }, ...meetings] : meetings;
+  const alle = offenesMeeting === "neu" ? [{ id: "neu", name: "", datum: heute(), agenda: [], briefing: "", begriffe: "Brodos, Broki, Merlin", neu: true }, ...meetings] : meetings;
 
   for (const m of alle) {
     const { d, inhalt } = eintrag({
@@ -224,6 +224,10 @@ async function ladeErweitert() {
   $("#promptAgenten").value = e.promptAgenten;
   $("#promptZusammenfassung").value = e.promptZusammenfassung;
   $("#maxTodos").value = e.maxTodosProZyklus;
+  if (![...$("#takt").options].some((o) => Number(o.value) === e.zyklusSekunden)) { const o = el("option", "", `alle ${e.zyklusSekunden} Sekunden`); o.value = e.zyklusSekunden; $("#takt").append(o); }
+  $("#takt").value = e.zyklusSekunden;
+  $("#wort").value = e.aktivierungswort;
+  $("#sprachfragen").checked = e.sprachfragen;
   $("#hinweis").textContent = daten.mock ? "Mock-Modus: Meetings, Agenten-Namen und die Obergrenze wirken sofort. Prompts, Hintergrundwissen und Wissensdateien werden gespeichert, wirken aber erst mit einem echten Sprachmodell." : "";
   ladeVorschau();
 }
@@ -238,7 +242,7 @@ $("#formular").addEventListener("submit", async (ereignis) => {
   try {
     await sende(
       "/api/admin/einstellungen",
-      { promptAssistent: $("#promptAssistent").value, promptAgenten: $("#promptAgenten").value, promptZusammenfassung: $("#promptZusammenfassung").value, maxTodosProZyklus: Number($("#maxTodos").value) },
+      { promptAssistent: $("#promptAssistent").value, promptAgenten: $("#promptAgenten").value, promptZusammenfassung: $("#promptZusammenfassung").value, maxTodosProZyklus: Number($("#maxTodos").value), zyklusSekunden: Number($("#takt").value), aktivierungswort: $("#wort").value, sprachfragen: $("#sprachfragen").checked },
       "PUT",
     );
     melde(`Gespeichert um ${new Date().toLocaleTimeString("de-DE")}.`);

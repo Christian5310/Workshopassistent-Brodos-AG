@@ -11,7 +11,11 @@ export type MockOp =
   | { typ: "entscheidung"; text: string }
   | { typ: "frage"; text: string }
   | { typ: "frage_beantwortet"; enthaelt: string }
-  | { typ: "notiz"; text: string };
+  | { typ: "notiz"; text: string }
+  /** Sprachbefehl an den Assistenten: Eintrag löschen */
+  | { typ: "befehl_loeschen"; enthaelt: string }
+  /** Per Sprache gestellte Frage an die Spezial-Agenten */
+  | { typ: "sprachfrage"; an: string; text: string };
 
 export interface MockAbschnitt {
   text: string;
@@ -45,8 +49,15 @@ export const MOCK_SKRIPT: MockAbschnitt[] = [
     ],
   },
   {
-    text: "Darling, To-do für Anna: Durchlaufzeiten der Angebote aus Dynamics auswerten, bis Freitag.",
+    text: "Merlin, To-do für Anna: Durchlaufzeiten der Angebote aus Dynamics auswerten, bis Freitag.",
     ops: [{ typ: "todo", text: "Durchlaufzeiten der Angebote aus Dynamics auswerten", owner: "Anna", frist: "Freitag" }],
+  },
+  {
+    text: "Merlin, lösche das To-do mit dem CRM-Export, das hat sich erledigt. Und Merlin, Frage an alle: Wo verlieren wir im Angebotsprozess die meiste Zeit?",
+    ops: [
+      { typ: "befehl_loeschen", enthaelt: "CRM-Export" },
+      { typ: "sprachfrage", an: "alle", text: "Wo verlieren wir im Angebotsprozess die meiste Zeit?" },
+    ],
   },
   {
     text: "Okay, der Ist-Prozess steht an der Wand. Nächster Punkt: Wo tut es am meisten weh, wo haben wir Medienbrüche?",
@@ -56,12 +67,12 @@ export const MOCK_SKRIPT: MockAbschnitt[] = [
     ],
   },
   {
-    text: "Preise werden aus Excel abgetippt, Freigaben laufen per Mail, und bei DaaS+ rechnet jeder anders, das könnte man mal vereinheitlichen. Der Export für Q3 ist übrigens gerade gekommen, der liegt jetzt im Teamordner.",
+    text: "Preise werden aus Excel abgetippt, Freigaben laufen per Mail, und bei DaaS+ rechnet jeder anders, das könnte man mal vereinheitlichen. Die Auswertung der Durchlaufzeiten ist übrigens gerade gekommen, die liegt jetzt im Teamordner.",
     ops: [
       { typ: "notiz", text: "Preise werden aus Excel abgetippt, Freigaben per Mail" },
       { typ: "notiz", text: "DaaS+-Kalkulation ist nicht einheitlich" },
       { typ: "vorschlag", text: "DaaS+-Kalkulation vereinheitlichen" },
-      { typ: "todo_erledigt", enthaelt: "CRM-Export" },
+      { typ: "todo_erledigt", enthaelt: "Durchlaufzeiten" },
     ],
   },
   {

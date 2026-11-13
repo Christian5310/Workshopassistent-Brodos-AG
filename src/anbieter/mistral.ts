@@ -1,4 +1,5 @@
 import { config } from "../config.ts";
+import { einstellungen } from "../einstellungen.ts";
 import { store } from "../store.ts";
 import type { TranskriptQuelle } from "./schnittstellen.ts";
 
@@ -17,7 +18,7 @@ export class MistralTranskriptQuelle implements TranskriptQuelle {
     const formular = new FormData();
     formular.set("model", config.stt.modell);
     formular.set("language", "de");
-    const begriffe = store.daten.begriffe.split(/[,\n]/).map((b) => b.trim()).filter(Boolean);
+    const begriffe = [...new Set([einstellungen.aktivierungswort, ...store.daten.begriffe.split(/[,\n]/).map((b) => b.trim()).filter(Boolean)])]; // das Aktivierungswort muss sicher erkannt werden
     if (begriffe.length) formular.set("context_bias", begriffe.join(","));
     formular.set("file", new Blob([new Uint8Array(audio)], { type: typ }), `abschnitt.${ENDUNG[typ] ?? "webm"}`);
 

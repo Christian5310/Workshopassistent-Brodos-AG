@@ -29,6 +29,8 @@ export class MockSprachmodell implements Sprachmodell {
     const ops = MOCK_SKRIPT.find((a) => a.text === abschnitt)?.ops ?? [];
     const aktuell = () => neu.agenda.find((a) => a.status === "läuft")?.id ?? "";
 
+    const befehle: unknown[] = [];
+    let frage: unknown = null;
     for (const op of ops) {
       switch (op.typ) {
         case "agenda": {
@@ -66,12 +68,20 @@ export class MockSprachmodell implements Sprachmodell {
           if (frage) frage.status = "beantwortet";
           break;
         }
+        case "befehl_loeschen": {
+          const ziel = neu.todos.find((t) => t.text.includes(op.enthaelt));
+          if (ziel) befehle.push({ aktion: "loeschen", id: ziel.id });
+          break;
+        }
+        case "sprachfrage":
+          frage = { an: op.an, text: op.text };
+          break;
         case "notiz":
           neu.notizen.push({ agendapunkt: aktuell(), text: op.text });
           break;
       }
     }
-    return neu;
+    return { ...neu, befehle, frage };
   }
 
   /** Fake-Runde der Spezial-Agenten: Textbausteine, die sichtbar auf den Protokollstand zugreifen. */

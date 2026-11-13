@@ -28,7 +28,7 @@
           <div class="zweispaltig">
             <div class="feld">
               <div class="titelzeile"><label for="promptAssistent">Prompt Transkriptions-Assistent</label><button type="button" class="zweit klein" data-standard="promptAssistent">Standard</button></div>
-              <p>Regeln, wann To-dos, Vorschläge, Entscheidungen und offene Fragen angelegt werden. Aktivierungswort: „Darling, To-do für …".</p>
+              <p>Regeln, wann To-dos, Vorschläge, Entscheidungen und offene Fragen angelegt werden. Sprachbefehle zum Löschen, Ändern und für Fragen an die Agenten sind fest eingebaut und brauchen hier keinen Eintrag.</p>
               <textarea id="promptAssistent" rows="14" class="mono"></textarea>
             </div>
             <div class="feld">
@@ -43,6 +43,17 @@
               <textarea id="promptZusammenfassung" rows="10" class="mono"></textarea>
             </div>
             <div class="feld">
+              <label for="takt">Takt der Transkription</label>
+              <p>Wie oft ein Abschnitt gesendet wird. Kürzer: To-dos erscheinen schneller, dafür werden häufiger Sätze zerschnitten.</p>
+              <select id="takt">
+                <option value="30">alle 30 Sekunden (empfohlen)</option>
+                <option value="45">alle 45 Sekunden</option>
+                <option value="60">alle 60 Sekunden</option>
+              </select>
+              <label for="wort">Aktivierungswort</label>
+              <p>Darauf hört der Assistent im Raum, z. B. „Merlin, To-do für Anna: …", „Merlin, lösche das To-do …", „Merlin, ändere beim To-do … die Frist auf Montag".</p>
+              <input id="wort" type="text" maxlength="30">
+              <label class="haken"><input id="sprachfragen" type="checkbox"> Spezial-Agenten per Sprache fragen („Merlin, Frage an …: …")</label>
               <label for="maxTodos">Höchstzahl neuer To-dos pro Abschnitt</label>
               <p>Was darüber liegt, landet als Vorschlag und geht nicht verloren.</p>
               <input id="maxTodos" type="number" min="1" max="10" step="1">

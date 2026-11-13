@@ -118,6 +118,9 @@ $("#schliessen").addEventListener("click", versuche(async () => {
   }
 }));
 
+// Rückgängig: nimmt die letzte Änderung zurück, egal ob sie vom Assistenten oder von Hand kam.
+$("#rueckgaengig").addEventListener("click", versuche(() => sende("/api/rueckgaengig")));
+
 // Liste ablegen: aktuelle To-dos unter dem laufenden Agendapunkt einsortieren, damit die Liste kurz bleibt.
 $("#ablegen").addEventListener("click", versuche(() => sende("/api/todos/ablegen")));
 
@@ -284,6 +287,9 @@ function zeige({ protokoll, status, tag }) {
   $("#pause").hidden = !an;
   $("#schliessen").hidden = !offen;
   $("#transkript-knopf").hidden = !offen;
+  $("#rueckgaengig").hidden = !offen || !status.rueckgaengig;
+  $("#rueckgaengig").title = status.rueckgaengig ? `Zurücknehmen: ${status.rueckgaengig}` : "";
+  aufnahme.sekunden = status.zyklusSekunden; // ein neuer Takt aus dem Admin gilt ab dem nächsten Abschnitt
   $("#ablegen").hidden = !protokoll.todos.some((t) => !t.gruppe);
   document.body.classList.toggle("ohne-meeting", !offen);
 
@@ -300,7 +306,7 @@ function zeige({ protokoll, status, tag }) {
       leer.append(" ", link);
     }
   }
-  $("#arbeit").textContent = !offen ? "" : status.arbeit ?? (an && quelle === "mikro" ? "Aufnahme läuft. Der erste Abschnitt wird nach 20 Sekunden gesendet, danach jede Minute." : !an && status.letzterZyklus ? "Pausiert. Alles bleibt erhalten, bis du das Meeting schließt." : "");
+  $("#arbeit").textContent = !offen ? "" : status.arbeit ?? (an && quelle === "mikro" ? `Aufnahme läuft. Der erste Abschnitt wird nach 20 Sekunden gesendet, danach alle ${status.zyklusSekunden} Sekunden.` : !an && status.letzterZyklus ? "Pausiert. Alles bleibt erhalten, bis du das Meeting schließt." : "");
 
   // Aufnahme folgt dem Serverstatus: läuft nur auf dem Aufnahmegerät und nur, wenn echte Schnipsel gefragt sind.
   const sollAufnehmen = an && quelle === "mikro" && istAufnahmegeraet();

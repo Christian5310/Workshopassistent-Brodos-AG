@@ -39,6 +39,20 @@ Ist das Skript durch, in der Regie die Inhalte des Tages löschen für einen neu
 
 Entwicklung mit automatischem Neustart: `npm run dev`. Typprüfung: `npm run typecheck`.
 
+## Sprachbefehle
+
+Das Aktivierungswort (Standard „Merlin") und der Takt der Transkription stehen in der Admin-Ansicht unter „Erweitert".
+
+| Gesprochen | Wirkung |
+|---|---|
+| „Merlin, To-do für Anna: … bis Freitag" | To-do anlegen |
+| „Merlin, hake … ab" | To-do abhaken |
+| „Merlin, lösche das To-do …" | Eintrag löschen |
+| „Merlin, ändere beim To-do … die Frist auf Montag" | Text, Owner oder Frist ändern |
+| „Merlin, Frage an den BPM Specialist: …" | Frage an die Spezial-Agenten (abschaltbar) |
+
+Löschen, Ändern und Fragen greifen nur, wenn das Aktivierungswort im Abschnitt wirklich gefallen ist. Jede Änderung lässt sich mit „Rückgängig" zurücknehmen.
+
 ## Aufbau
 
 ```
@@ -66,6 +80,7 @@ public/                     Die drei Ansichten (HTML/CSS/JS ohne Build-Schritt)
 | `POST /api/agenten`, `PUT/DELETE /api/agenten/:id` | Spezial-Agenten anlegen, ändern, löschen (Name, Prompt, Wissen, Figur, Farbe) |
 | `GET /api/tage/:id/markdown?art=alles\|transkript\|todos\|entscheidungen\|fragen`, `GET /api/tage/:id/todos.csv`, `GET /api/tage/:id/broki` | Downloads bzw. Text zum Einfügen in Broki |
 | `POST /api/meeting/schliessen` | Geöffnetes Meeting abschließen: liegt danach im Archiv, der Assistent ist leer |
+| `POST /api/rueckgaengig` | Letzte Änderung am Protokoll zurücknehmen (KI oder Hand, bis zu 30 Schritte) |
 | `POST /api/agenda/:id/aktiv` | Agendapunkt von Hand auswählen |
 | `PATCH/DELETE /api/todos/:id` | To-do bearbeiten, abhaken, löschen |
 | `GET/PUT /api/admin/einstellungen`, `GET /api/admin/vorschau` | Admin: Einstellungen lesen/speichern, fertigen Prompt ansehen |

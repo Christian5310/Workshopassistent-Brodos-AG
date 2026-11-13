@@ -56,7 +56,7 @@ function agendaAnwenden(protokoll: Protokoll, titel: string[]): void {
   protokoll.agenda = titel.map((t) => alt.find((a) => a.titel === t) ?? { id: `A${++zaehler}`, titel: t, status: "offen" as const });
 }
 
-export const STANDARD_BEGRIFFE = "Brodos, Broki, Darling, Dynamics, DaaS+";
+export const STANDARD_BEGRIFFE = "Brodos, Broki, Merlin, Dynamics, DaaS+";
 
 export interface TagEingabe {
   name: string;

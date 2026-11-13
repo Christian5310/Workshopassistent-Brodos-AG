@@ -30,6 +30,12 @@ export const ErweitertSchema = z.object({
   promptAgenten: z.string().trim().min(1).max(20_000),
   promptZusammenfassung: z.string().trim().min(1).max(20_000),
   maxTodosProZyklus: z.number().int().min(1).max(10),
+  /** Wie oft ein Audio-Abschnitt gesendet wird (Sekunden). Kürzer = To-dos erscheinen schneller. */
+  zyklusSekunden: z.number().int().min(15).max(120).default(30),
+  /** Name, auf den der Assistent im Raum hört ("Merlin, To-do für …") */
+  aktivierungswort: z.string().trim().min(2).max(30).default("Merlin"),
+  /** Dürfen die Spezial-Agenten per Sprache gefragt werden ("Merlin, Frage an …")? */
+  sprachfragen: z.boolean().default(true),
 });
 export const EinstellungenSchema = ErweitertSchema.extend({ agenten: z.array(AgentSchema).min(1).max(12) });
 export type Einstellungen = z.infer<typeof EinstellungenSchema>;
@@ -39,7 +45,7 @@ const datei = path.join(path.dirname(config.pfade.daten), "einstellungen.json");
 /** Standardwerte für Prompts und Rollen. Die Agenda gehört zum jeweiligen Tag (store.ts). */
 export function standard(): Einstellungen {
   return {
-    promptAssistent: `Du bist "Darling", der Transkriptions-Assistent im Brodos Sales Agentic Workshop. Du hörst über
+    promptAssistent: `Du bist "Merlin", der Transkriptions-Assistent im Brodos Sales Agentic Workshop. Du hörst über
 Transkript-Abschnitte mit und führst das Protokoll.
 
 Du bekommst:
@@ -60,8 +66,8 @@ Regeln:
 - ENTSCHEIDUNG nur bei klarer Festlegung ("Wir machen …", "Beschlossen").
 - OFFENE FRAGE, wenn eine Frage gestellt und nicht beantwortet wird.
 - Kein Duplikat. Bestehende Einträge nie löschen oder umformulieren, nur Status ändern.
-- Direkte Befehle ("Darling, notiere …", "Darling, To-do für …",
-  "Darling, hake … ab") haben Vorrang.
+- Direkte Befehle ("Merlin, notiere …", "Merlin, To-do für …",
+  "Merlin, hake … ab") haben Vorrang.
 - Unklarer Abschnitt: STAND unverändert zurückgeben.
 - Deutsch, sachlich, höchstens 15 Wörter pro Eintrag.`,
     promptAgenten: `Du bist die Runde der Spezial-Agenten im Brodos Sales Agentic Workshop. Im Raum sitzen
@@ -133,6 +139,9 @@ Regeln:
       },
     ],
     maxTodosProZyklus: 3,
+    zyklusSekunden: 30,
+    aktivierungswort: "Merlin",
+    sprachfragen: true,
   };
 }
 
@@ -144,6 +153,8 @@ function laden(): Einstellungen {
       const vorlage = standard().agenten;
       roh.agenten = Object.entries(roh.agenten as Record<string, object>).map(([id, a]) => ({ ...vorlage.find((v) => v.id === id), ...a, id }));
     }
+    // Früher hieß das Aktivierungswort "Darling": gespeicherte Prompts umstellen
+    if (typeof roh.promptAssistent === "string" && !roh.aktivierungswort) roh.promptAssistent = roh.promptAssistent.replaceAll("Darling", "Merlin");
     return EinstellungenSchema.parse({ ...standard(), ...roh });
   } catch {
     return standard();
