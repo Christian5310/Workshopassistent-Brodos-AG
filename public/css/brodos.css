@@ -382,3 +382,37 @@ dialog h2 { color: var(--brand); }
 .zustimmung-fenster { height: auto; width: 100%; max-width: 46rem; }
 .zustimmung-fenster .inhalt { overflow: visible; }
 .zustimmung-fenster .einwilligung { max-width: none; }
+
+/* ── Einstiegsseite: Bild lebt (leuchtende Punkte über den eingeblendeten Grafiken, sehr langsamer Zoom) ── */
+.einstieg-foto { overflow: hidden; }
+.einstieg-foto img { animation: atmen 28s ease-in-out infinite alternate; }
+@keyframes atmen { from { transform: scale(1); } to { transform: scale(1.06); } }
+.lichter { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; }
+.lichter i { position: absolute; width: 22%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgba(170, 225, 255, 0.85) 0%, rgba(120, 200, 255, 0.35) 35%, rgba(120, 200, 255, 0) 70%); opacity: 0; animation: schein 5s ease-in-out infinite; }
+.lichter i:nth-child(1) { left: 53%; top: 6%; animation-delay: 0s; }
+.lichter i:nth-child(2) { left: 74%; top: -2%; width: 18%; animation-delay: 1.4s; }
+.lichter i:nth-child(3) { left: 26%; top: 34%; width: 16%; animation-delay: 2.6s; }
+.lichter i:nth-child(4) { left: 80%; top: 44%; width: 20%; animation-delay: 0.8s; }
+.lichter i:nth-child(5) { left: 52%; top: 58%; width: 26%; animation-delay: 3.4s; }
+.lichter i:nth-child(6) { left: 66%; top: 66%; width: 14%; animation-delay: 2s; }
+@keyframes schein { 0%, 100% { opacity: 0; transform: scale(0.85); } 50% { opacity: 0.9; transform: scale(1.1); } }
+
+/* ── "Eintreten" doppelt so groß ── */
+.btn.gross { min-height: 5.5rem; padding: 1.25rem 2.5rem; font-size: 1.75rem; line-height: 2.5rem; gap: 1rem; border-radius: var(--radius-md); }
+.btn.gross .icon { width: 2.25rem; height: 2.25rem; }
+
+/* ── Auswahl links breiter: "KI Transkriptionsassistent" passt in eine Zeile ── */
+.seitenleiste { width: 19.5rem; }
+.select-item > span:not(.pfeil) { min-width: 0; }
+
+/* ── Aufnahme läuft: roter, doppelt so großer, pulsierender Punkt (bewusste Ausnahme von der Palette) ── */
+.aufnahme-anzeige.laeuft { color: var(--ink); }
+.aufnahme-anzeige.laeuft .punkt { width: 1.25rem; height: 1.25rem; background: #d6001c; animation: aufnahmepuls 1.4s ease-in-out infinite; }
+@keyframes aufnahmepuls { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.72); opacity: 0.55; } }
+
+/* ── Agenda: erledigte Punkte durchgestrichen ── */
+.agenda-item.ist-erledigt { color: var(--ink-muted); }
+.agenda-item.ist-erledigt span { text-decoration: line-through; }
+
+@media (max-width: 900px) { .seitenleiste { width: auto; } .btn.gross { font-size: 1.375rem; min-height: 4rem; padding: 0.75rem 1.75rem; } }
+@media (prefers-reduced-motion: reduce) { .einstieg-foto img, .lichter i, .aufnahme-anzeige.laeuft .punkt { animation: none; } .lichter i { opacity: 0.45; } }

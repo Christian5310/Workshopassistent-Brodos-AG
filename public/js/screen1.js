@@ -283,7 +283,7 @@ function zeige(daten) {
   // Agenda als Auswahlfelder: Anklicken wählt den Punkt aus, er läuft dann.
   $("#agenda").replaceChildren(
     ...protokoll.agenda.map((a) => {
-      const k = el("button", `select-item agenda-item${a.status === "läuft" ? " is-active" : ""}`);
+      const k = el("button", `select-item agenda-item${a.status === "läuft" ? " is-active" : a.status === "erledigt" ? " ist-erledigt" : ""}`);
       k.type = "button";
       k.setAttribute("aria-pressed", String(a.status === "läuft"));
       k.title = a.status === "läuft" ? "Läuft gerade" : a.status === "erledigt" ? "Erledigt – anklicken, um ihn wieder aufzunehmen" : "Anklicken, um diesen Punkt zu starten";

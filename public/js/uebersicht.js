@@ -38,6 +38,7 @@ function zeigeBereich() {
   $("#b-start").hidden = bereich !== null;
   $("#b-meeting").hidden = bereich !== "meeting";
   $("#b-agenten").hidden = bereich !== "agenten";
+  richteAus();
 }
 
 // Startzustand: dieselbe Auswahl noch einmal als Kacheln im Hauptfenster
@@ -185,6 +186,18 @@ beschrifte("#a-anlegen", "plus", "Anlegen und öffnen");
 beschrifte("#a-abbrechen", "x", "Abbrechen");
 beschrifte("#a-laden", "plus", "Datei laden (.md)");
 beschrifte("#a-oeffnen", "pfeil", "Agent öffnen");
+
+/** Richtet das erste Auswahlfeld links an der Oberkante des ersten Kastens im Hauptfenster aus. */
+function richteAus() {
+  const wahl = $("#wahl");
+  wahl.style.marginTop = "";
+  const ziel = [...document.querySelectorAll("#b-start, #b-meeting, #b-agenten")].find((e) => !e.hidden);
+  if (!ziel || matchMedia("(max-width: 900px)").matches) return;
+  const versatz = ziel.getBoundingClientRect().top - wahl.getBoundingClientRect().top;
+  if (versatz > 0) wahl.style.marginTop = `${versatz}px`;
+}
+addEventListener("resize", richteAus);
+document.fonts?.ready.then(richteAus);
 
 zeigeBereich();
 verbinde((daten) => {
