@@ -6,26 +6,66 @@ const chat = document.querySelector("#chat");
 const statusZeile = document.querySelector("#chatstatus");
 const formular = document.querySelector("#formular");
 const text = document.querySelector("#text");
-// Auswahl links: "Alle" plus ein Auswahlfeld je Agent (aus der Admin-Ansicht)
+// Auswahlfeld links: "Alle Agenten", die bestehenden Agenten und "Neuen Agenten anlegen"
+const NEU = "__neu__";
 const an = { value: "alle" };
-const wahl = document.querySelector("#an");
+const wahl = document.querySelector("#agentwahl");
 let wahlStand = "";
 function zeigeWahl() {
-  const stand = JSON.stringify([...AGENTEN.values()]) + an.value;
-  if (stand === wahlStand) return;
-  wahlStand = stand;
-  if (an.value !== "alle" && !AGENTEN.has(an.value)) an.value = "alle";
-  const feld = (wert, vorne, text) => {
-    const k = el("button", `select-item${an.value === wert ? " is-active" : ""}`);
-    k.type = "button";
-    k.setAttribute("role", "radio");
-    k.setAttribute("aria-checked", String(an.value === wert));
-    k.append(vorne, el("span", "", text));
-    k.addEventListener("click", () => { an.value = wert; zeigeWahl(); });
-    return k;
-  };
-  wahl.replaceChildren(feld("alle", icon("users"), "Alle Agenten"), ...[...AGENTEN.values()].map((a) => feld(a.id, icon(a.figur), a.name)));
+  const stand = JSON.stringify([...AGENTEN.values()]);
+  if (stand !== wahlStand) {
+    wahlStand = stand;
+    const vorher = wahl.value || an.value;
+    const option = (wert, text) => { const o = el("option", "", text); o.value = wert; return o; };
+    const gruppe = el("optgroup");
+    gruppe.label = "Bestehenden Agenten fragen";
+    gruppe.append(...[...AGENTEN.values()].map((a) => option(a.id, a.name)));
+    wahl.replaceChildren(option("alle", "Alle Agenten"), gruppe, option(NEU, "Neuen Agenten anlegen"));
+    wahl.value = [...wahl.options].some((o) => o.value === (gewuenscht ?? vorher)) ? (gewuenscht ?? vorher) : "alle";
+    if (wahl.value === gewuenscht) gewuenscht = null;
+  }
+  const neu = wahl.value === NEU;
+  if (!neu) an.value = wahl.value;
+  document.querySelector("#agent-neu").hidden = !neu;
+  document.querySelector("#chat").hidden = neu;
+  document.querySelector("#formular").hidden = neu || ohneMeeting;
 }
+/** ID eines gerade angelegten Agenten: wird ausgewählt, sobald er in der Liste erscheint. */
+let gewuenscht = null;
+wahl.addEventListener("change", () => {
+  zeigeWahl();
+  if (wahl.value === NEU) document.querySelector("#a-name").focus();
+});
+
+// ── Neuen Agenten anlegen ──
+const $a = (id) => document.querySelector(id);
+const zaehle = () => ($a("#a-zaehler").textContent = $a("#a-wissen").value.length ? `${$a("#a-wissen").value.length.toLocaleString("de-DE")} Zeichen` : "leer");
+$a("#a-wissen").addEventListener("input", zaehle);
+$a("#a-laden").addEventListener("click", () => $a("#a-datei").click());
+$a("#a-datei").addEventListener("change", async () => {
+  const texte = await Promise.all([...$a("#a-datei").files].map((f) => f.text()));
+  const neu = [$a("#a-wissen").value.trim(), ...texte.map((t) => t.trim())].filter(Boolean).join("\n\n");
+  if (neu.length > 300000) return void ($a("#a-meldung").textContent = "Zu groß: höchstens 300.000 Zeichen.");
+  $a("#a-wissen").value = neu;
+  $a("#a-datei").value = "";
+  zaehle();
+});
+$a("#a-abbrechen").addEventListener("click", () => { wahl.value = an.value; zeigeWahl(); });
+$a("#agentformular").addEventListener("submit", async (ereignis) => {
+  ereignis.preventDefault();
+  try {
+    const farben = ["#0069b4", "#004080", "#31435e"];
+    const { id } = await sende("/api/agenten", { name: $a("#a-name").value, beschreibung: $a("#a-prompt").value, wissen: $a("#a-wissen").value, figur: $a("#a-symbol").value, farbe: farben[AGENTEN.size % farben.length] });
+    $a("#agentformular").reset();
+    zaehle();
+    $a("#a-meldung").textContent = "";
+    gewuenscht = id; // das Update vom Server bringt den neuen Agenten in die Liste
+    wahlStand = "";
+    if (AGENTEN.has(id)) zeigeWahl();
+  } catch (fehler) {
+    $a("#a-meldung").textContent = fehler.message;
+  }
+});
 
 let hoertZu = false;
 let denkt = false;
@@ -40,7 +80,6 @@ function zeigeChatStatus(fehler = "") {
 let ohneMeeting = false;
 verbinde(({ chat: nachrichten, status, tag }) => {
   ohneMeeting = tag === null;
-  document.querySelector("#formular").hidden = ohneMeeting;
   if (ohneMeeting) statusZeile.textContent = "Kein Meeting geöffnet. Bitte im Transkriptions-Assistenten ein Meeting auswählen.";
   zeigeWahl();
   denkt = status.chat === "denkt nach";
@@ -121,4 +160,7 @@ document.addEventListener("keyup", (e) => {
 
 // Beschriftung der Knöpfe mit Linien-Icons
 ptt.replaceChildren(icon("mic"), "Halten zum Sprechen");
+$a("#a-laden").replaceChildren(icon("plus"), "Datei laden (.md)");
+$a("#a-anlegen").replaceChildren(icon("plus"), "Agent anlegen");
+$a("#a-abbrechen").replaceChildren(icon("x"), "Abbrechen");
 document.querySelector("#senden").replaceChildren(icon("senden"), "Senden");

@@ -46,32 +46,73 @@ function fuelle(id, eintraege, leerText) {
   liste.querySelector(".neu")?.scrollIntoView({ block: "nearest" });
 }
 
-// ── Meeting auswählen: Erst danach füllt sich die Ansicht. Abgeschlossene Meetings liegen im Archiv. ──
-const tagwahl = $("#tagwahl");
+// ── Stufe vor dem Meeting: ein Feld, in dem man "Neues Meeting anlegen" oder ein bestehendes wählt ──
 let abschlussInfo = null;
-async function ladeTage() {
-  const meetings = (await (await fetch("/api/tage")).json()).filter((t) => !t.abgeschlossen);
-  const platzhalter = el("option", "", meetings.length ? "Meeting auswählen …" : "Noch kein Meeting angelegt");
-  platzhalter.value = "";
-  tagwahl.replaceChildren(
-    platzhalter,
-    ...meetings.map((t) => {
-      const o = el("option", "", `${t.name} · ${new Date(`${t.datum}T12:00:00`).toLocaleDateString("de-DE")}`);
-      o.value = t.id;
-      return o;
-    }),
-  );
-  tagwahl.value = tagId ?? "";
+const startwahl = $("#startwahl");
+const NEU = "__neu__";
+const merkeStart = (an) => { try { an ? sessionStorage.setItem("merlin-start", "1") : sessionStorage.removeItem("merlin-start"); } catch {} };
+const startGewuenscht = () => { try { return sessionStorage.getItem("merlin-start") === "1"; } catch { return false; } };
+let meetingListe = "";
+
+async function ladeStartwahl() {
+  const meetings = await (await fetch("/api/tage")).json();
+  const kennung = JSON.stringify(meetings.map((m) => [m.id, m.name, m.datum, m.abgeschlossen]));
+  if (kennung === meetingListe) return;
+  meetingListe = kennung;
+  const vorher = startwahl.value;
+  const option = (wert, text) => { const o = el("option", "", text); o.value = wert; return o; };
+  const gruppe = (titel, liste) => {
+    const g = el("optgroup");
+    g.label = titel;
+    g.append(...liste.map((m) => option(m.id, `${m.name} · ${new Date(`${m.datum}T12:00:00`).toLocaleDateString("de-DE")}`)));
+    return g;
+  };
+  const offene = meetings.filter((m) => !m.abgeschlossen);
+  const fertige = meetings.filter((m) => m.abgeschlossen);
+  startwahl.replaceChildren(option("", "Bitte wählen …"), option(NEU, "Neues Meeting anlegen"));
+  if (offene.length) startwahl.append(gruppe("Bestehendes Meeting öffnen", offene));
+  if (fertige.length) startwahl.append(gruppe("Abgeschlossenes Meeting wieder öffnen", fertige));
+  // Vorauswahl: bisherige Wahl, sonst das gerade geöffnete Meeting
+  startwahl.value = [...startwahl.options].some((o) => o.value === vorher) && vorher ? vorher : tagId ?? "";
+  zeigeStartwahl();
 }
-tagwahl.addEventListener("change", async () => {
-  if (!tagwahl.value) return void (tagwahl.value = tagId ?? "");
+
+function zeigeStartwahl() {
+  const neu = startwahl.value === NEU;
+  $("#neu-felder").hidden = !neu;
+  if (neu && !$("#neu-datum").value) $("#neu-datum").value = new Date().toLocaleDateString("sv-SE");
+  const k = $("#start-weiter");
+  k.disabled = !startwahl.value;
+  beschrifte(k, neu ? "plus" : "pfeil", neu ? "Anlegen und öffnen" : startwahl.value && startwahl.value === tagId ? "Weiter mit diesem Meeting" : "Meeting öffnen");
+}
+startwahl.addEventListener("change", () => {
+  zeigeStartwahl();
+  if (startwahl.value === NEU) $("#neu-name").focus();
+});
+
+$("#startformular").addEventListener("submit", async (ereignis) => {
+  ereignis.preventDefault();
+  melde("");
   try {
+    let id = startwahl.value;
+    if (id === NEU) {
+      const agenda = $("#neu-agenda").value.split("\n").map((z) => z.trim()).filter(Boolean);
+      id = (await sende("/api/tage", { name: $("#neu-name").value, datum: $("#neu-datum").value, agenda })).id;
+      $("#neu-name").value = $("#neu-agenda").value = "";
+    }
     abschlussInfo = null;
-    await sende(`/api/tage/${tagwahl.value}/aktivieren`);
+    merkeStart(false);
+    if (id !== tagId) await sende(`/api/tage/${id}/aktivieren`);
+    else zeige(letzterStand); // dasselbe Meeting: nur die Stufe verlassen
   } catch (fehler) {
     melde(fehler.message);
-    tagwahl.value = tagId ?? "";
   }
+});
+
+$("#wechseln").addEventListener("click", () => {
+  merkeStart(true);
+  startwahl.value = "";
+  zeige(letzterStand);
 });
 $("#verwalten").addEventListener("click", () => gehe("admin"));
 
@@ -81,7 +122,7 @@ $("#pause").addEventListener("click", versuche(() => merlin().pausieren()));
 
 // Meeting schließen: alles liegt danach im Archiv, die Ansicht wird geleert.
 $("#schliessen").addEventListener("click", versuche(async () => {
-  const name = tagwahl.selectedOptions[0]?.textContent ?? "Meeting";
+  const name = letzterStand?.tag?.name ?? "Meeting";
   $("#schluss-text").textContent = `„${name}" wird abgeschlossen${an ? ", die Aufnahme endet" : ""}. Transkript, To-dos, Entscheidungen und Fragen liegen danach im Archiv und lassen sich dort herunterladen. Die Ansicht hier wird geleert. Im Archiv kannst du das Meeting bei Bedarf wieder öffnen.`;
   const dialog = $("#schluss");
   dialog.returnValue = "abbrechen";
@@ -234,7 +275,10 @@ function zeigeTodos() {
 }
 
 // ── Alles anzeigen ──
-function zeige({ protokoll, status, tag }) {
+let letzterStand = null;
+function zeige(daten) {
+  letzterStand = daten;
+  const { protokoll, status, tag } = daten;
   const neueId = tag?.id ?? null;
   if (neueId !== tagId) {
     // Meeting gewechselt oder geschlossen: nichts davon ist "neu", also ohne Animation aufbauen
@@ -247,12 +291,26 @@ function zeige({ protokoll, status, tag }) {
   stand = protokoll;
   an = status.aufnahme;
   letzterZyklus = status.letzterZyklus;
-  ladeTage();
-  tagwahl.disabled = an;
-  tagwahl.title = an ? "Zum Wechseln erst pausieren." : "";
+  // Stufe davor: wenn kein Meeting geöffnet ist oder man gerade frisch eingetreten ist (nie während der Aufnahme)
+  if (an) merkeStart(false);
+  const stufe = tag === null || startGewuenscht();
+  $("#startstufe").hidden = !stufe;
+  if (stufe) ladeStartwahl();
+  const hinweis = $("#start-hinweis");
+  hinweis.hidden = !abschlussInfo;
+  if (abschlussInfo) {
+    const link = el("button", "textlink", "Zum Archiv");
+    link.type = "button";
+    link.addEventListener("click", () => gehe("archiv"));
+    hinweis.replaceChildren(icon("archive"), `„${abschlussInfo.name}" ist abgeschlossen und liegt im Archiv. `, link);
+  }
+  $("#meeting-name").textContent = tag ? `${tag.name} · ${new Date(`${tag.datum}T12:00:00`).toLocaleDateString("de-DE")}` : "Noch kein Meeting geöffnet";
+  $("#wechseln").hidden = tag === null || stufe;
+  $("#wechseln").disabled = an;
+  $("#wechseln").title = an ? "Zum Wechseln erst pausieren." : "";
 
   // Steuerung: ohne Meeting nichts; mit Meeting Starten/Fortsetzen oder Pausieren, dazu Schließen
-  const offen = tag !== null;
+  const offen = tag !== null && !stufe;
   $("#start").hidden = !offen || an;
   beschrifte($("#start"), "play", status.letzterZyklus ? "Aufnahme fortsetzen" : "Aufnahme starten");
   $("#pause").hidden = !an;
@@ -267,19 +325,9 @@ function zeige({ protokoll, status, tag }) {
   beschrifte($("#ablegen"), "ablage", "Liste ablegen");
 
   $("#protokoll").hidden = $("#spalten").hidden = !offen;
-  $("#agenda-hilfe").hidden = !offen;
-  const leer = $("#leerzustand");
-  leer.hidden = offen;
-  if (!offen) {
-    const kreis = el("span", "kreis");
-    kreis.append(icon(abschlussInfo ? "archive" : "kalender"));
-    leer.replaceChildren(kreis, el("p", "", abschlussInfo ? `„${abschlussInfo.name}" ist abgeschlossen und liegt im Archiv.` : "Kein Meeting geöffnet. Wähle links ein Meeting aus."));
-    const weiter = knopf(abschlussInfo ? "Zum Archiv" : "Meeting anlegen", abschlussInfo ? "archive" : "plus");
-    weiter.addEventListener("click", () => gehe(abschlussInfo ? "archiv" : "admin"));
-    leer.append(weiter);
-  }
+  $("#agenda-hilfe").hidden = $("#agenda-titel").hidden = $("#agenda").hidden = !offen;
   $("#arbeit").textContent = !offen
-    ? "Hört mit, schreibt das Transkript und führt die To-do-Liste."
+    ? "Lege ein neues Meeting an oder öffne ein bestehendes."
     : status.arbeit ?? (an ? `Aufnahme läuft. Der erste Abschnitt wird nach 20 Sekunden gesendet, danach alle ${status.zyklusSekunden} Sekunden.` : status.letzterZyklus ? "Pausiert. Alles bleibt erhalten, bis du das Meeting schließt." : "Bereit. Wähle einen Agendapunkt und starte die Aufnahme.");
 
   // Kennzahlen

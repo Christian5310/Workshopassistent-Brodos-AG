@@ -3,9 +3,9 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Agenten · Merlin</title></head>
 <body class="ansicht">
   <aside class="seitenleiste">
-    <h2 id="wahl-titel">Frage an</h2>
-    <div id="an" class="akkordeon" role="radiogroup" aria-labelledby="wahl-titel"></div>
-    <p class="hilfe">Agenten und ihr Wissen pflegst du im Admin.</p>
+    <h2><label for="agentwahl">Agent</label></h2>
+    <select id="agentwahl"></select>
+    <p class="hilfe">Wähle, wer antwortet, oder lege einen neuen Agenten an. Prompt und Wissen bestehender Agenten pflegst du im Admin.</p>
   </aside>
   <main class="inhalt">
     <div class="seitenkopf">
@@ -14,6 +14,26 @@
         <p id="chatstatus" class="unterzeile" role="status"></p>
       </div>
     </div>
+    <!-- Neuen Agenten anlegen (erscheint, wenn im Feld links "Neuen Agenten anlegen" gewählt ist) -->
+    <section id="agent-neu" class="kasten" hidden>
+      <div class="kasten-kopf"><h2>Neuen Agenten anlegen</h2></div>
+      <form id="agentformular" class="kasten-inhalt startformular">
+        <div class="zweispaltig">
+          <div class="feld"><label for="a-name">Name</label><input id="a-name" type="text" maxlength="40" placeholder="z. B. Legal Counsel" required></div>
+          <div class="feld"><label for="a-symbol">Symbol</label><select id="a-symbol"><option value="kuerzel">Person (allgemein)</option><option value="sales">Aktentasche (Vertrieb)</option><option value="bpm">Ablauf (Prozesse)</option><option value="consultant">Trend (Strategie)</option></select></div>
+        </div>
+        <div class="feld">
+          <label for="a-prompt">Prompt (Rolle)</label>
+          <textarea id="a-prompt" rows="4" maxlength="8000" placeholder="Wer ist der Agent? Welche Erfahrung hat er, worauf achtet er, wie antwortet er?"></textarea>
+        </div>
+        <div class="feld">
+          <label for="a-wissen">Wissensdatei (optional)</label>
+          <div class="wissenleiste"><span id="a-zaehler" class="zaehler">leer</span><button type="button" id="a-laden" class="zweit klein"></button><input id="a-datei" type="file" accept=".md,.txt,text/markdown,text/plain" multiple hidden></div>
+          <textarea id="a-wissen" rows="4" maxlength="300000" class="mono" placeholder="Text einfügen oder Datei laden."></textarea>
+        </div>
+        <div class="reihe"><button type="submit" id="a-anlegen"></button><button type="button" id="a-abbrechen" class="zweit"></button><span id="a-meldung" class="meldung" role="status"></span></div>
+      </form>
+    </section>
     <div id="chat" class="chat" aria-live="polite"></div>
     <form id="formular" class="eingabe">
       <input id="text" type="text" placeholder="Frage tippen …" autocomplete="off" aria-label="Frage an die Spezial-Agenten">

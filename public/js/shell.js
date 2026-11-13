@@ -8,6 +8,11 @@ const BEREICHE = { assistent: "/screen1", agenten: "/screen2", archiv: "/archiv"
 
 // ── Navigation: Der Bereich steht in der Adresse hinter dem #, der Inhalt lädt im Fenster darunter ──
 function zeigeBereich() {
+  if (location.hash === "#start") {
+    // Frisch eingetreten: Der Assistent zeigt zuerst die Stufe "Neues Meeting anlegen / Bestehendes öffnen".
+    try { sessionStorage.setItem("merlin-start", "1"); } catch {}
+    return void location.replace("#assistent");
+  }
   const bereich = location.hash.slice(1) in BEREICHE ? location.hash.slice(1) : "assistent";
   for (const a of document.querySelectorAll(".app-kopf nav a")) {
     if (a.getAttribute("href") === `#${bereich}`) a.setAttribute("aria-current", "page");

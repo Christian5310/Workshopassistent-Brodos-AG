@@ -3,10 +3,11 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Assistent · Merlin</title></head>
 <body class="ansicht">
   <aside class="seitenleiste">
-    <h2><label for="tagwahl">Meeting</label></h2>
-    <select id="tagwahl"></select>
+    <h2>Meeting</h2>
+    <p id="meeting-name" class="meeting-name">Noch kein Meeting geöffnet</p>
+    <button id="wechseln" type="button" class="textlink klein-text" hidden>Meeting wechseln</button>
     <button id="verwalten" type="button" class="textlink klein-text">Meetings verwalten</button>
-    <h2>Agenda</h2>
+    <h2 id="agenda-titel">Agenda</h2>
     <p class="hilfe" id="agenda-hilfe">Anklicken: Der Punkt läuft, Transkript und To-dos gehören dazu.</p>
     <div id="agenda" class="akkordeon"></div>
   </aside>
@@ -25,7 +26,29 @@
       </div>
     </div>
     <div id="meldung" class="hinweisband" role="alert"></div>
-    <div id="leerzustand" class="leerzustand" hidden></div>
+    <!-- Stufe vor dem Meeting: neu anlegen oder ein bestehendes öffnen -->
+    <section id="startstufe" class="kasten" hidden>
+      <div class="kasten-kopf"><h2>Mit welchem Meeting möchtest du arbeiten?</h2></div>
+      <form id="startformular" class="kasten-inhalt startformular">
+        <p id="start-hinweis" class="hinweisband" hidden></p>
+        <div class="feld">
+          <label for="startwahl">Meeting</label>
+          <select id="startwahl"></select>
+        </div>
+        <div id="neu-felder" hidden>
+          <div class="zweispaltig">
+            <div class="feld"><label for="neu-name">Name</label><input id="neu-name" type="text" maxlength="80" placeholder="z. B. Sales Agentic Workshop"></div>
+            <div class="feld"><label for="neu-datum">Datum</label><input id="neu-datum" type="date"></div>
+          </div>
+          <div class="feld">
+            <label for="neu-agenda">Agenda</label>
+            <textarea id="neu-agenda" rows="5" placeholder="Ein Punkt pro Zeile"></textarea>
+            <p>Hintergrundwissen und Fachbegriffe kannst du später im Admin ergänzen.</p>
+          </div>
+        </div>
+        <div class="reihe"><button type="submit" id="start-weiter" disabled></button></div>
+      </form>
+    </section>
 
     <div id="protokoll" hidden>
       <div class="kennzahlen">

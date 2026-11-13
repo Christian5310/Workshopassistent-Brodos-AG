@@ -101,8 +101,6 @@ function lies(id: string): Tag | null {
   }
 }
 
-const standardAgenda = () => (JSON.parse(fs.readFileSync(config.pfade.agenda, "utf8")) as { titel: string }[]).map((a) => a.titel);
-
 /** Einmalig: Daten aus älteren Versionen (state.json, Archiv-Schnappschüsse) als Tage übernehmen. */
 function migriere(): void {
   if (fs.existsSync(ordner)) return;
@@ -144,7 +142,6 @@ class Store {
     } catch {
       // erster Start: noch nichts gemerkt
     }
-    if (this.liste().length === 0) this.erstelle({ name: "Workshop", datum: heute(), agenda: standardAgenda() });
     this.#aktiv = gemerkt ? lies(gemerkt) : null;
     if (this.#aktiv?.abgeschlossen) this.#aktiv = null;
   }
