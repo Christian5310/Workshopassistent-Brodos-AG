@@ -4,7 +4,10 @@ import { el, gehe, icon, imRahmen, knopf, sende, verbinde } from "./common.js";
 imRahmen("workshop");
 const $ = (id) => document.querySelector(id);
 const hole = async (pfad) => (await fetch(pfad)).json();
-const melde = (text) => ($("#meldung").textContent = text);
+const melde = (text) => {
+  $("#meldung").textContent = text;
+  if (text) $("#meldung").scrollIntoView({ behavior: "smooth", block: "center" }); // sonst bleibt die Meldung unten im Material unsichtbar
+};
 const versuche = (aktion) => async (ereignis) => {
   ereignis?.preventDefault?.();
   melde("");
@@ -271,11 +274,7 @@ $("#wissen-speichern").addEventListener("click", versuche(async () => {
 
 // ── Abhalten: Meeting Assistent und Agenten des Workshops öffnen ──
 async function oeffne(ziel) {
-  if (!aktuell.meetingVorhanden) throw new Error("Das Meeting dieses Workshops wurde gelöscht.");
-  if (stand?.tag?.id !== aktuell.meetingId) {
-    if (stand?.status.aufnahme) throw new Error("In einem anderen Meeting läuft gerade die Aufnahme. Bitte dort erst pausieren.");
-    await sende(`/api/tage/${aktuell.meetingId}/aktivieren`);
-  }
+  await sende(`/api/workshops/${aktuell.id}/oeffnen`); // legt ein gelöschtes Meeting neu an
   gehe(ziel);
 }
 function zeigeAbhaltenWs() {

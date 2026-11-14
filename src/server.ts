@@ -675,6 +675,15 @@ app.get("/api/workshops", (_req, res) => {
   res.json(workshops.liste().map(workshopAnsicht));
 });
 
+/** Stellt sicher, dass der Workshop ein Meeting hat (es kann im Archiv gelöscht worden sein); legt es sonst neu an. */
+function sichereMeeting(w: workshops.Workshop, agenda: string[] = []): string {
+  if (store.hole(w.meetingId)) return w.meetingId;
+  const meeting = store.erstelle({ name: w.name, datum: w.datum, agenda });
+  workshops.aendere(w.id, (x) => Object.assign(x, { meetingId: meeting.id }));
+  workshopIndex = null;
+  return meeting.id;
+}
+
 /** Legt einen Workshop samt eigenem Meeting an. */
 app.post("/api/workshops", (req, res) => {
   const e = workshops.WorkshopEingabeSchema.safeParse(req.body);
@@ -696,10 +705,26 @@ app.put("/api/workshops/:id", (req, res) => {
   if (!e.success) return void res.status(400).json({ fehler: "Bitte Name, Datum, Agenda und Teilnehmer prüfen." });
   const w = workshops.aendere(req.params.id, (x) => Object.assign(x, { name: e.data.name, datum: e.data.datum, teilnehmer: e.data.teilnehmer }));
   if (!w) return void res.status(404).json({ fehler: "Workshop nicht gefunden." });
-  store.aendere(w.meetingId, { name: e.data.name, datum: e.data.datum, agenda: e.data.agenda });
+  if (store.hole(w.meetingId)) store.aendere(w.meetingId, { name: e.data.name, datum: e.data.datum, agenda: e.data.agenda });
+  else sichereMeeting(w, e.data.agenda);
   workshopIndex = null;
   senden();
   res.json({ ok: true });
+});
+
+/** Öffnet das Meeting des Workshops im Assistenten; fehlt es, wird es neu angelegt. */
+app.post("/api/workshops/:id/oeffnen", (req, res) => {
+  const w = holeWorkshop(req.params.id, res);
+  if (!w) return;
+  const id = sichereMeeting(w);
+  if (store.daten.id !== id || !store.istOffen) {
+    if (aufnahme) return void res.status(409).json({ fehler: "In einem anderen Meeting läuft gerade die Aufnahme. Bitte dort erst pausieren." });
+    store.wechsle(id);
+    schritte.length = 0;
+    hinweis = null;
+  }
+  senden();
+  res.json({ ok: true, meetingId: id });
 });
 
 /** Löscht den Workshop mit seinem Material. Das Meeting bleibt im Archiv und wird dort gelöscht. */
