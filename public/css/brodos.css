@@ -474,7 +474,7 @@ label.agentenwahl input { flex: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .merlin-knopf { position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 20; width: 4.5rem; height: 4.5rem; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: 0 6px 18px rgba(16, 38, 54, 0.25); }
 .merlin-knopf:hover { background: transparent; transform: scale(1.05); }
-.merlin-knopf svg { width: 100%; height: 100%; display: block; }
+.merlin-knopf img { width: 100%; height: 100%; display: block; }
 .merlin-knopf.spricht { animation: merlinspricht 1.1s ease-in-out infinite; }
 @keyframes merlinspricht { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
 .merlin-panel { position: fixed; right: 1.5rem; bottom: 7rem; z-index: 20; width: min(26rem, calc(100vw - 3rem)); display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; border: 2px solid var(--accent); border-radius: var(--radius-lg); background: var(--surface); box-shadow: 0 12px 32px rgba(16, 38, 54, 0.25); }
@@ -489,3 +489,28 @@ label.agentenwahl input { flex: none; }
 .gruppen .eintrag-inhalt .liste > li { padding: 0.4rem 0; font-size: 0.875rem; }
 #uebersicht h3 { color: var(--brand); }
 @media (prefers-reduced-motion: reduce) { .merlin-knopf.spricht { animation: none; } }
+
+/* ── Aufnahme läuft: Wellenbild wechselt weich von Blau zu Rot (bewusste Ausnahme von der Palette) ── */
+.app-bg { position: relative; isolation: isolate; }
+.app-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-color: #3a0608;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.04) 40%, rgba(255, 255, 255, 0) 60%, rgba(236, 214, 214, 0.16) 100%),
+    url("/assets/bg-welle-rot.jpg");
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1.6s ease-in-out;
+  pointer-events: none;
+}
+.app-bg.aufnahme::before { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .app-bg::before { transition: none; } }
+
+/* Schrittleiste: Nebenaktionen links, "Weiter" ganz rechts */
+.schrittleiste { justify-content: flex-end; margin-top: var(--space-1); }
+.schrittleiste .hilfe { margin-right: auto; }
+#ws-loeschen { margin-right: auto; }

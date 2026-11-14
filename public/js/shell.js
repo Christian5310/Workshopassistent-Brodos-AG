@@ -105,6 +105,7 @@ verbinde((stand) => {
 function zeigeAufnahme() {
   if (!status) return;
   const laeuft = status.aufnahme;
+  $("#app-bg").classList.toggle("aufnahme", laeuft);
   $("#aufnahme").classList.toggle("laeuft", laeuft);
   $("#pegel").hidden = !aufnahme.laeuft;
   const rest = Math.max(0, Math.ceil((aufnahme.naechsterVersand - Date.now()) / 1000));

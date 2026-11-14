@@ -116,15 +116,17 @@ function zeigeUeberblick() {
   $("#ws-datum").value = aktuell?.datum ?? new Date().toLocaleDateString("sv-SE");
   $("#ws-agenda").value = (aktuell?.agenda ?? []).join("\n");
   $("#teilnehmer").replaceChildren(...(aktuell?.teilnehmer ?? []).map(teilnehmerZeile));
-  beschrifte("#ws-speichern", neu ? "plus" : "check", neu ? "Workshop einrichten" : "Speichern");
-  $("#ws-loeschen").hidden = neu;
+  beschrifte("#ws-speichern", "check", "Speichern");
+  beschrifte("#ws-weiter", "pfeil", neu ? "Workshop einrichten und weiter" : "Weiter");
+  $("#ws-speichern").hidden = $("#ws-loeschen").hidden = neu;
 }
 $("#tn-neu").addEventListener("click", () => {
   const zeile = teilnehmerZeile();
   $("#teilnehmer").append(zeile);
   zeile.querySelector("input").focus();
 });
-$("#ws-formular").addEventListener("submit", versuche(async () => {
+// Speichern bleibt auf der Seite; "Weiter" speichert und führt zum nächsten Schritt (Material).
+async function speichereWorkshop() {
   const daten = {
     name: $("#ws-name").value,
     datum: $("#ws-datum").value,
@@ -133,8 +135,21 @@ $("#ws-formular").addEventListener("submit", versuche(async () => {
   };
   const id = aktuell ? (await sende(`/api/workshops/${aktuell.id}`, daten, "PUT"), aktuell.id) : (await sende("/api/workshops", daten)).id;
   await lade(id);
-  melde(aktuell ? "Gespeichert." : "");
+}
+$("#ws-speichern").addEventListener("click", versuche(async () => {
+  if (!$("#ws-formular").reportValidity()) return;
+  await speichereWorkshop();
+  melde("Gespeichert.");
 }));
+$("#ws-formular").addEventListener("submit", versuche(async () => {
+  await speichereWorkshop();
+  bereich = "material";
+  merke("broki-ws-bereich", bereich);
+  zeige();
+  document.querySelector(".inhalt").scrollTop = 0;
+}));
+// Material → Weiter: zum Meeting Assistenten des Workshops
+$("#mat-weiter").addEventListener("click", versuche(() => oeffne("assistent")));
 $("#ws-loeschen").addEventListener("click", versuche(async () => {
   if (!confirm(`Den Workshop „${aktuell.name}" mit seinem Material wirklich löschen? Das zugehörige Meeting bleibt im Archiv.`)) return;
   await sende(`/api/workshops/${aktuell.id}`, {}, "DELETE");
@@ -281,7 +296,9 @@ dialog.append(dForm);
 document.body.append(dialog);
 
 beschrifte("#tn-neu", "plus", "Teilnehmer hinzufügen");
-beschrifte("#ws-loeschen", "trash", "Workshop löschen");
+beschrifte("#ws-loeschen", "trash", "Löschen");
+$("#ws-loeschen").title = "Workshop löschen";
+beschrifte("#mat-weiter", "pfeil", "Weiter zum Meeting Assistenten");
 beschrifte("#mat-laden", "plus", "Markdown-Dateien laden");
 beschrifte("#mat-speichern", "plus", "Material speichern");
 beschrifte("#verdichten", "regler", "Aus Material verdichten");

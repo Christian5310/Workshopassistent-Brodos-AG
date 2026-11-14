@@ -19,7 +19,7 @@ async function ladeTranskript() {
 }
 
 verbinde(({ status, chat, tag }) => {
-  document.querySelector("#reset").replaceChildren(icon("trash"), tag ? `Inhalte von „${tag.name}" löschen` : "Kein Meeting geöffnet");
+  document.querySelector("#reset").replaceChildren(icon("trash"), tag ? "Inhalte löschen" : "Kein Meeting geöffnet");
   document.querySelector("#reset").disabled = !tag;
   fuelleAgentenWahl($("#an"));
   $("#start").disabled = status.aufnahme || !tag;
