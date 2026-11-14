@@ -166,7 +166,7 @@ function zeigeMaterial() {
   } else {
     const t = el("table");
     const kopf = el("tr");
-    kopf.append(...["Titel", "Art", "Von", "Umfang", "Eingegangen", ""].map((s) => { const th = el("th", "", s); th.scope = "col"; return th; }));
+    kopf.append(...["Titel", "Von", "Umfang", "Eingegangen", ""].map((s) => { const th = el("th", "", s); th.scope = "col"; return th; }));
     const thead = el("thead");
     thead.append(kopf);
     const tbody = el("tbody");
@@ -191,7 +191,7 @@ function zeigeMaterial() {
         await lade(aktuell.id);
       }));
       aktionen.append(ansehen, laden, weg);
-      for (const zelle of [m.titel, el("span", `badge${m.art === "Interview" ? " arbeit" : ""}`, m.art), m.person || "–", `${m.zeichen.toLocaleString("de-DE")} Zeichen`, new Date(m.zeit).toLocaleDateString("de-DE"), aktionen]) {
+      for (const zelle of [m.titel, m.person || "–", `${m.zeichen.toLocaleString("de-DE")} Zeichen`, new Date(m.zeit).toLocaleDateString("de-DE"), aktionen]) {
         const td = el("td");
         td.append(zelle);
         tr.append(td);
@@ -214,17 +214,31 @@ const zaehle = () => ($("#mat-zaehler").textContent = $("#mat-text").value.lengt
 $("#mat-text").addEventListener("input", zaehle);
 $("#mat-laden").addEventListener("click", () => $("#mat-datei").click());
 // Dateien: jede wird ein eigener Eintrag, der Dateiname wird zum Titel.
-$("#mat-datei").addEventListener("change", versuche(async () => {
-  const dateien = [...$("#mat-datei").files];
-  for (const d of dateien) {
-    await sende(`/api/workshops/${aktuell.id}/material`, { titel: d.name.replace(/\.(md|txt|markdown)$/i, ""), art: $("#mat-art").value, person: $("#mat-person").value, text: await d.text() });
+async function ladeHoch(dateien) {
+  try {
+  const passend = dateien.filter((d) => /\.(md|txt|markdown)$/i.test(d.name) || d.type.startsWith("text/"));
+  const ausgelassen = dateien.length - passend.length;
+  $("#mat-meldung").textContent = passend.length ? "Speichert …" : "";
+  for (const d of passend) {
+    await sende(`/api/workshops/${aktuell.id}/material`, { titel: d.name.replace(/\.(md|txt|markdown)$/i, ""), person: $("#mat-person").value, text: await d.text() });
   }
   $("#mat-datei").value = "";
   await lade(aktuell.id);
-  melde(`${dateien.length} Datei${dateien.length === 1 ? "" : "en"} gespeichert.`);
-}));
+  $("#mat-meldung").textContent = [
+    passend.length ? `${passend.length} Datei${passend.length === 1 ? "" : "en"} gespeichert.` : "",
+    ausgelassen ? `${ausgelassen} Datei${ausgelassen === 1 ? "" : "en"} übersprungen: nur .md und .txt möglich.` : "",
+  ].filter(Boolean).join(" ");
+  } catch (fehler) {
+    $("#mat-meldung").textContent = fehler.message;
+  }
+}
+$("#mat-datei").addEventListener("change", () => ladeHoch([...$("#mat-datei").files]));
+const ablage = $("#mat-ablage");
+for (const typ of ["dragenter", "dragover"]) ablage.addEventListener(typ, (e) => { e.preventDefault(); ablage.classList.add("ist-ueber"); });
+for (const typ of ["dragleave", "drop"]) ablage.addEventListener(typ, () => ablage.classList.remove("ist-ueber"));
+ablage.addEventListener("drop", (e) => { e.preventDefault(); ladeHoch([...e.dataTransfer.files]); });
 $("#mat-formular").addEventListener("submit", versuche(async () => {
-  await sende(`/api/workshops/${aktuell.id}/material`, { titel: $("#mat-titel").value, art: $("#mat-art").value, person: $("#mat-person").value, text: $("#mat-text").value });
+  await sende(`/api/workshops/${aktuell.id}/material`, { titel: $("#mat-titel").value, person: $("#mat-person").value, text: $("#mat-text").value });
   $("#mat-titel").value = $("#mat-text").value = "";
   zaehle();
   await lade(aktuell.id);
@@ -299,8 +313,8 @@ beschrifte("#tn-neu", "plus", "Teilnehmer hinzufügen");
 beschrifte("#ws-loeschen", "trash", "Löschen");
 $("#ws-loeschen").title = "Workshop löschen";
 beschrifte("#mat-weiter", "pfeil", "Weiter zum Meeting Assistenten");
-beschrifte("#mat-laden", "plus", "Markdown-Dateien laden");
-beschrifte("#mat-speichern", "plus", "Material speichern");
+beschrifte("#mat-laden", "plus", "Dateien auswählen");
+beschrifte("#mat-speichern", "plus", "Text speichern");
 beschrifte("#verdichten", "regler", "Aus Material verdichten");
 beschrifte("#wissen-speichern", "check", "Als Briefing übernehmen");
 

@@ -46,19 +46,27 @@
       </section>
       <section class="kasten">
         <div class="kasten-kopf"><h2>Material hinzufügen</h2></div>
-        <form id="mat-formular" class="kasten-inhalt stapel">
-          <div class="zweispaltig">
-            <div class="feld"><label for="mat-art">Art</label><select id="mat-art"><option>Interview</option><option selected>Dokument</option><option>Sonstiges</option></select></div>
-            <div class="feld"><label for="mat-person">Von wem (optional)</label><select id="mat-person"></select><p>Erscheint nur hier in der Übersicht, nicht bei den Agenten.</p></div>
+        <div class="kasten-inhalt stapel">
+          <div class="feld"><label for="mat-person">Von wem (optional)</label><select id="mat-person"></select><p>Erscheint nur hier in der Übersicht, nicht bei den Agenten.</p></div>
+          <div id="mat-ablage" class="ablage">
+            <p><strong>Dateien hierher ziehen</strong> oder</p>
+            <button type="button" id="mat-laden"></button>
+            <p class="klein-text gedaempft">Markdown oder Text (.md, .txt). Jede Datei wird ein eigener Eintrag, der Dateiname wird zum Titel.</p>
+            <input id="mat-datei" type="file" accept=".md,.txt,.markdown,text/markdown,text/plain" multiple hidden>
           </div>
-          <div class="feld"><label for="mat-titel">Titel</label><input id="mat-titel" type="text" maxlength="120" placeholder="z. B. Interview Vertriebsprozess"></div>
-          <div class="feld">
-            <label for="mat-text">Inhalt (Markdown oder Text)</label>
-            <div class="wissenleiste"><span id="mat-zaehler" class="zaehler">leer</span><button type="button" id="mat-laden" class="zweit klein"></button><input id="mat-datei" type="file" accept=".md,.txt,text/markdown,text/plain" multiple hidden></div>
-            <textarea id="mat-text" rows="6" class="mono" placeholder="Text einfügen – oder Markdown-Dateien laden. Mehrere Dateien werden als einzelne Einträge gespeichert."></textarea>
-          </div>
-          <div class="reihe"><button type="submit" id="mat-speichern"></button></div>
-        </form>
+          <span id="mat-meldung" class="meldung" role="status"></span>
+          <details class="einklappen">
+            <summary>Keine Datei? Text einfügen</summary>
+            <form id="mat-formular" class="stapel">
+              <div class="feld"><label for="mat-titel">Titel</label><input id="mat-titel" type="text" maxlength="120" required placeholder="z. B. Antwort aus Broki"></div>
+              <div class="feld">
+                <div class="reihe"><label for="mat-text">Text</label><span id="mat-zaehler" class="zaehler klein-text gedaempft">leer</span></div>
+                <textarea id="mat-text" rows="6" class="mono" required placeholder="Text einfügen, z. B. aus einer Mail oder einem Broki-Chat."></textarea>
+              </div>
+              <div class="reihe"><button type="submit" id="mat-speichern"></button></div>
+            </form>
+          </details>
+        </div>
       </section>
       <section class="kasten">
         <div class="kasten-kopf"><h2>Agenten-Briefing</h2></div>
