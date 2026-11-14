@@ -250,11 +250,13 @@ function schliesseMerlin() {
   verstumme();
   $("#merlin").hidden = true;
   $("#merlin-knopf").setAttribute("aria-expanded", "false");
+  $("#merlin-knopf").classList.toggle("leise", an);
 }
 $("#merlin-knopf").addEventListener("click", versuche(async () => {
   if (!$("#merlin").hidden) return schliesseMerlin();
   $("#merlin").hidden = false;
   $("#merlin-knopf").setAttribute("aria-expanded", "true");
+  $("#merlin-knopf").classList.remove("leise");
   if (!ansagen || ansagen.__tag !== tagId) { await ladeAnsagen(); ansagen.__tag = tagId; }
 }));
 $("#merlin-zu").addEventListener("click", schliesseMerlin);
@@ -413,6 +415,8 @@ function zeige(daten) {
     ? "Hört im Meeting mit, schreibt das Transkript und führt die To-do-Liste."
     : status.arbeit ?? (an ? `Aufnahme läuft. Der erste Abschnitt wird nach 20 Sekunden gesendet, danach alle ${status.zyklusSekunden} Sekunden.` : status.letzterZyklus ? "Pausiert. Alles bleibt erhalten, bis du das Meeting schließt." : "Bereit. Wähle einen Agendapunkt und starte die Aufnahme.");
 
+  $("#arbeit").title = $("#arbeit").textContent; // falls der Text gekürzt angezeigt wird
+
   // Kennzahlen
   $("#k-todos").textContent = protokoll.todos.filter((t) => t.status === "offen").length;
   $("#k-vorschlaege").textContent = protokoll.vorschlaege.length;
@@ -467,6 +471,7 @@ function zeige(daten) {
   zeigeKlappgruppen($("#f-gruppen"), "f", offeneFragen.filter((f) => !zumPunkt(f)), protokoll.agenda, (f) => f.text, protokoll.offene_fragen.filter((f) => f.status === "beantwortet"));
   if (daten.vorlesen) vorlesen = daten.vorlesen;
   $("#merlin-knopf").hidden = !offen;
+  $("#merlin-knopf").classList.toggle("leise", an && $("#merlin").hidden); // während der Aufnahme kaum sichtbar
   if (!offen) schliesseMerlin();
 
   ersterAufbau = false;

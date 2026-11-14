@@ -55,7 +55,8 @@ try { if (localStorage.getItem("merlin-praesentation") === "1") praesentation(tr
 // ── Aufnahme: lebt hier im Rahmen und folgt dem Status des Servers ──
 const melde = (text) => ($("#rahmenhinweis").textContent = text);
 const aufnahme = new Aufnahme({
-  beiPegel: (wert) => ($("#pegel").firstElementChild.style.width = `${Math.round(wert * 100)}%`),
+  // Mikrofon-Pegel: der rote Punkt bekommt einen Schein, je lauter, desto größer
+  beiPegel: (wert) => $("#aufnahme").style.setProperty("--pegel", wert.toFixed(2)),
   beiFehler: melde,
 });
 
@@ -107,8 +108,12 @@ function zeigeAufnahme() {
   const laeuft = status.aufnahme;
   $("#app-bg").classList.toggle("aufnahme", laeuft);
   $("#aufnahme").classList.toggle("laeuft", laeuft);
-  $("#pegel").hidden = !aufnahme.laeuft;
-  const rest = Math.max(0, Math.ceil((aufnahme.naechsterVersand - Date.now()) / 1000));
+  $("#countdown").hidden = !aufnahme.laeuft;
+  const restMs = Math.max(0, aufnahme.naechsterVersand - Date.now());
+  const rest = Math.ceil(restMs / 1000);
+  // Countdown: der Balken wird bis zum Senden des Abschnitts kürzer
+  $("#countdown").firstElementChild.style.width = `${Math.min(100, (restMs / (aufnahme.abschnittMs || 30000)) * 100)}%`;
+  if (!aufnahme.laeuft) $("#aufnahme").style.setProperty("--pegel", "0");
   $("#aufnahme").title = aufnahme.laeuft ? `Der laufende Abschnitt wird in ${rest} Sekunden gesendet.` : "";
   $("#aufnahme-text").textContent = !laeuft
     ? status.letzterZyklus ? "Pausiert" : "Keine Aufnahme"

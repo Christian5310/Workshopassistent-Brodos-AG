@@ -8,6 +8,7 @@ export class Aufnahme {
   laeuft = false;
   /** Zeitpunkt, zu dem der laufende Schnipsel abgeschlossen und gesendet wird */
   naechsterVersand = 0;
+  abschnittMs = 30000;
   /** Länge eines Abschnitts in Sekunden; lässt sich während der Aufnahme ändern */
   sekunden = 60;
   #strom = null;
@@ -104,6 +105,7 @@ export class Aufnahme {
     rekorder.start();
     this.#rekorder = rekorder;
     this.naechsterVersand = Date.now() + dieser * 1000;
+    this.abschnittMs = dieser * 1000; // für den Countdown-Balken in der Kopfzeile
     this.#wechsel = setTimeout(() => {
       this.#neuerSchnipsel(); // erst den neuen starten, dann den alten beenden: keine Lücke
       rekorder.stop();
