@@ -102,4 +102,13 @@ export class MockSprachmodell implements Sprachmodell {
       return { von: a.id, text: an === "alle" ? bausteine[i]! : `${bausteine[i]} Aus meiner Rolle (${a.name}) heraus: Legt heute fest, woran ihr den Erfolg messt.` };
     });
   }
+
+  /** Fake-Verdichtung: listet nur auf, was eingereicht wurde (echte Verdichtung braucht ein Sprachmodell). */
+  async verdichte(material: { titel: string; art: string; text: string }[], kontext: { name: string; agenda: string[] }) {
+    await warte(800);
+    return {
+      wissen: [`# Vorwissen für „${kontext.name}" [Mock]`, "", ...material.map((m) => `- ${m.art}: ${m.titel} (${m.text.length.toLocaleString("de-DE")} Zeichen) – ${m.text.replace(/\s+/g, " ").slice(0, 140)} …`)].join("\n"),
+      begriffe: "",
+    };
+  }
 }

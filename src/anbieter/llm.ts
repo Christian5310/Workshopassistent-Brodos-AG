@@ -87,4 +87,34 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
     const geprueft = AntwortSchema.parse(await this.#frage(nachrichten, 1200));
     return geprueft.antworten.filter((a) => gefragt.some((g) => g.id === a.rolle)).map((a) => ({ von: a.rolle, text: a.text.trim() }));
   }
+
+  async verdichte(material: { titel: string; art: string; text: string }[], kontext: { name: string; agenda: string[] }): Promise<{ wissen: string; begriffe: string }> {
+    // Sehr viel Material wird gleichmäßig gekürzt, damit die Anfrage in das Kontextfenster passt.
+    const budget = 150_000;
+    const jeStueck = Math.max(2000, Math.floor(budget / Math.max(1, material.length)));
+    const quellen = material.map((m, i) => `### Quelle ${i + 1}: ${m.art} – ${m.titel}\n${m.text.slice(0, jeStueck)}${m.text.length > jeStueck ? "\n[… gekürzt]" : ""}`).join("\n\n");
+    const antwort = await this.#frage(
+      [
+        {
+          role: "system",
+          content: `Du bereitest einen Workshop vor. Aus eingereichtem Material (Interviews, Dokumente) erstellst du das Vorwissen für KI-Agenten, die im Workshop Fragen beantworten.
+
+Antworte ausschließlich als JSON: {"wissen": "…Markdown…", "begriffe": "Begriff 1, Begriff 2, …"}
+
+Regeln für "wissen":
+- Gliedere nach Themen mit Überschriften (##), nicht nach Quellen. Orientiere dich an der Agenda.
+- Halte fest: Abläufe, Schmerzpunkte, Zahlen, Systeme, Beispiele, Wünsche, Widersprüche zwischen den Quellen.
+- Nenne NICHT, welche Person etwas gesagt hat. Schreibe z. B. "mehrfach genannt" oder "eine Einzelmeinung", aber keine Namen als Quelle.
+- Erfinde nichts. Was unklar oder widersprüchlich ist, kommt in einen Abschnitt "Offen / zu klären".
+- Deutsch, knapp, Stichpunkte. Höchstens etwa 1200 Wörter.
+
+"begriffe": Fachbegriffe, Produkt-, System- und Eigennamen aus dem Material, die eine Spracherkennung richtig schreiben soll. Mit Komma getrennt, höchstens 40.`,
+        },
+        { role: "user", content: `WORKSHOP: ${kontext.name}\nAGENDA:\n${kontext.agenda.map((a, i) => `${i + 1}. ${a}`).join("\n") || "(keine)"}\n\nMATERIAL:\n\n${quellen}` },
+      ],
+      6000,
+    );
+    const geprueft = z.object({ wissen: z.string().min(1), begriffe: z.string().catch("") }).parse(antwort);
+    return geprueft;
+  }
 }

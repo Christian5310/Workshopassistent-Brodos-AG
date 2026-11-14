@@ -28,13 +28,14 @@ Dann im Browser `http://localhost:3000` öffnen:
 |---|---|
 | `/` | Einstiegsseite mit „Eintreten" (noch ohne Login) |
 | `/einwilligung` | Zweiter Bildschirm: Hinweise zur Verarbeitung zum Aufklappen, Bestätigung des Einverständnisses, „Weiter" |
-| `/app` | App-Rahmen mit der Navigation Übersicht · Assistent · Agenten · Archiv · Admin · Regie |
+| `/app` | App-Rahmen mit der Navigation Übersicht · Workshops · Assistent · Agenten · Archiv · Admin · Regie |
 
 Der Rahmen bleibt beim Wechsel der Bereiche stehen und hält das Mikrofon. Die Aufnahme läuft deshalb weiter, wenn du vom Assistenten ins Archiv oder in den Admin wechselst. Die Kopfzeile zeigt in jedem Bereich, ob aufgenommen wird.
 
 | Bereich | Inhalt |
 |---|---|
 | Übersicht | Einstieg nach dem Eintreten: links „KI Transkriptionsassistent" oder „KI Wissensagenten" wählen, dann neu anlegen oder Bestehendes öffnen |
+| Workshops | Der größere Rahmen: Teilnehmer, eingereichtes Material (Markdown), Verdichtung zu Wissen für die Agenten, Durchführung mit Assistent und Agenten in einem Fenster |
 | Assistent | Aufnahme starten/pausieren, Meeting schließen; Agenda, To-dos, Vorschläge, Entscheidungen, offene Fragen |
 | Agenten | Spezial-Agenten fragen, per Text oder Push-to-Talk (Leertaste halten) |
 | Archiv | Alle Meetings mit To-do-Liste, Entscheidungen, Fragen und Transkript, je mit Download |
@@ -84,6 +85,7 @@ src/server.ts               HTTP-API, Zyklus, Live-Updates (SSE)
 src/types.ts                Datenmodell + Schema-Validierung (zod)
 src/store.ts                Speicher: ein Meeting = eine Datei in data/tage/ (Agenda, Wissen, Protokoll, Transkript, Chat)
 src/einstellungen.ts        Admin-Einstellungen (data/einstellungen.json), Prompt-Platzhalter, Sicherheitsnetz für To-dos
+src/workshops.ts            Workshops: Teilnehmer und Material (data/workshops/), je mit eigenem Meeting
 src/archiv.ts               Aufbereitung eines Tages für Ansicht und Download
 src/anbieter/               Schnittstellen + Mock (hier kommen Mistral und Broki dazu)
 src/mock/skript.ts          Fake-Transkript und Fake-Fragen

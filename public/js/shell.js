@@ -8,7 +8,7 @@ const $ = (id) => document.querySelector(id);
 // Zutritt nur mit bestätigtem Einverständnis der Teilnehmenden (Bildschirm nach dem Eintreten). Gilt je Browser-Tab.
 const einwilligung = (() => { try { return sessionStorage.getItem("broki-einwilligung"); } catch { return null; } })();
 if (!einwilligung) location.replace("/einwilligung");
-const BEREICHE = { uebersicht: "/uebersicht", assistent: "/screen1", agenten: "/screen2", archiv: "/archiv", admin: "/admin", regie: "/regie" };
+const BEREICHE = { uebersicht: "/uebersicht", workshops: "/workshops", assistent: "/screen1", agenten: "/screen2", archiv: "/archiv", admin: "/admin", regie: "/regie" };
 
 // ── Navigation: Der Bereich steht in der Adresse hinter dem #, der Inhalt lädt im Fenster darunter ──
 function zeigeBereich() {
@@ -107,7 +107,7 @@ function zeigeAufnahme() {
   $("#aufnahme").title = aufnahme.laeuft ? `Der laufende Abschnitt wird in ${rest} Sekunden gesendet.` : "";
   $("#aufnahme-text").textContent = !laeuft
     ? status.letzterZyklus ? "Pausiert" : "Keine Aufnahme"
-    : aufnahme.laeuft ? `Aufnahme läuft · ${rest} s` : quelle === "mikro" ? "Aufnahme läuft" : "Läuft (Mock-Skript)";
+    : aufnahme.laeuft ? `Aufnahme · ${rest} s` : "Aufnahme läuft";
 }
 setInterval(zeigeAufnahme, 500);
 

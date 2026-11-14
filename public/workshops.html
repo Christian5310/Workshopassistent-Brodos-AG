@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Workshops · BroKI</title></head>
+<body class="ansicht">
+  <aside class="seitenleiste">
+    <h2><label for="ws-wahl">Workshop</label></h2>
+    <select id="ws-wahl"></select>
+    <h2 id="bereich-titel">Auswahl</h2>
+    <div id="bereiche" class="akkordeon"></div>
+  </aside>
+  <main class="inhalt">
+    <div class="seitenkopf">
+      <div><h1 id="titel">Workshops</h1><p id="unterzeile" class="unterzeile"></p></div>
+      <div id="kopf-aktionen" class="aktionen"></div>
+    </div>
+    <div id="meldung" class="hinweisband" role="alert"></div>
+
+    <!-- Neuer Workshop / Überblick: dieselben Felder -->
+    <section id="b-ueberblick" hidden>
+      <div id="kennzahlen" class="kennzahlen"></div>
+      <form id="ws-formular" class="kasten" style="margin-top: var(--space-3)">
+        <div class="kasten-kopf"><h2 id="form-titel">Workshop</h2></div>
+        <div class="kasten-inhalt stapel">
+          <div class="zweispaltig">
+            <div class="feld"><label for="ws-name">Name</label><input id="ws-name" type="text" maxlength="80" placeholder="z. B. Sales Agentic Workshop" required></div>
+            <div class="feld"><label for="ws-datum">Datum</label><input id="ws-datum" type="date" required></div>
+          </div>
+          <div class="feld"><label for="ws-agenda">Agenda</label><textarea id="ws-agenda" rows="5" placeholder="Ein Punkt pro Zeile"></textarea></div>
+          <div class="feld">
+            <label>Teilnehmer</label>
+            <p>Name und Rolle. Die Liste bleibt in den App-Daten auf diesem Rechner.</p>
+            <div id="teilnehmer" class="stapel"></div>
+            <div class="reihe"><button type="button" id="tn-neu" class="zweit klein"></button></div>
+          </div>
+          <div class="reihe"><button type="submit" id="ws-speichern"></button><button type="button" id="ws-loeschen" class="zweit" hidden></button></div>
+        </div>
+      </form>
+    </section>
+
+    <!-- Material -->
+    <section id="b-material" class="stapel" hidden>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Eingereichtes Material</h2><span id="mat-zahl" class="badge"></span></div>
+        <div id="mat-tabelle" class="tabellenrahmen"></div>
+      </section>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Material hinzufügen</h2></div>
+        <form id="mat-formular" class="kasten-inhalt stapel">
+          <div class="zweispaltig">
+            <div class="feld"><label for="mat-art">Art</label><select id="mat-art"><option>Interview</option><option selected>Dokument</option><option>Sonstiges</option></select></div>
+            <div class="feld"><label for="mat-person">Von wem (optional)</label><select id="mat-person"></select><p>Erscheint nur hier in der Übersicht, nicht bei den Agenten.</p></div>
+          </div>
+          <div class="feld"><label for="mat-titel">Titel</label><input id="mat-titel" type="text" maxlength="120" placeholder="z. B. Interview Vertriebsprozess"></div>
+          <div class="feld">
+            <label for="mat-text">Inhalt (Markdown oder Text)</label>
+            <div class="wissenleiste"><span id="mat-zaehler" class="zaehler">leer</span><button type="button" id="mat-laden" class="zweit klein"></button><input id="mat-datei" type="file" accept=".md,.txt,text/markdown,text/plain" multiple hidden></div>
+            <textarea id="mat-text" rows="6" class="mono" placeholder="Text einfügen – oder Markdown-Dateien laden. Mehrere Dateien werden als einzelne Einträge gespeichert."></textarea>
+          </div>
+          <div class="reihe"><button type="submit" id="mat-speichern"></button></div>
+        </form>
+      </section>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Wissen für die Agenten</h2></div>
+        <div class="kasten-inhalt stapel">
+          <p class="gedaempft">Die KI verdichtet das Material zu Vorwissen, ohne zu nennen, wer was gesagt hat. Du prüfst den Vorschlag und übernimmst ihn. Erst dann nutzen ihn die Agenten und die Transkription.</p>
+          <div class="reihe"><button type="button" id="verdichten" class="zweit"></button><span id="verdichten-info" class="meldung" role="status"></span></div>
+          <div class="feld"><label for="wissen">Hintergrundwissen des Workshops</label><textarea id="wissen" rows="12" class="mono"></textarea></div>
+          <div class="feld"><label for="wissen-begriffe">Fachbegriffe und Namen für die Transkription</label><textarea id="wissen-begriffe" rows="2"></textarea></div>
+          <div class="reihe"><button type="button" id="wissen-speichern"></button><span id="wissen-info" class="meldung" role="status"></span></div>
+        </div>
+      </section>
+    </section>
+
+    <!-- Durchführung: Assistent und Agenten in einem Fenster -->
+    <section id="b-durchfuehrung" hidden>
+      <div id="df-leer" class="leerzustand" hidden></div>
+      <div id="df-inhalt" class="spalten" hidden>
+        <div class="spalte">
+          <section class="kasten"><div class="kasten-kopf"><h2>Agenda</h2><span class="klein-text gedaempft">anklicken: Punkt läuft</span></div><div id="df-agenda" class="kasten-inhalt akkordeon"></div></section>
+          <section class="kasten"><div class="kasten-kopf"><h2>To-dos</h2><span id="df-todo-zahl" class="badge"></span></div><ul id="df-todos" class="liste todos"></ul></section>
+          <section id="df-vorschlag-karte" class="kasten" hidden><div class="kasten-kopf"><h2>Vorschläge</h2><span class="badge arbeit">bitte entscheiden</span></div><ul id="df-vorschlaege" class="liste"></ul></section>
+        </div>
+        <div class="spalte">
+          <section class="kasten">
+            <div class="kasten-kopf"><h2>KI Wissensagenten</h2><span id="df-chatstatus" class="klein-text gedaempft" role="status"></span></div>
+            <div id="df-chat" class="chat df-chat" aria-live="polite"></div>
+            <form id="df-frage" class="kasten-inhalt stapel">
+              <select id="df-an" aria-label="An wen geht die Frage?"></select>
+              <div class="eingabe"><input id="df-text" type="text" placeholder="Frage tippen …" autocomplete="off" aria-label="Frage an die Wissensagenten"><button type="submit" id="df-senden"></button></div>
+            </form>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="/js/workshops.js"></script>
+</body>
+</html>

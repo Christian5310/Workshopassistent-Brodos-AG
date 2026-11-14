@@ -434,3 +434,23 @@ dialog h2 { color: var(--brand); }
 /* Der Streifen ist rund ein Drittel der Zeit unterwegs, dazwischen ruht das Bild. */
 @keyframes schimmer { 0% { transform: translateX(-130%) skewX(-12deg); } 38%, 100% { transform: translateX(330%) skewX(-12deg); } }
 @media (prefers-reduced-motion: reduce) { .einstieg-foto::after { animation: none; display: none; } }
+
+/* ── Workshops ── */
+.tn-zeile { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: var(--space-1); align-items: center; }
+#teilnehmer:empty { display: none; }
+.df-chat { border: 0; border-radius: 0; border-bottom: 1px solid var(--line); min-height: 14rem; max-height: 26rem; }
+.df-chat .zeile, .df-chat .blase.frage { max-width: 100%; }
+.df-chat .blase { font-size: 0.9375rem; line-height: 1.4rem; }
+div.todo-text { cursor: default; }
+div.todo-text:hover { background: none; }
+dialog.breit { width: min(60rem, 92vw); max-width: none; }
+dialog.breit pre.vorschau { max-height: 60vh; }
+td .reihe { flex-wrap: nowrap; }
+@media (max-width: 900px) { .tn-zeile { grid-template-columns: 1fr; } td .reihe { flex-wrap: wrap; } }
+
+/* Sieben Bereiche in der Kopfzeile: engerer Abstand, nichts überlappt */
+.app-kopf nav { gap: 1.125rem; overflow: hidden; }
+.app-kopf nav a { white-space: nowrap; }
+.app-kopf .rechts { gap: 0.625rem; }
+/* Durchführung im Workshop: beide Spalten gleich breit */
+#df-inhalt { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }

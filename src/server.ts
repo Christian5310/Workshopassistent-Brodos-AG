@@ -5,6 +5,7 @@ import { erstelleAnbieter } from "./anbieter/index.ts";
 import * as archiv from "./archiv.ts";
 import { config, quelle } from "./config.ts";
 import * as admin from "./einstellungen.ts";
+import * as workshops from "./workshops.ts";
 import { store } from "./store.ts";
 import { ProtokollSchema, type Adressat, type ChatStatus, type Schnappschuss } from "./types.ts";
 
@@ -593,6 +594,110 @@ app.delete("/api/tage/:id", (req, res) => {
   if (aufnahme && req.params.id === store.daten.id) return void res.status(409).json({ fehler: "Bitte erst pausieren." });
   if (!store.loesche(req.params.id)) return void res.status(404).json({ fehler: "Meeting nicht gefunden." });
   senden();
+  res.json({ ok: true });
+});
+
+// ── Workshops: Teilnehmer, Material und ein eigenes Meeting unter einem Dach ──
+const holeWorkshop = (id: string, res: Response) => {
+  const w = workshops.hole(id);
+  if (!w) res.status(404).json({ fehler: "Workshop nicht gefunden." });
+  return w;
+};
+const workshopAnsicht = (w: workshops.Workshop) => {
+  const meeting = store.hole(w.meetingId);
+  return {
+    ...workshops.kurz(w),
+    agenda: meeting?.protokoll.agenda.map((a) => a.titel) ?? [],
+    meetingVorhanden: meeting !== null,
+    meetingAbgeschlossen: meeting?.abgeschlossen === true,
+    briefing: meeting?.briefing ?? "",
+    begriffe: meeting?.begriffe ?? "",
+  };
+};
+
+app.get("/api/workshops", (_req, res) => {
+  res.json(workshops.liste().map(workshopAnsicht));
+});
+
+/** Legt einen Workshop samt eigenem Meeting an. */
+app.post("/api/workshops", (req, res) => {
+  const e = workshops.WorkshopEingabeSchema.safeParse(req.body);
+  if (!e.success) return void res.status(400).json({ fehler: "Bitte Name, Datum, Agenda und Teilnehmer prüfen." });
+  const meeting = store.erstelle({ name: e.data.name, datum: e.data.datum, agenda: e.data.agenda });
+  const w = workshops.erstelle(e.data.name, e.data.datum, meeting.id, e.data.teilnehmer);
+  res.json({ ok: true, id: w.id });
+});
+
+app.get("/api/workshops/:id", (req, res) => {
+  const w = holeWorkshop(req.params.id, res);
+  if (w) res.json(workshopAnsicht(w));
+});
+
+/** Ändert Name, Datum, Agenda und Teilnehmer; Name, Datum und Agenda gelten auch für das Meeting des Workshops. */
+app.put("/api/workshops/:id", (req, res) => {
+  const e = workshops.WorkshopEingabeSchema.safeParse(req.body);
+  if (!e.success) return void res.status(400).json({ fehler: "Bitte Name, Datum, Agenda und Teilnehmer prüfen." });
+  const w = workshops.aendere(req.params.id, (x) => Object.assign(x, { name: e.data.name, datum: e.data.datum, teilnehmer: e.data.teilnehmer }));
+  if (!w) return void res.status(404).json({ fehler: "Workshop nicht gefunden." });
+  store.aendere(w.meetingId, { name: e.data.name, datum: e.data.datum, agenda: e.data.agenda });
+  senden();
+  res.json({ ok: true });
+});
+
+/** Löscht den Workshop mit seinem Material. Das Meeting bleibt im Archiv und wird dort gelöscht. */
+app.delete("/api/workshops/:id", (req, res) => {
+  if (!workshops.loesche(req.params.id)) return void res.status(404).json({ fehler: "Workshop nicht gefunden." });
+  res.json({ ok: true });
+});
+
+app.post("/api/workshops/:id/material", (req, res) => {
+  const e = workshops.MaterialEingabeSchema.safeParse(req.body);
+  if (!e.success) return void res.status(400).json({ fehler: "Bitte Titel und Text prüfen (höchstens 400.000 Zeichen je Eintrag)." });
+  const neu = workshops.neuesMaterial(e.data);
+  if (!workshops.aendere(req.params.id, (w) => w.material.push(neu))) return void res.status(404).json({ fehler: "Workshop nicht gefunden." });
+  res.json({ ok: true, id: neu.id });
+});
+
+/** Ein Material-Eintrag mit vollem Text; mit ?download als Markdown-Datei. */
+app.get("/api/workshops/:id/material/:mid", (req, res) => {
+  const w = holeWorkshop(req.params.id, res);
+  if (!w) return;
+  const m = w.material.find((x) => x.id === req.params.mid);
+  if (!m) return void res.status(404).json({ fehler: "Material nicht gefunden." });
+  if (req.query.download === undefined) return void res.json(m);
+  const dateiname = m.titel.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 60) || "material";
+  res.attachment(`${dateiname}.md`).type("text/markdown; charset=utf-8").send(m.text);
+});
+
+app.delete("/api/workshops/:id/material/:mid", (req, res) => {
+  const w = workshops.aendere(req.params.id, (x) => (x.material = x.material.filter((m) => m.id !== req.params.mid)));
+  if (!w) return void res.status(404).json({ fehler: "Workshop nicht gefunden." });
+  res.json({ ok: true });
+});
+
+/** Verdichtet das Material zu einem Vorschlag für das Wissen der Agenten. Übernommen wird erst nach Bestätigung. */
+app.post("/api/workshops/:id/verdichten", async (req, res) => {
+  const w = holeWorkshop(req.params.id, res);
+  if (!w) return;
+  if (!w.material.length) return void res.status(400).json({ fehler: "Es gibt noch kein Material." });
+  try {
+    const agenda = store.hole(w.meetingId)?.protokoll.agenda.map((a) => a.titel) ?? [];
+    res.json(await anbieter.sprachmodell.verdichte(w.material.map(({ titel, art, text }) => ({ titel, art, text })), { name: w.name, agenda }));
+  } catch (fehler) {
+    console.warn("Verdichten fehlgeschlagen.", fehler);
+    res.status(502).json({ fehler: "Das Sprachmodell ist gerade nicht erreichbar." });
+  }
+});
+
+/** Übernimmt bestätigtes Wissen und Fachbegriffe in das Meeting des Workshops. Body: { briefing, begriffe } */
+app.put("/api/workshops/:id/wissen", (req, res) => {
+  const w = holeWorkshop(req.params.id, res);
+  if (!w) return;
+  const meeting = store.hole(w.meetingId);
+  if (!meeting) return void res.status(404).json({ fehler: "Das Meeting dieses Workshops gibt es nicht mehr." });
+  const e = z.object({ briefing: z.string().max(50_000), begriffe: z.string().max(4000) }).safeParse(req.body);
+  if (!e.success) return void res.status(400).json({ fehler: "Das Wissen ist zu lang (höchstens 50.000 Zeichen)." });
+  store.aendere(w.meetingId, { name: meeting.name, datum: meeting.datum, agenda: meeting.protokoll.agenda.map((a) => a.titel), ...e.data });
   res.json({ ok: true });
 });
 

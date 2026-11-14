@@ -21,4 +21,9 @@ export interface Sprachmodell {
   /** Liefert den aktualisierten Protokollstand als ungeprüftes JSON; validiert wird beim Aufrufer. */
   chronist(stand: Protokoll, abschnitt: string): Promise<unknown>;
   expertenrunde(kontext: ChatKontext): Promise<{ von: string; text: string }[]>;
+  /**
+   * Verdichtet eingereichtes Workshop-Material zu Wissen für die Agenten.
+   * Ohne Zuordnung zu Personen: Wer was gesagt hat, bleibt in der Material-Übersicht.
+   */
+  verdichte(material: { titel: string; art: string; text: string }[], kontext: { name: string; agenda: string[] }): Promise<{ wissen: string; begriffe: string }>;
 }
