@@ -104,7 +104,7 @@ function zeigeUeberblick() {
   $("#kennzahlen").hidden = neu;
   if (!neu) {
     $("#kennzahlen").replaceChildren(
-      ...[["Teilnehmer", aktuell.teilnehmer.length], ["Agendapunkte", aktuell.agenda.length], ["Material", aktuell.material.length], ["Vorwissen", aktuell.briefing.trim() ? "übernommen" : "offen"]].map(([bez, wert]) => {
+      ...[["Teilnehmer", aktuell.teilnehmer.length], ["Agendapunkte", aktuell.agenda.length], ["Material", aktuell.material.length], ["Briefing", aktuell.briefing.trim() ? "übernommen" : "offen"]].map(([bez, wert]) => {
         const k = el("div", "kennzahl");
         k.append(el("div", "bezeichnung", bez), el("div", "wert", String(wert)));
         return k;
@@ -234,7 +234,7 @@ $("#mat-formular").addEventListener("submit", versuche(async () => {
 let wissenBearbeitet = false;
 for (const id of ["#wissen", "#wissen-begriffe"]) $(id).addEventListener("input", () => { wissenBearbeitet = true; $("#wissen-info").textContent = "Noch nicht übernommen"; });
 $("#verdichten").addEventListener("click", versuche(async () => {
-  if ($("#wissen").value.trim() && !confirm("Das bisherige Hintergrundwissen im Feld wird durch den neuen Vorschlag ersetzt. Fortfahren?")) return;
+  if ($("#wissen").value.trim() && !confirm("Das bisherige Briefing im Feld wird durch den neuen Vorschlag ersetzt. Fortfahren?")) return;
   $("#verdichten").disabled = true;
   $("#verdichten-info").textContent = "Die KI liest das Material …";
   try {
@@ -302,7 +302,7 @@ beschrifte("#mat-weiter", "pfeil", "Weiter zum Meeting Assistenten");
 beschrifte("#mat-laden", "plus", "Markdown-Dateien laden");
 beschrifte("#mat-speichern", "plus", "Material speichern");
 beschrifte("#verdichten", "regler", "Aus Material verdichten");
-beschrifte("#wissen-speichern", "check", "Als Wissen übernehmen");
+beschrifte("#wissen-speichern", "check", "Als Briefing übernehmen");
 
 await lade();
 verbinde((daten) => {

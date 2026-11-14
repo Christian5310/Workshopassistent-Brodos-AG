@@ -196,7 +196,8 @@ const STATIONEN = [["begruessung", "Begrüßung"], ["eingereicht", "Eingereicht"
 let ansagen = null;
 let station = 0;
 let bearbeitet = false;
-const stimme = () => speechSynthesis.getVoices().find((v) => v.lang?.startsWith("de")) ?? null;
+let vorlesen = { stimme: "", tempo: 0.98 }; // aus Admin → Erweitert → Merlin-Bubble
+const stimme = () => speechSynthesis.getVoices().find((v) => vorlesen.stimme && v.name === vorlesen.stimme) ?? speechSynthesis.getVoices().find((v) => v.lang?.startsWith("de")) ?? null;
 
 async function ladeAnsagen(neu = false) {
   $("#merlin-info").textContent = neu || !ansagen ? "Merlin bereitet die Texte vor …" : "";
@@ -238,7 +239,7 @@ function sprich() {
   const satz = new SpeechSynthesisUtterance($("#merlin-blase").textContent);
   satz.lang = "de-DE";
   satz.voice = stimme();
-  satz.rate = 0.98;
+  satz.rate = vorlesen.tempo;
   satz.onend = satz.onerror = () => verstumme();
   stummschalten(true); // Merlin soll sich nicht selbst mitschreiben
   document.querySelector("#merlin-knopf").classList.add("spricht");
@@ -464,6 +465,7 @@ function zeige(daten) {
   fuelle("#fragen", offeneFragen.filter(zumPunkt).map((f) => zeile(f.id, f.status, el("span", "text", f.text), "frage")), offeneFragen.length ? "Zu diesem Agendapunkt keine." : "Keine offenen Fragen.");
   zeigeKlappgruppen($("#e-gruppen"), "e", protokoll.entscheidungen.filter((e) => !zumPunkt(e)), protokoll.agenda, (e) => e.text);
   zeigeKlappgruppen($("#f-gruppen"), "f", offeneFragen.filter((f) => !zumPunkt(f)), protokoll.agenda, (f) => f.text, protokoll.offene_fragen.filter((f) => f.status === "beantwortet"));
+  if (daten.vorlesen) vorlesen = daten.vorlesen;
   $("#merlin-knopf").hidden = !offen;
   if (!offen) schliesseMerlin();
 

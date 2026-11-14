@@ -35,10 +35,10 @@ Nach dem Eintreten wählt man, was man abhält: ein **Meeting** (tägliche Arbei
 | Bereich | Inhalt |
 |---|---|
 | Meeting | Neues Meeting einrichten oder bestehendes öffnen |
-| Workshop | Neuen Workshop einrichten oder bestehenden öffnen; Einrichten (Rahmen, Teilnehmer), Material, Verdichtung zu Wissen |
+| Workshop | Neuen Workshop einrichten oder bestehenden öffnen; Einrichten (Rahmen, Teilnehmer), Material, Verdichtung zum Agenten-Briefing |
 | Abhalten (linke Leiste) | Meeting Assistent (Aufnahme, Agenda, To-dos) und Agenten (hinzufügen, fragen); im Workshop zusätzlich Einrichten und Material |
 | Archiv | Alle Meetings mit To-do-Liste, Entscheidungen, Fragen und Transkript, je mit Download |
-| Admin | Meetings, Spezial-Agenten (nur hier angelegt und gepflegt), unter „Erweitert" Prompts, Takt und Aktivierungswort |
+| Admin | Meetings: Grundeinstellungen (Takt, Aktivierungswort, Schutz vor zu vielen To-dos, Sprachfragen) und bestehende Meetings bearbeiten; Spezial-Agenten (nur hier angelegt und gepflegt); Erweitert: Merlin-Bubble (Stimme, Lesegeschwindigkeit) und Prompts |
 | Regie | Diagnose, Text einspeisen, Inhalte löschen |
 
 Der Knopf mit dem Vollbild-Symbol schaltet den Präsentationsmodus: Das Fenster füllt den Bildschirm, die Schrift wächst für den Beamer.
@@ -64,7 +64,7 @@ Das ist eine technische Absicherung, keine rechtliche Prüfung. Rechtsgrundlage,
 
 ## Sprachbefehle
 
-Das Aktivierungswort (Standard „Merlin") und der Takt der Transkription stehen in der Admin-Ansicht unter „Erweitert".
+Das Aktivierungswort (Standard „Merlin") und der Takt der Transkription stehen in der Admin-Ansicht unter „Meetings".
 
 | Gesprochen | Wirkung |
 |---|---|

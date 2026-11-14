@@ -5,7 +5,6 @@ imRahmen("admin");
 const $ = (id) => document.querySelector(id);
 const hole = async (pfad) => (await fetch(pfad)).json();
 const datumKurz = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("de-DE");
-const heute = () => new Date().toLocaleDateString("sv-SE");
 
 // ── Bausteine für die aufklappbaren Einträge ──
 function feld(beschriftung, eingabe, hilfe = "") {
@@ -66,10 +65,10 @@ let offenesMeeting = null; // ID des aufgeklappten Meetings bzw. "neu"
 let gespeichert = null; // ID, bei der kurz "Gespeichert" stehen soll
 
 async function zeigeMeetings() {
-  const meetings = await hole("/api/tage");
+  const alle = (await hole("/api/tage")).filter((m) => !m.workshop);
   const liste = $("#meeting-liste");
   liste.replaceChildren();
-  const alle = offenesMeeting === "neu" ? [{ id: "neu", name: "", datum: heute(), agenda: [], briefing: "", begriffe: "Brodos, Broki, Merlin", neu: true }, ...meetings] : meetings;
+  if (!alle.length) liste.append(el("p", "gedaempft kasten-inhalt", "Noch keine Meetings. Neue legst du im Bereich Meeting an."));
 
   for (const m of alle) {
     const { d, inhalt } = eintrag({
@@ -102,7 +101,7 @@ async function zeigeMeetings() {
           await zeigeMeetings();
         };
     const leiste = aktionen(speichern, loeschen);
-    if (gespeichert === m.id) leiste.querySelector(".meldung").textContent = "Gespeichert. Auswählen kannst du das Meeting im Transkriptions-Assistenten.";
+    if (gespeichert === m.id) leiste.querySelector(".meldung").textContent = "Gespeichert.";
 
     inhalt.append(
       kopfzeile,
@@ -116,7 +115,6 @@ async function zeigeMeetings() {
   }
   gespeichert = null;
 }
-$("#meeting-neu").addEventListener("click", () => { offenesMeeting = "neu"; zeigeMeetings(); });
 
 // ── Spezial-Agenten ──
 let offenerAgent = null;
@@ -210,9 +208,31 @@ async function zeigeAgenten() {
 }
 $("#agent-neu").addEventListener("click", () => { offenerAgent = "neu"; zeigeAgenten(); });
 
-// ── Erweitert: Prompts und Obergrenze ──
+// ── Grundeinstellungen (Meetings) und Erweitert (Merlin-Bubble, Prompts) ──
 let standard = null;
 const melde = (text) => ($("#meldung").textContent = text);
+const meldeGrund = (text) => ($("#grund-meldung").textContent = text);
+const tempoText = () => ($("#tempo-wert").textContent = Number($("#lesetempo").value).toLocaleString("de-DE", { minimumFractionDigits: 2 }));
+let gewuenschteStimme = "";
+
+/** Stimmen des Browsers; deutsche zuerst. Kommen in Chrome erst nach "voiceschanged". */
+function fuelleStimmen() {
+  if (!("speechSynthesis" in window)) return void $("#stimme").replaceChildren(el("option", "", "Dieser Browser kann nicht vorlesen"));
+  const alle = speechSynthesis.getVoices();
+  const deutsch = alle.filter((v) => v.lang?.toLowerCase().startsWith("de"));
+  const liste = deutsch.length ? deutsch : alle;
+  const auto = el("option", "", "Automatisch: erste deutsche Stimme");
+  auto.value = "";
+  const optionen = liste.map((v) => { const o = el("option", "", `${v.name} (${v.lang})`); o.value = v.name; return o; });
+  if (gewuenschteStimme && !liste.some((v) => v.name === gewuenschteStimme)) {
+    const o = el("option", "", `${gewuenschteStimme} (auf diesem Gerät nicht vorhanden)`);
+    o.value = gewuenschteStimme;
+    optionen.unshift(o);
+  }
+  $("#stimme").replaceChildren(auto, ...optionen);
+  $("#stimme").value = gewuenschteStimme;
+}
+if ("speechSynthesis" in window) speechSynthesis.addEventListener?.("voiceschanged", fuelleStimmen);
 
 async function ladeErweitert() {
   const daten = await hole("/api/admin/einstellungen");
@@ -228,6 +248,10 @@ async function ladeErweitert() {
   $("#takt").value = e.zyklusSekunden;
   $("#wort").value = e.aktivierungswort;
   $("#sprachfragen").checked = e.sprachfragen;
+  gewuenschteStimme = e.stimme;
+  $("#lesetempo").value = e.lesetempo;
+  tempoText();
+  fuelleStimmen();
   $("#hinweis").textContent = daten.mock ? "Mock-Modus: Meetings, Agenten-Namen und die Obergrenze wirken sofort. Prompts, Hintergrundwissen und Wissensdateien werden gespeichert, wirken aber erst mit einem echten Sprachmodell." : "";
   ladeVorschau();
 }
@@ -236,13 +260,37 @@ async function ladeVorschau() {
   $("#vorschau pre").textContent = promptAgenten;
   $("#vorschau summary").textContent = `Vorschau: so bekommt ihn das Sprachmodell bei „Frage an alle" im aktiven Meeting (${zeichen.toLocaleString("de-DE")} Zeichen)`;
 }
+
+$("#grund-formular").addEventListener("input", () => meldeGrund("Ungespeicherte Änderungen"));
+$("#grund-formular").addEventListener("submit", async (ereignis) => {
+  ereignis.preventDefault();
+  try {
+    await sende("/api/admin/einstellungen", { maxTodosProZyklus: Number($("#maxTodos").value), zyklusSekunden: Number($("#takt").value), aktivierungswort: $("#wort").value, sprachfragen: $("#sprachfragen").checked }, "PUT");
+    meldeGrund(`Gespeichert um ${new Date().toLocaleTimeString("de-DE")}.`);
+  } catch (fehler) {
+    meldeGrund(fehler.message);
+  }
+});
+
+$("#lesetempo").addEventListener("input", tempoText);
+$("#stimme").addEventListener("change", () => (gewuenschteStimme = $("#stimme").value));
+$("#probe").addEventListener("click", () => {
+  if (!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const satz = new SpeechSynthesisUtterance(`Hallo, ich bin ${$("#wort").value || "Merlin"}. So klinge ich im Workshop.`);
+  satz.lang = "de-DE";
+  satz.voice = speechSynthesis.getVoices().find((v) => v.name === $("#stimme").value) ?? speechSynthesis.getVoices().find((v) => v.lang?.startsWith("de")) ?? null;
+  satz.rate = Number($("#lesetempo").value);
+  speechSynthesis.speak(satz);
+});
+
 $("#formular").addEventListener("input", () => melde("Ungespeicherte Änderungen"));
 $("#formular").addEventListener("submit", async (ereignis) => {
   ereignis.preventDefault();
   try {
     await sende(
       "/api/admin/einstellungen",
-      { promptAssistent: $("#promptAssistent").value, promptAgenten: $("#promptAgenten").value, promptZusammenfassung: $("#promptZusammenfassung").value, maxTodosProZyklus: Number($("#maxTodos").value), zyklusSekunden: Number($("#takt").value), aktivierungswort: $("#wort").value, sprachfragen: $("#sprachfragen").checked },
+      { promptAssistent: $("#promptAssistent").value, promptAgenten: $("#promptAgenten").value, promptZusammenfassung: $("#promptZusammenfassung").value, stimme: $("#stimme").value, lesetempo: Number($("#lesetempo").value) },
       "PUT",
     );
     melde(`Gespeichert um ${new Date().toLocaleTimeString("de-DE")}.`);
@@ -281,9 +329,10 @@ function zeigeBereich() {
   for (const [id] of BEREICHE) $(`#b-${id}`).hidden = id !== bereich;
 }
 
-$("#meeting-neu").append(icon("plus"), "Neues Meeting");
 $("#agent-neu").append(icon("plus"), "Neuer Agent");
 $("#erweitert-speichern").append(icon("check"), "Speichern");
+$("#grund-speichern").append(icon("check"), "Speichern");
+$("#probe").append(icon("play"), "Probe hören");
 zeigeBereich();
 await ladeErweitert();
 zeigeMeetings();

@@ -53,6 +53,7 @@ function schnappschuss(): Schnappschuss {
     agentenAlle: admin.einstellungen.agenten.map(({ id, name, figur, farbe }) => ({ id, name, figur, farbe })),
     workshop: store.istOffen ? workshopVon(store.daten.id) : null,
     chat: store.daten.chat,
+    vorlesen: { stimme: admin.einstellungen.stimme, tempo: admin.einstellungen.lesetempo },
     status: { aufnahme, quelle, letzterZyklus: store.daten.letzterZyklus, zyklusSekunden: takt(), mock: config.mock, chat: chatStatus, hinweis, arbeit, rueckgaengig: schritte.at(-1)?.was ?? null },
   };
 }
@@ -464,12 +465,13 @@ app.get("/api/admin/einstellungen", (_req, res) => {
 
 /** Speichert Prompts und Obergrenze ("Erweitert"). Agenten und Meetings haben eigene Endpunkte. */
 app.put("/api/admin/einstellungen", (req, res) => {
-  const geprueft = admin.ErweitertSchema.safeParse(req.body);
+  const geprueft = admin.ErweitertSchema.partial().safeParse(req.body); // Meetings und Erweitert speichern jeweils nur ihre Felder
   if (!geprueft.success) {
     const erster = geprueft.error.issues[0];
     return void res.status(400).json({ fehler: `Ungültige Eingabe bei „${erster?.path.join(".")}": ${erster?.message}` });
   }
-  admin.speichere({ ...admin.einstellungen, ...geprueft.data });
+  const gesendet = Object.fromEntries(Object.entries(geprueft.data).filter(([k]) => k in (req.body ?? {}))); // Standardwerte nicht gesendeter Felder ignorieren
+  admin.speichere({ ...admin.einstellungen, ...gesendet });
   senden(); // neuer Takt gilt ab dem nächsten Abschnitt
   res.json({ ok: true });
 });

@@ -70,6 +70,8 @@ export interface Schnappschuss {
   /** Der Workshop, zu dem das geöffnete Meeting gehört – oder null bei einem normalen Meeting */
   workshop: { id: string; name: string } | null;
   chat: ChatNachricht[];
+  /** Merlin-Bubble: Stimme und Tempo aus Admin → Erweitert */
+  vorlesen: { stimme: string; tempo: number };
   status: {
     aufnahme: boolean;
     /** "mikro": der Browser nimmt auf und schickt Schnipsel; "timer": Mock-Skript ohne Mikrofon */

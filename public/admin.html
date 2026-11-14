@@ -9,28 +9,13 @@
   <main class="inhalt">
     <div id="hinweis" class="hinweisband"></div>
 
-    <section id="b-meetings" hidden>
+    <section id="b-meetings" class="stapel" hidden>
       <div class="seitenkopf">
-        <div><h1>Meetings</h1><p class="unterzeile">Name, Datum, Agenda, Hintergrundwissen und Fachbegriffe je Meeting.</p></div>
-        <div class="aktionen"><button type="button" id="meeting-neu"></button></div>
+        <div><h1>Meetings</h1><p class="unterzeile">Grundeinstellungen für alle Meetings und Workshops. Neue Meetings legst du im Bereich Meeting an.</p></div>
       </div>
-      <div id="meeting-liste" class="akkordeon"></div>
-    </section>
-
-    <section id="b-agenten" hidden>
-      <div class="seitenkopf">
-        <div><h1>Spezial-Agenten</h1><p class="unterzeile">Rolle, Prompt und Wissensdateien je Agent.</p></div>
-        <div class="aktionen"><button type="button" id="agent-neu"></button></div>
-      </div>
-      <div id="agent-liste" class="akkordeon"></div>
-    </section>
-
-    <section id="b-erweitert" hidden>
-      <div class="seitenkopf">
-        <div><h1>Erweitert</h1><p class="unterzeile">Prompts, Takt und Aktivierungswort. Gilt für alle Meetings.</p></div>
-      </div>
-      <form id="formular">
-        <div class="zweispaltig">
+      <form id="grund-formular" class="kasten">
+        <div class="kasten-kopf"><h2>Grundeinstellungen</h2></div>
+        <div class="kasten-inhalt zweispaltig">
           <div class="feld">
             <label for="takt">Takt der Transkription</label>
             <select id="takt">
@@ -54,24 +39,67 @@
             <label class="haken"><input id="sprachfragen" type="checkbox"> Spezial-Agenten per Sprache fragen</label>
             <p>„Merlin, Frage an den BPM Specialist: …" stellt die Frage automatisch.</p>
           </div>
-          <div class="feld">
-            <div class="reihe"><label for="promptAssistent">Prompt Transkriptions-Assistent</label><button type="button" class="textlink klein-text" data-standard="promptAssistent">Standard</button></div>
-            <textarea id="promptAssistent" rows="14" class="mono"></textarea>
-            <p>Regeln, wann To-dos, Vorschläge, Entscheidungen und offene Fragen angelegt werden. Die Sprachbefehle sind fest eingebaut.</p>
-          </div>
-          <div class="feld">
-            <div class="reihe"><label for="promptAgenten">Rahmen-Prompt Spezial-Agenten</label><button type="button" class="textlink klein-text" data-standard="promptAgenten">Standard</button></div>
-            <textarea id="promptAgenten" rows="14" class="mono"></textarea>
-            <p>Platzhalter: [BRODOS-BRIEFING] = Hintergrundwissen des Meetings, [AGENDA], [STAND], [AGENTEN] = Prompts und Wissen der Agenten.</p>
-            <details id="vorschau"><summary class="klein-text">Vorschau</summary><pre class="vorschau"></pre></details>
-          </div>
-          <div class="feld">
-            <div class="reihe"><label for="promptZusammenfassung">Prompt Zusammenfassung (für Broki)</label><button type="button" class="textlink klein-text" data-standard="promptZusammenfassung">Standard</button></div>
-            <textarea id="promptZusammenfassung" rows="10" class="mono"></textarea>
-            <p>Wird im Archiv zusammen mit Protokoll und Transkript kopiert.</p>
-          </div>
         </div>
-        <div class="reihe" style="margin-top: var(--space-3)"><button type="submit" id="erweitert-speichern"></button><span id="meldung" class="meldung" role="status"></span></div>
+        <div class="kasten-inhalt reihe"><button type="submit" id="grund-speichern"></button><span id="grund-meldung" class="meldung" role="status"></span></div>
+      </form>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Bestehende Meetings bearbeiten</h2></div>
+        <div class="kasten-inhalt"><p class="gedaempft">Agenda, Hintergrundwissen und Fachbegriffe nachträglich ändern. Workshops pflegst du im Bereich Workshop.</p></div>
+        <div id="meeting-liste" class="akkordeon"></div>
+      </section>
+    </section>
+
+    <section id="b-agenten" hidden>
+      <div class="seitenkopf">
+        <div><h1>Spezial-Agenten</h1><p class="unterzeile">Rolle, Prompt und Fachwissen je Agent. Gilt in allen Meetings.</p></div>
+        <div class="aktionen"><button type="button" id="agent-neu"></button></div>
+      </div>
+      <div id="agent-liste" class="akkordeon"></div>
+    </section>
+
+    <section id="b-erweitert" hidden>
+      <div class="seitenkopf">
+        <div><h1>Erweitert</h1><p class="unterzeile">Merlin-Bubble und Prompts. Gilt für alle Meetings.</p></div>
+      </div>
+      <form id="formular" class="stapel">
+        <section class="kasten">
+          <div class="kasten-kopf"><h2>Merlin-Bubble</h2></div>
+          <div class="kasten-inhalt zweispaltig">
+            <div class="feld">
+              <label for="stimme">Stimme</label>
+              <select id="stimme"></select>
+              <p>Die Stimmen kommen vom Browser und Betriebssystem. Fehlt die Stimme auf einem anderen Gerät, nimmt Merlin dort die erste deutsche Stimme.</p>
+            </div>
+            <div class="feld">
+              <label for="lesetempo">Lesegeschwindigkeit: <span id="tempo-wert"></span></label>
+              <input id="lesetempo" type="range" min="0.6" max="1.5" step="0.05">
+              <p>1,0 ist normal. Für einen großen Raum eher etwas langsamer.</p>
+            </div>
+          </div>
+          <div class="kasten-inhalt reihe"><button type="button" id="probe" class="zweit"></button><span class="klein-text gedaempft">Spielt einen kurzen Satz mit Stimme und Tempo ab.</span></div>
+        </section>
+        <section class="kasten">
+          <div class="kasten-kopf"><h2>Prompts</h2></div>
+          <div class="kasten-inhalt stapel">
+            <div class="feld">
+              <div class="reihe"><label for="promptAssistent">Prompt Transkriptions-Assistent</label><button type="button" class="textlink klein-text" data-standard="promptAssistent">Standard</button></div>
+              <textarea id="promptAssistent" rows="14" class="mono"></textarea>
+              <p>Regeln, wann To-dos, Vorschläge, Entscheidungen und offene Fragen angelegt werden. Die Sprachbefehle sind fest eingebaut.</p>
+            </div>
+            <div class="feld">
+              <div class="reihe"><label for="promptAgenten">Rahmen-Prompt Spezial-Agenten</label><button type="button" class="textlink klein-text" data-standard="promptAgenten">Standard</button></div>
+              <textarea id="promptAgenten" rows="14" class="mono"></textarea>
+              <p>Platzhalter: [BRODOS-BRIEFING] = Hintergrundwissen bzw. Agenten-Briefing des Meetings, [AGENDA], [STAND], [AGENTEN] = Prompts und Fachwissen der Agenten.</p>
+              <details id="vorschau"><summary class="klein-text">Vorschau</summary><pre class="vorschau"></pre></details>
+            </div>
+            <div class="feld">
+              <div class="reihe"><label for="promptZusammenfassung">Prompt Zusammenfassung (für Broki)</label><button type="button" class="textlink klein-text" data-standard="promptZusammenfassung">Standard</button></div>
+              <textarea id="promptZusammenfassung" rows="10" class="mono"></textarea>
+              <p>Wird im Archiv zusammen mit Protokoll und Transkript kopiert.</p>
+            </div>
+          </div>
+        </section>
+        <div class="reihe"><button type="submit" id="erweitert-speichern"></button><span id="meldung" class="meldung" role="status"></span></div>
       </form>
     </section>
   </main>

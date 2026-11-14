@@ -37,6 +37,10 @@ export const ErweitertSchema = z.object({
   aktivierungswort: z.string().trim().min(2).max(30).default("Merlin"),
   /** Dürfen die Spezial-Agenten per Sprache gefragt werden ("Merlin, Frage an …")? */
   sprachfragen: z.boolean().default(true),
+  /** Merlin-Bubble: Name der Browser-Stimme (leer = erste deutsche Stimme des Geräts) */
+  stimme: z.string().max(200).default(""),
+  /** Merlin-Bubble: Lesegeschwindigkeit (1 = normal) */
+  lesetempo: z.number().min(0.6).max(1.5).default(0.98),
 });
 export const EinstellungenSchema = ErweitertSchema.extend({ agenten: z.array(AgentSchema).min(1).max(12) });
 export type Einstellungen = z.infer<typeof EinstellungenSchema>;
@@ -143,6 +147,8 @@ Regeln:
     zyklusSekunden: 30,
     aktivierungswort: "Merlin",
     sprachfragen: true,
+    stimme: "",
+    lesetempo: 0.98,
   };
 }
 
