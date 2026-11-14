@@ -406,6 +406,37 @@ app.delete("/api/todos/:id", (req, res) => {
   res.json({ ok: true });
 });
 
+/** Entscheidungen und offene Fragen von Hand ändern oder löschen (art: "entscheidungen" | "fragen"). Rückgängig möglich. */
+const eintragsListe = (art: string) =>
+  art === "entscheidungen" ? store.daten.protokoll.entscheidungen : art === "fragen" ? store.daten.protokoll.offene_fragen : null;
+const ART_NAME: Record<string, string> = { entscheidungen: "Entscheidung", fragen: "Frage" };
+
+app.patch("/api/eintraege/:art/:id", (req, res) => {
+  const liste = eintragsListe(req.params.art);
+  const eintrag = liste?.find((e) => e.id === req.params.id);
+  if (!eintrag) return void res.status(404).json({ fehler: "Eintrag nicht gefunden." });
+  merkeSchritt(`${ART_NAME[req.params.art]} geändert: „${eintrag.text}"`);
+  const text = typeof req.body?.text === "string" ? req.body.text.trim().slice(0, 300) : "";
+  if (text) eintrag.text = text;
+  if ("status" in eintrag && (req.body?.status === "offen" || req.body?.status === "beantwortet")) eintrag.status = req.body.status;
+  store.speichern();
+  senden();
+  res.json({ ok: true });
+});
+
+app.delete("/api/eintraege/:art/:id", (req, res) => {
+  const p = store.daten.protokoll;
+  const liste = eintragsListe(req.params.art);
+  const eintrag = liste?.find((e) => e.id === req.params.id);
+  if (!eintrag) return void res.status(404).json({ fehler: "Eintrag nicht gefunden." });
+  merkeSchritt(`${ART_NAME[req.params.art]} gelöscht: „${eintrag.text}"`);
+  if (req.params.art === "entscheidungen") p.entscheidungen = p.entscheidungen.filter((e) => e.id !== eintrag.id);
+  else p.offene_fragen = p.offene_fragen.filter((e) => e.id !== eintrag.id);
+  store.speichern();
+  senden();
+  res.json({ ok: true });
+});
+
 /**
  * To-dos der aktuellen Liste unter einer Kategorie ablegen (z. B. vor einer Pause), damit die Liste kurz bleibt.
  * Body: { name: string }. Mit { name, zurueck: true } kommt eine Kategorie wieder in die aktuelle Liste.

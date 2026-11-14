@@ -108,6 +108,7 @@ public/assets/              Logo und Bilder aus der Designvorlage
 | `POST /api/rueckgaengig` | Letzte Änderung am Protokoll zurücknehmen (KI oder Hand, bis zu 30 Schritte) |
 | `POST /api/agenda/:id/aktiv` | Agendapunkt von Hand auswählen |
 | `PATCH/DELETE /api/todos/:id` | To-do bearbeiten, abhaken, löschen |
+| `PATCH/DELETE /api/eintraege/:art/:id` | Entscheidung (`entscheidungen`) oder Frage (`fragen`) bearbeiten, als beantwortet markieren, löschen |
 | `GET/PUT /api/admin/einstellungen`, `GET /api/admin/vorschau` | Admin: Einstellungen lesen/speichern, fertigen Prompt ansehen |
 | `POST /api/todos/ablegen` | `{ name }`: aktuelle To-dos unter einer Kategorie ablegen; `{ name, zurueck: true }` holt sie zurück |
 | `POST /api/vorschlag/:id/annehmen` · `verwerfen` | Unsicheres To-do übernehmen oder verwerfen |

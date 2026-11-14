@@ -526,13 +526,23 @@ details.einklappen[open] > summary { margin-bottom: var(--space-2); }
 .aufnahme-anzeige.laeuft .punkt { box-shadow: 0 0 0 calc(var(--pegel, 0) * 0.5rem) rgba(214, 0, 28, 0.25); transition: box-shadow 0.1s linear; }
 
 /* Meeting Assistent: Kopfzeile bleibt ruhig, auch wenn der Statustext wechselt */
-.seitenkopf.fest { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "titel titel" "status aktionen"; align-items: center; column-gap: var(--space-2); row-gap: var(--space-1); }
-.seitenkopf.fest h1 { grid-area: titel; }
-.seitenkopf.fest .aktionen { grid-area: aktionen; flex-wrap: nowrap; }
-.seitenkopf.fest .unterzeile { grid-area: status; margin-top: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.seitenkopf.fest { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1); }
+.seitenkopf.fest .aktionen { justify-content: flex-start; }
+.seitenkopf.fest .unterzeile { margin-top: 0; min-height: 1.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .name-merlin { background: var(--accent); color: var(--ink); padding: 0 0.4em; border-radius: var(--radius-sm); }
 
 /* Merlin-Bubble: während der Aufnahme fast durchsichtig, bei Mauskontakt wieder voll */
 .merlin-knopf { transition: opacity 0.6s ease, transform 0.2s ease; }
 .merlin-knopf.leise { opacity: 0.2; box-shadow: none; }
 .merlin-knopf.leise:hover, .merlin-knopf.leise:focus-visible { opacity: 1; }
+
+/* "Alle anzeigen": Zeilen mit Aktionen rechts */
+.uebersicht-liste { max-height: 65vh; overflow-y: auto; padding-right: 0.25rem; }
+.uebersicht-liste .alle-zeile { display: flex; align-items: center; gap: var(--space-1); }
+.uebersicht-liste .alle-zeile .text { flex: 1; min-width: 0; }
+.uebersicht-liste .alle-zeile input { flex: 1; min-width: 0; }
+.uebersicht-liste .alle-zeile.beantwortet .text { color: var(--ink-muted); text-decoration: line-through; }
+.zeilen-aktionen { display: flex; gap: 0.25rem; flex-shrink: 0; }
+
+/* Entscheidungen und Fragen im Meeting Assistenten: kompakte Kurzliste (neueste 5) */
+#entscheidungen li, #fragen li { padding-top: 0.5rem; padding-bottom: 0.5rem; font-size: 0.875rem; line-height: 1.25rem; }

@@ -143,53 +143,74 @@ function zeigeGruppen() {
   );
 }
 
-// ── Eingeklappte Gruppen je Agendapunkt (Entscheidungen, Fragen) ──
-const offeneKlapp = new Set();
-function klappgruppe(schluessel, titel, eintraege, text, iconName = "ablage") {
-  const d = el("details", "eintrag");
-  d.open = offeneKlapp.has(schluessel);
-  d.addEventListener("toggle", () => (d.open ? offeneKlapp.add(schluessel) : offeneKlapp.delete(schluessel)));
-  const kopf = el("summary");
-  const pfeil = el("span", "pfeil");
-  pfeil.append(icon("runter"));
-  kopf.append(icon(iconName), el("span", "titel", titel), el("span", "info", String(eintraege.length)), pfeil);
-  const liste = el("ul", "liste");
-  liste.append(...eintraege.map((e) => el("li", "", text(e))));
-  const inhalt = el("div", "eintrag-inhalt");
-  inhalt.append(liste);
-  d.append(kopf, inhalt);
-  return d;
-}
-function zeigeKlappgruppen(ziel, art, eintraege, agenda, text, beantwortet = []) {
-  const gruppen = [...agenda.map((a) => ({ id: a.id, titel: a.titel })), { id: "", titel: "Ohne Agendapunkt" }]
-    .map((g) => ({ ...g, eintraege: eintraege.filter((e) => (g.id ? e.agendapunkt === g.id : !agenda.some((a) => a.id === e.agendapunkt))) }))
-    .filter((g) => g.eintraege.length)
-    .map((g) => klappgruppe(`${art}-${g.id}`, g.titel, g.eintraege, text));
-  if (beantwortet.length) gruppen.push(klappgruppe(`${art}-beantwortet`, "Beantwortet", beantwortet, text, "check"));
-  ziel.replaceChildren(...gruppen);
-}
+// "Alle anzeigen": großes Fenster mit allen Entscheidungen bzw. Fragen, nach Agendapunkt; bearbeiten, löschen, Fragen beantworten
+const kurzliste = () => (innerHeight >= 1100 ? 5 : innerHeight >= 900 ? 4 : 3); // so viele zeigt der Kasten (neueste zuerst), je nach Fensterhöhe
+let alleArt = null; // "entscheidungen" | "fragen", solange das Fenster offen ist
+let inBearbeitung = null; // ID des Eintrags, der gerade bearbeitet wird
 
-// "Alles anzeigen": Entscheidungen und offene Fragen über alle Agendapunkte
-$("#alles").addEventListener("click", () => {
+function zeigeAlle() {
   const p = stand;
+  if (!alleArt || !p) return;
+  const fragen = alleArt === "fragen";
+  const eintraege = fragen ? p.offene_fragen : p.entscheidungen;
+  $("#uebersicht-titel").textContent = `${fragen ? "Fragen" : "Entscheidungen"} (${eintraege.length})`;
   const inhalt = $("#uebersicht-inhalt");
   inhalt.replaceChildren();
   for (const a of [...p.agenda, { id: "", titel: "Ohne Agendapunkt" }]) {
     const passt = (e) => (a.id ? e.agendapunkt === a.id : !p.agenda.some((x) => x.id === e.agendapunkt));
-    const ent = p.entscheidungen.filter(passt);
-    const fr = p.offene_fragen.filter(passt);
-    if (!ent.length && !fr.length) continue;
+    const liste = eintraege.filter(passt);
+    if (!liste.length) continue;
     const block = el("section", "stapel");
     block.append(el("h3", "", a.titel));
-    const liste = el("ul", "liste");
-    liste.append(...ent.map((e) => { const li = el("li"); li.append(icon("pfeil"), el("span", "", e.text)); return li; }));
-    liste.append(...fr.map((f) => { const li = el("li", f.status); li.append(icon(f.status === "beantwortet" ? "check" : "frage"), el("span", "text", f.text)); return li; }));
-    block.append(liste);
+    const ul = el("ul", "liste");
+    ul.append(...liste.map((e) => alleZeile(e, fragen)));
+    block.append(ul);
     inhalt.append(block);
   }
-  if (!inhalt.children.length) inhalt.append(el("p", "gedaempft", "Noch keine Entscheidungen und keine Fragen."));
-  $("#uebersicht").showModal();
-});
+  if (!inhalt.children.length) inhalt.append(el("p", "gedaempft", fragen ? "Noch keine Fragen." : "Noch keine Entscheidungen."));
+}
+function alleZeile(e, fragen) {
+  const li = el("li", `alle-zeile ${e.status ?? ""}`);
+  const pfad = `/api/eintraege/${fragen ? "fragen" : "entscheidungen"}/${e.id}`;
+  li.append(icon(fragen ? (e.status === "beantwortet" ? "check" : "frage") : "pfeil"));
+  if (inBearbeitung === e.id) {
+    const feld = el("input");
+    feld.type = "text";
+    feld.value = e.text;
+    feld.maxLength = 300;
+    feld.setAttribute("aria-label", "Text bearbeiten");
+    const speichern = knopf("Speichern", "check", "klein");
+    const abbrechen = knopf("Abbrechen", "x", "zweit klein");
+    const sichern = versuche(async () => { await sende(pfad, { text: feld.value }, "PATCH"); inBearbeitung = null; zeigeAlle(); });
+    speichern.addEventListener("click", sichern);
+    feld.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); sichern(); } if (ev.key === "Escape") { ev.preventDefault(); inBearbeitung = null; zeigeAlle(); } });
+    abbrechen.addEventListener("click", () => { inBearbeitung = null; zeigeAlle(); });
+    li.append(feld, speichern, abbrechen);
+    queueMicrotask(() => feld.focus());
+    return li;
+  }
+  li.append(el("span", "text", e.text));
+  const aktionen = el("span", "zeilen-aktionen");
+  if (fragen) {
+    const k = knopf(e.status === "beantwortet" ? "Wieder offen" : "Beantwortet", e.status === "beantwortet" ? "undo" : "check", "zweit klein");
+    k.addEventListener("click", versuche(() => sende(pfad, { status: e.status === "beantwortet" ? "offen" : "beantwortet" }, "PATCH")));
+    aktionen.append(k);
+  }
+  const bearbeiten = knopf("Bearbeiten", "text", "zweit klein");
+  bearbeiten.addEventListener("click", () => { inBearbeitung = e.id; zeigeAlle(); });
+  const loeschen = knopf("Löschen", "trash", "zweit klein");
+  loeschen.addEventListener("click", versuche(async () => {
+    if (!confirm(`„${e.text}" löschen?`)) return;
+    await sende(pfad, {}, "DELETE");
+  }));
+  aktionen.append(bearbeiten, loeschen);
+  li.append(aktionen);
+  return li;
+}
+for (const [knopfId, art] of [["#alle-e", "entscheidungen"], ["#alle-f", "fragen"]]) {
+  $(knopfId).addEventListener("click", () => { alleArt = art; inBearbeitung = null; zeigeAlle(); $("#uebersicht").showModal(); });
+}
+$("#uebersicht").addEventListener("close", () => { alleArt = null; inBearbeitung = null; });
 
 // ── Merlin als Bubble: liest zur Einstimmung vor. Solange er spricht, ist das Mikrofon stumm. ──
 const STATIONEN = [["begruessung", "Begrüßung"], ["eingereicht", "Eingereicht"], ["regeln", "Regeln"], ["agenda", "Agenda"]];
@@ -460,15 +481,16 @@ function zeige(daten) {
     "",
   );
 
-  // Entscheidungen und offene Fragen: im Kasten die des laufenden Punkts, die übrigen eingeklappt darüber.
-  // Beantwortete Fragen liegen eingeklappt in "Beantwortet".
-  const punkt = protokoll.agenda.find((a) => a.status === "läuft")?.id ?? null;
-  const zumPunkt = (e) => !punkt || e.agendapunkt === punkt;
+  // Entscheidungen und offene Fragen: im Kasten nur die neuesten (3 bis 5, je nach Platz), alles im großen Fenster.
   const offeneFragen = protokoll.offene_fragen.filter((f) => f.status !== "beantwortet");
-  fuelle("#entscheidungen", protokoll.entscheidungen.filter(zumPunkt).map((e) => zeile(e.id, "fest", el("span", "text", e.text), "pfeil")), protokoll.entscheidungen.length ? "Zu diesem Agendapunkt noch keine." : "Noch keine Entscheidungen.");
-  fuelle("#fragen", offeneFragen.filter(zumPunkt).map((f) => zeile(f.id, f.status, el("span", "text", f.text), "frage")), offeneFragen.length ? "Zu diesem Agendapunkt keine." : "Keine offenen Fragen.");
-  zeigeKlappgruppen($("#e-gruppen"), "e", protokoll.entscheidungen.filter((e) => !zumPunkt(e)), protokoll.agenda, (e) => e.text);
-  zeigeKlappgruppen($("#f-gruppen"), "f", offeneFragen.filter((f) => !zumPunkt(f)), protokoll.agenda, (f) => f.text, protokoll.offene_fragen.filter((f) => f.status === "beantwortet"));
+  const neueste = (liste) => liste.slice(-kurzliste()).reverse();
+  fuelle("#entscheidungen", neueste(protokoll.entscheidungen).map((e) => zeile(e.id, "fest", el("span", "text", e.text), "pfeil")), "Noch keine Entscheidungen.");
+  fuelle("#fragen", neueste(offeneFragen).map((f) => zeile(f.id, f.status, el("span", "text", f.text), "frage")), "Keine offenen Fragen.");
+  $("#alle-e").hidden = !protokoll.entscheidungen.length;
+  $("#alle-e").textContent = `Alle anzeigen (${protokoll.entscheidungen.length})`;
+  $("#alle-f").hidden = !protokoll.offene_fragen.length;
+  $("#alle-f").textContent = `Alle anzeigen (${protokoll.offene_fragen.length})`;
+  if (!inBearbeitung) zeigeAlle(); // offenes Fenster aktuell halten, Eingaben nicht überschreiben
   if (daten.vorlesen) vorlesen = daten.vorlesen;
   $("#merlin-knopf").hidden = !offen;
   $("#merlin-knopf").classList.toggle("leise", an && $("#merlin").hidden); // während der Aufnahme kaum sichtbar

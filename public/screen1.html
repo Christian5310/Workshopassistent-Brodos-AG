@@ -47,8 +47,8 @@
         </section>
       </div>
       <div class="spalte">
-        <section class="kasten"><div class="kasten-kopf"><h2>Entscheidungen</h2><button type="button" id="alles" class="textlink klein-text">Alles anzeigen</button></div><div id="e-gruppen" class="gruppen"></div><ul id="entscheidungen" class="liste"></ul></section>
-        <section class="kasten"><div class="kasten-kopf"><h2>Offene Fragen</h2></div><div id="f-gruppen" class="gruppen"></div><ul id="fragen" class="liste"></ul></section>
+        <section class="kasten"><div class="kasten-kopf"><h2>Entscheidungen</h2><button type="button" id="alle-e" class="textlink klein-text" hidden></button></div><ul id="entscheidungen" class="liste"></ul></section>
+        <section class="kasten"><div class="kasten-kopf"><h2>Offene Fragen</h2><button type="button" id="alle-f" class="textlink klein-text" hidden></button></div><ul id="fragen" class="liste"></ul></section>
         <section id="transkript-karte" class="kasten" hidden><div class="kasten-kopf"><h2>Transkript</h2><span class="klein-text gedaempft">letzte Abschnitte</span></div><div id="transkript" class="mitschrift"></div></section>
       </div>
     </div>
@@ -56,8 +56,9 @@
 
   <dialog id="uebersicht" class="breit">
     <form method="dialog">
-      <h2>Entscheidungen und offene Fragen</h2>
-      <div id="uebersicht-inhalt" class="stapel"></div>
+      <h2 id="uebersicht-titel">Entscheidungen</h2>
+      <p class="klein-text gedaempft">Sortiert nach Agendapunkt. Änderungen kannst du über „Rückgängig" zurücknehmen.</p>
+      <div id="uebersicht-inhalt" class="stapel uebersicht-liste"></div>
       <div class="reihe"><button value="zu" class="zweit">Schließen</button></div>
     </form>
   </dialog>
