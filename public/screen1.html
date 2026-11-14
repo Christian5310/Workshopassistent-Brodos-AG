@@ -7,7 +7,7 @@
     <p id="meeting-name" class="meeting-name">Noch kein Meeting geöffnet</p>
     <button id="wechseln" type="button" class="textlink klein-text" hidden>Meeting wechseln</button>
     <h2 id="agenda-titel">Agenda</h2>
-    <p class="hilfe" id="agenda-hilfe">Anklicken: Der Punkt läuft, Transkript und To-dos gehören dazu.</p>
+    <p class="hilfe" id="agenda-hilfe">Anklicken: Der Punkt läuft. Transkript und neue To-dos werden unter ihm gespeichert.</p>
     <div id="agenda" class="akkordeon"></div>
     <div id="abhalten" class="akkordeon abhalten"></div>
   </aside>
@@ -39,7 +39,7 @@
     <div id="spalten" class="spalten" hidden>
       <div class="spalte">
         <section class="kasten">
-          <div class="kasten-kopf"><h2>To-dos</h2><button id="ablegen" type="button" class="zweit klein" hidden title="Legt die aktuelle Liste unter dem laufenden Agendapunkt ab, damit sie kurz bleibt"></button></div>
+          <div class="kasten-kopf"><h2 id="todo-titel">To-dos</h2></div>
           <div id="gruppen" class="gruppen"></div>
           <ul id="todos" class="liste todos"></ul>
         </section>

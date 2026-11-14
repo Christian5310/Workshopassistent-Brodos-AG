@@ -75,7 +75,6 @@ $("#schliessen").addEventListener("click", versuche(async () => {
 }));
 
 $("#rueckgaengig").addEventListener("click", versuche(() => sende("/api/rueckgaengig")));
-$("#ablegen").addEventListener("click", versuche(() => sende("/api/todos/ablegen")));
 
 // ── Transkript-Kasten (ein-/ausblendbar) ──
 const tKnopf = $("#transkript-knopf");
@@ -101,13 +100,25 @@ tKnopf.addEventListener("click", () => {
   zeigeTranskript(true);
 });
 
-// ── Abgelegte Kategorien: eingeklappt über der aktuellen Liste ──
+// ── To-dos gehören zu ihrem Agendapunkt. In der Liste stehen die des laufenden Punkts;
+//    die der anderen Punkte liegen eingeklappt darüber. Wechselt man den Punkt, wechselt die Liste mit. ──
+const laufenderPunkt = () => stand.agenda.find((a) => a.status === "läuft")?.id ?? null;
+/** To-dos des laufenden Agendapunkts. Läuft keiner, zeigt die Liste alle. */
+const aktuelleTodos = () => {
+  const punkt = laufenderPunkt();
+  return punkt ? stand.todos.filter((t) => t.agendapunkt === punkt) : stand.todos;
+};
+
 const offeneGruppen = new Set();
-function zeigeGruppen(todos) {
-  const namen = [...new Set(todos.map((t) => t.gruppe).filter(Boolean))];
+function zeigeGruppen() {
+  const punkt = laufenderPunkt();
+  const gruppen = [];
+  if (punkt) {
+    for (const a of stand.agenda) if (a.id !== punkt) gruppen.push({ name: a.titel, eintraege: stand.todos.filter((t) => t.agendapunkt === a.id) });
+    gruppen.push({ name: "Ohne Agendapunkt", eintraege: stand.todos.filter((t) => !stand.agenda.some((a) => a.id === t.agendapunkt)) });
+  }
   $("#gruppen").replaceChildren(
-    ...namen.map((name) => {
-      const eintraege = todos.filter((t) => t.gruppe === name);
+    ...gruppen.filter((g) => g.eintraege.length).map(({ name, eintraege }) => {
       const offen = eintraege.filter((t) => t.status === "offen").length;
       const d = el("details", "eintrag");
       d.open = offeneGruppen.has(name);
@@ -124,12 +135,8 @@ function zeigeGruppen(todos) {
         li.append(box, el("span", "text", `${t.text} · ${t.owner} · ${t.frist}`));
         liste.append(li);
       }
-      const zurueck = knopf("Zurück in die aktuelle Liste", "undo", "zweit klein");
-      zurueck.addEventListener("click", versuche(() => sende("/api/todos/ablegen", { name, zurueck: true })));
       const inhalt = el("div", "eintrag-inhalt");
-      const reihe = el("div", "reihe");
-      reihe.append(zurueck);
-      inhalt.append(liste, reihe);
+      inhalt.append(liste, el("p", "hilfe", "Zum Bearbeiten links den Agendapunkt wieder auswählen."));
       d.append(kopf, inhalt);
       return d;
     }),
@@ -204,9 +211,11 @@ function todoEditor(t) {
 }
 
 function zeigeTodos() {
-  const aktuell = stand.todos.filter((t) => !t.gruppe);
+  const aktuell = aktuelleTodos();
   if (bearbeite && !aktuell.some((t) => t.id === bearbeite)) bearbeite = null;
-  fuelle("#todos", aktuell.map(todoZeile), stand.todos.length ? "Aktuelle Liste ist leer." : "Noch keine To-dos.");
+  const punkt = stand.agenda.find((a) => a.status === "läuft");
+  $("#todo-titel").textContent = punkt ? `To-dos: ${punkt.titel}` : "To-dos";
+  fuelle("#todos", aktuell.map(todoZeile), stand.todos.length ? "Zu diesem Agendapunkt gibt es noch keine To-dos." : "Noch keine To-dos.");
 }
 
 // ── Alles anzeigen ──
@@ -261,8 +270,6 @@ function zeige(daten) {
   $("#rueckgaengig").hidden = !offen || !status.rueckgaengig;
   beschrifte($("#rueckgaengig"), "undo", "Rückgängig");
   $("#rueckgaengig").title = status.rueckgaengig ? `Zurücknehmen: ${status.rueckgaengig}` : "";
-  $("#ablegen").hidden = !protokoll.todos.some((t) => !t.gruppe);
-  beschrifte($("#ablegen"), "ablage", "Liste ablegen");
 
   $("#protokoll").hidden = $("#spalten").hidden = !offen;
   $("#agenda-hilfe").hidden = $("#agenda-titel").hidden = $("#agenda").hidden = !offen;
@@ -271,14 +278,13 @@ function zeige(daten) {
     : status.arbeit ?? (an ? `Aufnahme läuft. Der erste Abschnitt wird nach 20 Sekunden gesendet, danach alle ${status.zyklusSekunden} Sekunden.` : status.letzterZyklus ? "Pausiert. Alles bleibt erhalten, bis du das Meeting schließt." : "Bereit. Wähle einen Agendapunkt und starte die Aufnahme.");
 
   // Kennzahlen
-  const aktuell = protokoll.todos.filter((t) => !t.gruppe);
   $("#k-todos").textContent = protokoll.todos.filter((t) => t.status === "offen").length;
   $("#k-vorschlaege").textContent = protokoll.vorschlaege.length;
   $("#k-entscheidungen").textContent = protokoll.entscheidungen.length;
   $("#k-fragen").textContent = protokoll.offene_fragen.filter((f) => f.status === "offen").length;
 
   zeigeTranskript();
-  zeigeGruppen(protokoll.todos);
+  zeigeGruppen();
 
   // Agenda als Auswahlfelder: Anklicken wählt den Punkt aus, er läuft dann.
   $("#agenda").replaceChildren(
