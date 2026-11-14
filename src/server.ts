@@ -6,6 +6,7 @@ import * as archiv from "./archiv.ts";
 import { config, quelle } from "./config.ts";
 import * as admin from "./einstellungen.ts";
 import * as workshops from "./workshops.ts";
+import * as ansagen from "./ansagen.ts";
 import { store } from "./store.ts";
 import { ProtokollSchema, type Adressat, type ChatStatus, type Schnappschuss } from "./types.ts";
 
@@ -574,6 +575,36 @@ app.post("/api/meeting/schliessen", async (_req, res) => {
   arbeit = null;
   senden();
   res.json({ ok: true, id: tag?.id });
+});
+
+// ── Merlins Ansagen zur Einstimmung (Bubble im Meeting Assistenten) ──
+async function entwerfeAnsagen(tag: NonNullable<ReturnType<typeof store.hole>>): Promise<ansagen.Ansagen> {
+  const ws = workshopVon(tag.id);
+  let eingereicht = ansagen.OHNE_MATERIAL;
+  if (tag.briefing.trim()) {
+    try {
+      eingereicht = await anbieter.sprachmodell.sprechtext(tag.briefing, tag.name);
+    } catch (fehler) {
+      console.warn("Sprechtext: Sprachmodell nicht erreichbar.", fehler);
+      eingereicht = "Zur Vorbereitung habt ihr Material eingereicht. Es liegt verdichtet als Vorwissen vor und steht den Agenten zur Verfügung.";
+    }
+  }
+  return ansagen.vorlage(tag, ws ? workshops.hole(ws.id) : null, eingereicht);
+}
+
+/** Liefert die Ansagen; gibt es noch keine, werden sie entworfen und gespeichert. Mit ?neu werden sie neu entworfen. */
+app.get("/api/tage/:id/ansagen", async (req, res) => {
+  const tag = holeTag(req.params.id, res);
+  if (!tag) return;
+  if (!tag.ansagen || req.query.neu !== undefined) store.setzeAnsagen(tag.id, await entwerfeAnsagen(tag));
+  res.json(store.hole(tag.id)?.ansagen ?? {});
+});
+
+app.put("/api/tage/:id/ansagen", (req, res) => {
+  const e = z.object(Object.fromEntries(ansagen.STATIONEN.map((s) => [s, z.string().max(4000)]))).safeParse(req.body);
+  if (!e.success) return void res.status(400).json({ fehler: "Bitte die Texte prüfen (höchstens 4.000 Zeichen je Station)." });
+  if (!store.setzeAnsagen(req.params.id, e.data)) return void res.status(404).json({ fehler: "Meeting nicht gefunden." });
+  res.json({ ok: true });
 });
 
 /** Legt fest, welche Agenten an einem Meeting teilnehmen. Body: { agenten: string[] } */

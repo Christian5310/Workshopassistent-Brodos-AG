@@ -22,6 +22,8 @@ export interface Tag {
   einwilligungen?: { bestaetigtUm: string; aufnahmeStart: number; wortlaut: string }[];
   /** IDs der Spezial-Agenten, die an diesem Meeting teilnehmen. Fehlt die Angabe, nehmen alle teil. */
   agenten?: string[];
+  /** Texte, die Merlin zur Einstimmung vorliest (Begrüßung, Eingereichtes, Regeln, Agenda) */
+  ansagen?: Record<string, string>;
   /** Hintergrundwissen zu diesem Meeting (Kontext für die Spezial-Agenten) */
   briefing: string;
   /** Fachbegriffe und Namen, die die Transkription richtig schreiben soll (mit Komma getrennt) */
@@ -199,6 +201,15 @@ class Store {
     agendaAnwenden(tag.protokoll, e.agenda);
     schreibe(tag);
     return tag;
+  }
+
+  /** Speichert Merlins Ansagen am Meeting. */
+  setzeAnsagen(id: string, ansagen: Record<string, string>): boolean {
+    const tag = this.hole(id);
+    if (!tag) return false;
+    tag.ansagen = ansagen;
+    schreibe(tag);
+    return true;
   }
 
   /** Speichert die Agenten-Auswahl eines Meetings, das gerade nicht geöffnet ist. */

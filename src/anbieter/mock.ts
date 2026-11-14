@@ -61,7 +61,7 @@ export class MockSprachmodell implements Sprachmodell {
           neu.entscheidungen.push({ id: `E${neu.entscheidungen.length + 1}`, text: op.text, agendapunkt: aktuell() });
           break;
         case "frage":
-          neu.offene_fragen.push({ id: `F${neu.offene_fragen.length + 1}`, text: op.text, status: "offen" });
+          neu.offene_fragen.push({ id: `F${neu.offene_fragen.length + 1}`, text: op.text, status: "offen", agendapunkt: aktuell() });
           break;
         case "frage_beantwortet": {
           const frage = neu.offene_fragen.find((f) => f.text.includes(op.enthaelt));
@@ -110,5 +110,11 @@ export class MockSprachmodell implements Sprachmodell {
       wissen: [`# Vorwissen für „${kontext.name}" [Mock]`, "", ...material.map((m) => `- ${m.art}: ${m.titel} (${m.text.length.toLocaleString("de-DE")} Zeichen) – ${m.text.replace(/\s+/g, " ").slice(0, 140)} …`)].join("\n"),
       begriffe: "",
     };
+  }
+
+  /** Fake-Sprechtext: nennt nur den Umfang des Vorwissens. */
+  async sprechtext(wissen: string) {
+    await warte(500);
+    return `[Mock] Zur Vorbereitung liegt Vorwissen im Umfang von ${wissen.length.toLocaleString("de-DE")} Zeichen vor. Die Zusammenfassung dazu formuliert das Sprachmodell im Live-Betrieb.`;
   }
 }

@@ -143,6 +143,141 @@ function zeigeGruppen() {
   );
 }
 
+// ── Eingeklappte Gruppen je Agendapunkt (Entscheidungen, Fragen) ──
+const offeneKlapp = new Set();
+function klappgruppe(schluessel, titel, eintraege, text, iconName = "ablage") {
+  const d = el("details", "eintrag");
+  d.open = offeneKlapp.has(schluessel);
+  d.addEventListener("toggle", () => (d.open ? offeneKlapp.add(schluessel) : offeneKlapp.delete(schluessel)));
+  const kopf = el("summary");
+  const pfeil = el("span", "pfeil");
+  pfeil.append(icon("runter"));
+  kopf.append(icon(iconName), el("span", "titel", titel), el("span", "info", String(eintraege.length)), pfeil);
+  const liste = el("ul", "liste");
+  liste.append(...eintraege.map((e) => el("li", "", text(e))));
+  const inhalt = el("div", "eintrag-inhalt");
+  inhalt.append(liste);
+  d.append(kopf, inhalt);
+  return d;
+}
+function zeigeKlappgruppen(ziel, art, eintraege, agenda, text, beantwortet = []) {
+  const gruppen = [...agenda.map((a) => ({ id: a.id, titel: a.titel })), { id: "", titel: "Ohne Agendapunkt" }]
+    .map((g) => ({ ...g, eintraege: eintraege.filter((e) => (g.id ? e.agendapunkt === g.id : !agenda.some((a) => a.id === e.agendapunkt))) }))
+    .filter((g) => g.eintraege.length)
+    .map((g) => klappgruppe(`${art}-${g.id}`, g.titel, g.eintraege, text));
+  if (beantwortet.length) gruppen.push(klappgruppe(`${art}-beantwortet`, "Beantwortet", beantwortet, text, "check"));
+  ziel.replaceChildren(...gruppen);
+}
+
+// "Alles anzeigen": Entscheidungen und offene Fragen über alle Agendapunkte
+$("#alles").addEventListener("click", () => {
+  const p = stand;
+  const inhalt = $("#uebersicht-inhalt");
+  inhalt.replaceChildren();
+  for (const a of [...p.agenda, { id: "", titel: "Ohne Agendapunkt" }]) {
+    const passt = (e) => (a.id ? e.agendapunkt === a.id : !p.agenda.some((x) => x.id === e.agendapunkt));
+    const ent = p.entscheidungen.filter(passt);
+    const fr = p.offene_fragen.filter(passt);
+    if (!ent.length && !fr.length) continue;
+    const block = el("section", "stapel");
+    block.append(el("h3", "", a.titel));
+    const liste = el("ul", "liste");
+    liste.append(...ent.map((e) => { const li = el("li"); li.append(icon("pfeil"), el("span", "", e.text)); return li; }));
+    liste.append(...fr.map((f) => { const li = el("li", f.status); li.append(icon(f.status === "beantwortet" ? "check" : "frage"), el("span", "text", f.text)); return li; }));
+    block.append(liste);
+    inhalt.append(block);
+  }
+  if (!inhalt.children.length) inhalt.append(el("p", "gedaempft", "Noch keine Entscheidungen und keine Fragen."));
+  $("#uebersicht").showModal();
+});
+
+// ── Merlin als Bubble: liest zur Einstimmung vor. Solange er spricht, ist das Mikrofon stumm. ──
+const STATIONEN = [["begruessung", "Begrüßung"], ["eingereicht", "Eingereicht"], ["regeln", "Regeln"], ["agenda", "Agenda"]];
+let ansagen = null;
+let station = 0;
+let bearbeitet = false;
+const stimme = () => speechSynthesis.getVoices().find((v) => v.lang?.startsWith("de")) ?? null;
+
+async function ladeAnsagen(neu = false) {
+  $("#merlin-info").textContent = neu || !ansagen ? "Merlin bereitet die Texte vor …" : "";
+  ansagen = await (await fetch(`/api/tage/${tagId}/ansagen${neu ? "?neu" : ""}`)).json();
+  $("#merlin-info").textContent = "";
+  zeigeMerlin();
+}
+function zeigeMerlin() {
+  $("#merlin-stationen").replaceChildren(
+    ...STATIONEN.map(([id, name], i) => {
+      const k = el("button", `merlin-station${i === station ? " ist-aktiv" : ""}`, name);
+      k.type = "button";
+      k.setAttribute("role", "tab");
+      k.setAttribute("aria-selected", String(i === station));
+      k.addEventListener("click", () => { verstumme(); station = i; zeigeMerlin(); });
+      return k;
+    }),
+  );
+  const text = ansagen?.[STATIONEN[station][0]] ?? "";
+  $("#merlin-blase").textContent = text;
+  $("#merlin-text").value = text;
+  $("#merlin-blase").hidden = bearbeitet;
+  $("#merlin-text").hidden = !bearbeitet;
+  $("#merlin-bearbeiten").textContent = bearbeitet ? "Text speichern" : "Text bearbeiten";
+  $("#merlin-weiter").hidden = station === STATIONEN.length - 1;
+}
+function stummschalten(an) {
+  try { merlin().aufnahme.stumm = an; } catch {}
+}
+function verstumme() {
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  stummschalten(false);
+  document.querySelector("#merlin-knopf").classList.remove("spricht");
+  beschrifte($("#merlin-sprechen"), "play", "Vorlesen");
+}
+function sprich() {
+  if (!("speechSynthesis" in window)) return void ($("#merlin-info").textContent = "Dieser Browser kann nicht vorlesen. Der Text steht in der Sprechblase.");
+  if (speechSynthesis.speaking) return verstumme();
+  const satz = new SpeechSynthesisUtterance($("#merlin-blase").textContent);
+  satz.lang = "de-DE";
+  satz.voice = stimme();
+  satz.rate = 0.98;
+  satz.onend = satz.onerror = () => verstumme();
+  stummschalten(true); // Merlin soll sich nicht selbst mitschreiben
+  document.querySelector("#merlin-knopf").classList.add("spricht");
+  beschrifte($("#merlin-sprechen"), "pause", "Stopp");
+  speechSynthesis.speak(satz);
+}
+function schliesseMerlin() {
+  verstumme();
+  $("#merlin").hidden = true;
+  $("#merlin-knopf").setAttribute("aria-expanded", "false");
+}
+$("#merlin-knopf").addEventListener("click", versuche(async () => {
+  if (!$("#merlin").hidden) return schliesseMerlin();
+  $("#merlin").hidden = false;
+  $("#merlin-knopf").setAttribute("aria-expanded", "true");
+  if (!ansagen || ansagen.__tag !== tagId) { await ladeAnsagen(); ansagen.__tag = tagId; }
+}));
+$("#merlin-zu").addEventListener("click", schliesseMerlin);
+$("#merlin-sprechen").addEventListener("click", sprich);
+$("#merlin-weiter").addEventListener("click", () => { verstumme(); station = Math.min(station + 1, STATIONEN.length - 1); zeigeMerlin(); sprich(); });
+$("#merlin-bearbeiten").addEventListener("click", versuche(async () => {
+  if (bearbeitet) {
+    ansagen[STATIONEN[station][0]] = $("#merlin-text").value;
+    const { __tag, ...texte } = ansagen;
+    await sende(`/api/tage/${tagId}/ansagen`, texte, "PUT");
+  }
+  bearbeitet = !bearbeitet;
+  zeigeMerlin();
+}));
+$("#merlin-neu").addEventListener("click", versuche(async () => {
+  if (!confirm("Alle vier Texte neu entwerfen? Eigene Änderungen gehen dabei verloren.")) return;
+  verstumme();
+  await ladeAnsagen(true);
+  ansagen.__tag = tagId;
+}));
+beschrifte($("#merlin-sprechen"), "play", "Vorlesen");
+beschrifte($("#merlin-weiter"), "pfeil", "Weiter");
+if ("speechSynthesis" in window) speechSynthesis.onvoiceschanged = () => {};
+
 // ── To-dos: anklicken zum Bearbeiten, Kästchen zum Abhaken ──
 let bearbeite = null; // ID des To-dos, das gerade bearbeitet wird; solange wird die Liste nicht neu aufgebaut
 
@@ -320,12 +455,17 @@ function zeige(daten) {
     "",
   );
 
-  fuelle("#entscheidungen", protokoll.entscheidungen.map((e) => zeile(e.id, "fest", el("span", "text", e.text), "pfeil")), "Noch keine Entscheidungen.");
-  fuelle(
-    "#fragen",
-    protokoll.offene_fragen.map((f) => zeile(f.id, f.status, el("span", "text", f.text), f.status === "beantwortet" ? "check" : "frage")),
-    "Keine offenen Fragen.",
-  );
+  // Entscheidungen und offene Fragen: im Kasten die des laufenden Punkts, die übrigen eingeklappt darüber.
+  // Beantwortete Fragen liegen eingeklappt in "Beantwortet".
+  const punkt = protokoll.agenda.find((a) => a.status === "läuft")?.id ?? null;
+  const zumPunkt = (e) => !punkt || e.agendapunkt === punkt;
+  const offeneFragen = protokoll.offene_fragen.filter((f) => f.status !== "beantwortet");
+  fuelle("#entscheidungen", protokoll.entscheidungen.filter(zumPunkt).map((e) => zeile(e.id, "fest", el("span", "text", e.text), "pfeil")), protokoll.entscheidungen.length ? "Zu diesem Agendapunkt noch keine." : "Noch keine Entscheidungen.");
+  fuelle("#fragen", offeneFragen.filter(zumPunkt).map((f) => zeile(f.id, f.status, el("span", "text", f.text), "frage")), offeneFragen.length ? "Zu diesem Agendapunkt keine." : "Keine offenen Fragen.");
+  zeigeKlappgruppen($("#e-gruppen"), "e", protokoll.entscheidungen.filter((e) => !zumPunkt(e)), protokoll.agenda, (e) => e.text);
+  zeigeKlappgruppen($("#f-gruppen"), "f", offeneFragen.filter((f) => !zumPunkt(f)), protokoll.agenda, (f) => f.text, protokoll.offene_fragen.filter((f) => f.status === "beantwortet"));
+  $("#merlin-knopf").hidden = !offen;
+  if (!offen) schliesseMerlin();
 
   ersterAufbau = false;
 }

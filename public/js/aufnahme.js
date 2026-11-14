@@ -61,6 +61,11 @@ export class Aufnahme {
     this.#neuerSchnipsel(Math.min(20, sekunden));
   }
 
+  /** Schaltet das Mikrofon stumm (z. B. solange Merlin vorliest), ohne die Aufnahme zu beenden. */
+  set stumm(an) {
+    this.#strom?.getAudioTracks().forEach((t) => (t.enabled = !an));
+  }
+
   /** Beendet die Aufnahme; der angebrochene Schnipsel wird noch hochgeladen. */
   async stopp() {
     if (!this.laeuft) return;

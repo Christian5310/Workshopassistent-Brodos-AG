@@ -29,7 +29,7 @@ export const ProtokollSchema = z.object({
   /** Unsichere To-dos: erst nach Bestätigung durch einen Menschen werden sie zu echten To-dos. */
   vorschlaege: liste(z.object({ id: kennung, text, owner: frei("offen"), frist: frei("offen"), agendapunkt: z.string().catch("") })),
   entscheidungen: liste(z.object({ id: kennung, text, agendapunkt: z.string().catch("") })),
-  offene_fragen: liste(z.object({ id: kennung, text, status: z.enum(["offen", "beantwortet"]).catch("offen") })),
+  offene_fragen: liste(z.object({ id: kennung, text, status: z.enum(["offen", "beantwortet"]).catch("offen"), agendapunkt: z.string().catch("") })),
   notizen: liste(z.object({ agendapunkt: z.string().catch(""), text })),
 });
 export type Protokoll = z.infer<typeof ProtokollSchema>;

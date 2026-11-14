@@ -49,12 +49,39 @@
         </section>
       </div>
       <div class="spalte">
-        <section class="kasten"><div class="kasten-kopf"><h2>Entscheidungen</h2></div><ul id="entscheidungen" class="liste"></ul></section>
-        <section class="kasten"><div class="kasten-kopf"><h2>Offene Fragen</h2></div><ul id="fragen" class="liste"></ul></section>
+        <section class="kasten"><div class="kasten-kopf"><h2>Entscheidungen</h2><button type="button" id="alles" class="textlink klein-text">Alles anzeigen</button></div><div id="e-gruppen" class="gruppen"></div><ul id="entscheidungen" class="liste"></ul></section>
+        <section class="kasten"><div class="kasten-kopf"><h2>Offene Fragen</h2></div><div id="f-gruppen" class="gruppen"></div><ul id="fragen" class="liste"></ul></section>
         <section id="transkript-karte" class="kasten" hidden><div class="kasten-kopf"><h2>Transkript</h2><span class="klein-text gedaempft">letzte Abschnitte</span></div><div id="transkript" class="mitschrift"></div></section>
       </div>
     </div>
   </main>
+
+  <dialog id="uebersicht" class="breit">
+    <form method="dialog">
+      <h2>Entscheidungen und offene Fragen</h2>
+      <div id="uebersicht-inhalt" class="stapel"></div>
+      <div class="reihe"><button value="zu" class="zweit">Schließen</button></div>
+    </form>
+  </dialog>
+
+  <!-- Merlin als Bubble: Einstimmung zu Beginn (Begrüßung, Eingereichtes, Regeln, Agenda) -->
+  <button id="merlin-knopf" type="button" class="merlin-knopf" hidden aria-expanded="false" title="Merlin: Einstimmung">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#ffd50d"/><circle cx="23" cy="27" r="4" fill="#102636"/><circle cx="41" cy="27" r="4" fill="#102636"/><path d="M20 39c3.5 5 7.5 7 12 7s8.5-2 12-7" fill="none" stroke="#102636" stroke-width="4" stroke-linecap="round"/></svg>
+    <span class="sr-only">Merlin</span>
+  </button>
+  <section id="merlin" class="merlin-panel" hidden aria-label="Merlin: Einstimmung">
+    <div class="merlin-kopf"><b>Merlin</b><span class="klein-text gedaempft">Einstimmung</span><button type="button" id="merlin-zu" class="textlink klein-text">Schließen</button></div>
+    <div id="merlin-stationen" class="merlin-stationen" role="tablist"></div>
+    <div id="merlin-blase" class="merlin-blase" aria-live="polite"></div>
+    <textarea id="merlin-text" rows="7" hidden aria-label="Text dieser Station"></textarea>
+    <div class="reihe">
+      <button type="button" id="merlin-sprechen"></button>
+      <button type="button" id="merlin-weiter" class="zweit"></button>
+      <button type="button" id="merlin-bearbeiten" class="textlink klein-text">Text bearbeiten</button>
+      <button type="button" id="merlin-neu" class="textlink klein-text">Neu entwerfen</button>
+    </div>
+    <p id="merlin-info" class="hilfe"></p>
+  </section>
 
   <dialog id="schluss">
     <form method="dialog">

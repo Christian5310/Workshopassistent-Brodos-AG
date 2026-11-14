@@ -117,4 +117,22 @@ Regeln für "wissen":
     const geprueft = z.object({ wissen: z.string().min(1), begriffe: z.string().catch("") }).parse(antwort);
     return geprueft;
   }
+
+  async sprechtext(wissen: string, name: string): Promise<string> {
+    const antwort = await this.#frage(
+      [
+        {
+          role: "system",
+          content: `Du schreibst einen kurzen Text, der zu Beginn eines Workshops laut vorgelesen wird. Er fasst zusammen, was die Teilnehmenden zur Vorbereitung eingereicht haben.
+
+Antworte ausschließlich als JSON: {"text": "…"}
+
+Regeln: 4 bis 6 kurze Sätze in gesprochener Sprache, Du-Form in der Mehrzahl ("ihr"). Nenne die zwei bis vier wichtigsten Themen und, falls vorhanden, einen Punkt, bei dem die Einschätzungen auseinandergehen. Keine Namen, keine Aufzählungszeichen, keine Abkürzungen, keine Zahlenkolonnen. Erfinde nichts. Beginne mit "Zur Vorbereitung habt ihr …".`,
+        },
+        { role: "user", content: `WORKSHOP: ${name}\n\nVORWISSEN:\n${wissen.slice(0, 40_000)}` },
+      ],
+      600,
+    );
+    return z.object({ text: z.string().min(1) }).parse(antwort).text.trim();
+  }
 }

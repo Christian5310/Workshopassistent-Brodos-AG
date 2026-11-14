@@ -25,5 +25,7 @@ export interface Sprachmodell {
    * Verdichtet eingereichtes Workshop-Material zu Wissen für die Agenten.
    * Ohne Zuordnung zu Personen: Wer was gesagt hat, bleibt in der Material-Übersicht.
    */
+  /** Fasst das Vorwissen eines Workshops in wenigen gesprochenen Sätzen zusammen (zum Vorlesen, ohne Namen). */
+  sprechtext(wissen: string, name: string): Promise<string>;
   verdichte(material: { titel: string; art: string; text: string }[], kontext: { name: string; agenda: string[] }): Promise<{ wissen: string; begriffe: string }>;
 }

@@ -469,3 +469,23 @@ label.agentenwahl input { flex: none; }
 .agenda-item.is-active, .agenda-item.is-active:hover { background: #fff3b0; border-left-color: var(--accent); color: var(--ink); font-weight: 700; }
 .agenda-item.ist-erledigt, .agenda-item.ist-erledigt:hover { background: var(--surface); color: var(--ink-muted); border-left-color: var(--line); }
 #agenda.akkordeon { gap: 0.375rem; }
+
+/* ── Merlin-Bubble (gelb, mit Gesicht) – bewusste Ausnahme: Gelb als Merlins Markenzeichen ── */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.merlin-knopf { position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 20; width: 4.5rem; height: 4.5rem; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: 0 6px 18px rgba(16, 38, 54, 0.25); }
+.merlin-knopf:hover { background: transparent; transform: scale(1.05); }
+.merlin-knopf svg { width: 100%; height: 100%; display: block; }
+.merlin-knopf.spricht { animation: merlinspricht 1.1s ease-in-out infinite; }
+@keyframes merlinspricht { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+.merlin-panel { position: fixed; right: 1.5rem; bottom: 7rem; z-index: 20; width: min(26rem, calc(100vw - 3rem)); display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; border: 2px solid var(--accent); border-radius: var(--radius-lg); background: var(--surface); box-shadow: 0 12px 32px rgba(16, 38, 54, 0.25); }
+.merlin-kopf { display: flex; align-items: baseline; gap: 0.5rem; }
+.merlin-kopf button { margin-left: auto; }
+.merlin-stationen { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+.merlin-station { min-height: 2rem; padding: 0.25rem 0.625rem; border: 1px solid var(--line); background: var(--surface); color: var(--ink-muted); font-size: 0.8125rem; }
+.merlin-station:hover { background: var(--surface); color: var(--ink); border-color: var(--ink-muted); }
+.merlin-station.ist-aktiv, .merlin-station.ist-aktiv:hover { background: #fff3b0; border-color: var(--accent); color: var(--ink); }
+.merlin-blase { position: relative; max-height: 16rem; overflow-y: auto; padding: 0.875rem 1rem; border-radius: var(--radius-md); background: #fff8d1; font-size: 1rem; line-height: 1.55rem; }
+.merlin-blase:empty::before { content: "…"; color: var(--ink-muted); }
+.gruppen .eintrag-inhalt .liste > li { padding: 0.4rem 0; font-size: 0.875rem; }
+#uebersicht h3 { color: var(--brand); }
+@media (prefers-reduced-motion: reduce) { .merlin-knopf.spricht { animation: none; } }

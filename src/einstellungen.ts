@@ -269,7 +269,7 @@ export function absichern(alt: Protokoll, neu: Protokoll, punkt = ""): Protokoll
     entscheidungen: [...alt.entscheidungen, ...e.neue.map((y) => ({ ...y, id: `E${eNr++}`, agendapunkt: punkt }))],
     offene_fragen: [
       ...alt.offene_fragen.map((x) => ({ ...x, status: f.updates.get(x.id)?.status ?? x.status })),
-      ...f.neue.map((y) => ({ ...y, id: `F${fNr++}` })),
+      ...f.neue.map((y) => ({ ...y, id: `F${fNr++}`, agendapunkt: punkt })),
     ],
     notizen: [...alt.notizen, ...neu.notizen.filter((n) => !alt.notizen.some((x) => gleich(x.text, n.text))).map((n) => ({ ...n, agendapunkt: punkt }))],
   };
