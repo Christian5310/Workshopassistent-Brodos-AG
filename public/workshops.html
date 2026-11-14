@@ -1,16 +1,17 @@
 <!doctype html>
 <html lang="de">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Workshops · BroKI</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Workshop · BroKI</title></head>
 <body class="ansicht">
   <aside class="seitenleiste">
     <h2><label for="ws-wahl">Workshop</label></h2>
     <select id="ws-wahl"></select>
     <h2 id="bereich-titel">Auswahl</h2>
     <div id="bereiche" class="akkordeon"></div>
+    <div id="ws-abhalten" class="akkordeon abhalten"></div>
   </aside>
   <main class="inhalt">
     <div class="seitenkopf">
-      <div><h1 id="titel">Workshops</h1><p id="unterzeile" class="unterzeile"></p></div>
+      <div><h1 id="titel">Workshop Assistent</h1><p id="unterzeile" class="unterzeile"></p></div>
       <div id="kopf-aktionen" class="aktionen"></div>
     </div>
     <div id="meldung" class="hinweisband" role="alert"></div>
@@ -71,27 +72,6 @@
       </section>
     </section>
 
-    <!-- Durchführung: Assistent und Agenten in einem Fenster -->
-    <section id="b-durchfuehrung" hidden>
-      <div id="df-leer" class="leerzustand" hidden></div>
-      <div id="df-inhalt" class="spalten" hidden>
-        <div class="spalte">
-          <section class="kasten"><div class="kasten-kopf"><h2>Agenda</h2><span class="klein-text gedaempft">anklicken: Punkt läuft</span></div><div id="df-agenda" class="kasten-inhalt akkordeon"></div></section>
-          <section class="kasten"><div class="kasten-kopf"><h2>To-dos</h2><span id="df-todo-zahl" class="badge"></span></div><ul id="df-todos" class="liste todos"></ul></section>
-          <section id="df-vorschlag-karte" class="kasten" hidden><div class="kasten-kopf"><h2>Vorschläge</h2><span class="badge arbeit">bitte entscheiden</span></div><ul id="df-vorschlaege" class="liste"></ul></section>
-        </div>
-        <div class="spalte">
-          <section class="kasten">
-            <div class="kasten-kopf"><h2>KI Wissensagenten</h2><span id="df-chatstatus" class="klein-text gedaempft" role="status"></span></div>
-            <div id="df-chat" class="chat df-chat" aria-live="polite"></div>
-            <form id="df-frage" class="kasten-inhalt stapel">
-              <select id="df-an" aria-label="An wen geht die Frage?"></select>
-              <div class="eingabe"><input id="df-text" type="text" placeholder="Frage tippen …" autocomplete="off" aria-label="Frage an die Wissensagenten"><button type="submit" id="df-senden"></button></div>
-            </form>
-          </section>
-        </div>
-      </div>
-    </section>
   </main>
   <script type="module" src="/js/workshops.js"></script>
 </body>

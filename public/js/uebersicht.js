@@ -1,68 +1,65 @@
-// Übersicht: der erste Bereich nach dem Eintreten. Links wählt man, womit man arbeiten will;
-// im Hauptfenster legt man dann etwas Neues an oder öffnet etwas Bestehendes.
-import { AGENTEN, el, gehe, icon, imRahmen, sende, verbinde } from "./common.js";
+// Start und Meeting-Auswahl. Nach dem Eintreten entscheidet man: Meeting oder Workshop abhalten.
+// Unter "Meeting" richtet man ein neues Meeting ein oder öffnet ein bestehendes.
+import { el, gehe, icon, imRahmen, sende, verbinde } from "./common.js";
 
-imRahmen("uebersicht");
+const modus = new URLSearchParams(location.search).get("b") === "meeting" ? "meeting" : "start";
+imRahmen(modus);
 const $ = (id) => document.querySelector(id);
 const melde = (text) => ($("#meldung").textContent = text);
-
-const BEREICHE = {
-  meeting: { name: "KI Transkriptionsassistent", icon: "mic", text: "Hört im Meeting mit, schreibt das Transkript und führt die To-do-Liste.", unterzeile: "Lege ein neues Meeting an oder öffne ein bestehendes." },
-  agenten: { name: "KI Wissensagenten", icon: "users", text: "Experten für Vertrieb, Prozesse und Strategie. Antworten auf Frage, per Sprache oder Text.", unterzeile: "Lege einen neuen Agenten an oder öffne einen bestehenden." },
-};
-let bereich = null;
-try { bereich = sessionStorage.getItem("broki-uebersicht"); } catch {}
-if (!(bereich in BEREICHE)) bereich = null;
-
-function waehle(neu) {
-  bereich = neu;
-  try { neu ? sessionStorage.setItem("broki-uebersicht", neu) : sessionStorage.removeItem("broki-uebersicht"); } catch {}
-  melde("");
-  zeigeBereich();
-}
-
-function zeigeBereich() {
-  // Auswahl links
-  $("#wahl").replaceChildren(
-    ...Object.entries(BEREICHE).map(([id, b]) => {
-      const k = el("button", `select-item${id === bereich ? " is-active" : ""}`);
-      k.type = "button";
-      k.setAttribute("aria-pressed", String(id === bereich));
-      k.append(icon(b.icon), el("span", "", b.name));
-      k.addEventListener("click", () => waehle(id));
-      return k;
-    }),
-  );
-  $("#titel").textContent = bereich ? BEREICHE[bereich].name : "Übersicht";
-  $("#unterzeile").textContent = bereich ? BEREICHE[bereich].unterzeile : "Womit möchtest du arbeiten? Wähle links oder hier einen Bereich.";
-  $("#b-start").hidden = bereich !== null;
-  $("#b-meeting").hidden = bereich !== "meeting";
-  $("#b-agenten").hidden = bereich !== "agenten";
-  richteAus();
-}
-
-// Startzustand: dieselbe Auswahl noch einmal als Kacheln im Hauptfenster
-$("#b-start").replaceChildren(
-  ...Object.entries(BEREICHE).map(([id, b]) => {
-    const k = el("button", "kachel");
-    k.type = "button";
-    const kreis = el("span", "kreis");
-    kreis.append(icon(b.icon));
-    k.append(kreis, el("span", "kachel-titel", b.name), el("span", "kachel-text", b.text));
-    k.addEventListener("click", () => waehle(id));
-    return k;
-  }),
-);
-
 const beschrifte = (id, iconName, text) => $(id).replaceChildren(icon(iconName), text);
 const option = (wert, text) => { const o = el("option", "", text); o.value = wert; return o; };
 const datum = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("de-DE");
 
-// ── Meetings ──
+const WEGE = {
+  meeting: { name: "Meeting Assistent", icon: "mic", text: "Für die tägliche Arbeit: Meeting einrichten, mitschreiben lassen, To-dos führen. Agenten kannst du dazunehmen." },
+  workshop: { name: "Workshop Assistent", icon: "users", text: "Für den größeren Rahmen: zusätzlich Teilnehmer, eingereichtes Material und daraus verdichtetes Wissen für Assistent und Agenten." },
+};
+
+// Auswahl links: dieselben zwei Wege, der aktuelle ist markiert
+$("#wahl").replaceChildren(
+  ...Object.entries(WEGE).map(([id, w]) => {
+    const k = el("button", `select-item${id === modus ? " is-active" : ""}`);
+    k.type = "button";
+    k.append(icon(w.icon), el("span", "", w.name));
+    k.addEventListener("click", () => gehe(id));
+    return k;
+  }),
+);
+
+$("#b-start").hidden = modus !== "start";
+$("#b-meeting").hidden = modus !== "meeting";
+$("#titel").textContent = modus === "start" ? "Was möchtest du abhalten?" : "Meeting Assistent";
+$("#unterzeile").textContent = modus === "start" ? "Wähle links oder hier: Meeting oder Workshop." : "Richte ein neues Meeting ein oder öffne ein bestehendes.";
+$("#b-start").replaceChildren(
+  ...Object.entries(WEGE).map(([id, w]) => {
+    const k = el("button", "kachel");
+    k.type = "button";
+    const kreis = el("span", "kreis");
+    kreis.append(icon(w.icon));
+    k.append(kreis, el("span", "kachel-titel", w.name), el("span", "kachel-text", w.text));
+    k.addEventListener("click", () => gehe(id));
+    return k;
+  }),
+);
+
+/** Richtet das erste Auswahlfeld links an der Oberkante des ersten Kastens im Hauptfenster aus. */
+function richteAus() {
+  const wahl = $("#wahl");
+  wahl.style.marginTop = "";
+  const ziel = modus === "start" ? $("#b-start") : $("#b-meeting");
+  if (matchMedia("(max-width: 900px)").matches) return;
+  const versatz = ziel.getBoundingClientRect().top - wahl.getBoundingClientRect().top;
+  if (versatz > 0) wahl.style.marginTop = `${versatz}px`;
+}
+addEventListener("resize", richteAus);
+document.fonts?.ready.then(richteAus);
+richteAus();
+
+// ── Meetings (ohne die Meetings, die zu einem Workshop gehören: die öffnet man unter "Workshop") ──
 let stand = null;
 let meetingKennung = "";
 async function ladeMeetings() {
-  const meetings = await (await fetch("/api/tage")).json();
+  const meetings = (await (await fetch("/api/tage")).json()).filter((m) => !m.workshop);
   const offenId = stand?.tag?.id ?? "";
   const kennung = JSON.stringify([meetings.map((m) => [m.id, m.name, m.datum, m.abgeschlossen]), offenId]);
   if (kennung === meetingKennung) return;
@@ -80,7 +77,7 @@ async function ladeMeetings() {
   wahl.replaceChildren(option("", meetings.length ? "Bitte wählen …" : "Noch kein Meeting angelegt"));
   if (offene.length) wahl.append(gruppe("Offene Meetings", offene));
   if (fertige.length) wahl.append(gruppe("Abgeschlossen (wieder öffnen)", fertige));
-  wahl.value = [...wahl.options].some((o) => o.value === vorher) && vorher ? vorher : offenId;
+  wahl.value = [...wahl.options].some((o) => o.value === vorher) && vorher ? vorher : [...wahl.options].some((o) => o.value === offenId) ? offenId : "";
   zeigeMeetingKnopf();
 }
 function zeigeMeetingKnopf() {
@@ -126,83 +123,11 @@ $("#m-formular").addEventListener("submit", async (e) => {
   }
 });
 
-// ── Agenten ──
-let agentKennung = "";
-function ladeAgenten() {
-  const kennung = JSON.stringify([...AGENTEN.values()]);
-  if (kennung === agentKennung) return;
-  agentKennung = kennung;
-  const wahl = $("#a-wahl");
-  const vorher = wahl.value || "alle";
-  wahl.replaceChildren(option("alle", "Alle Agenten"), ...[...AGENTEN.values()].map((a) => option(a.id, a.name)));
-  wahl.value = [...wahl.options].some((o) => o.value === vorher) ? vorher : "alle";
-}
-function oeffneAgent(id) {
-  try { sessionStorage.setItem("broki-agent", id); } catch {}
-  gehe("agenten");
-}
-$("#a-oeffnen-formular").addEventListener("submit", (e) => {
-  e.preventDefault();
-  oeffneAgent($("#a-wahl").value);
-});
-
-const zeigeAgentFelder = (an) => {
-  $("#a-felder").hidden = !an;
-  $("#a-neu").hidden = an;
-  if (an) $("#a-name").focus();
-};
-const zaehle = () => ($("#a-zaehler").textContent = $("#a-wissen").value.length ? `${$("#a-wissen").value.length.toLocaleString("de-DE")} Zeichen` : "leer");
-$("#a-wissen").addEventListener("input", zaehle);
-$("#a-neu").addEventListener("click", () => zeigeAgentFelder(true));
-$("#a-abbrechen").addEventListener("click", () => zeigeAgentFelder(false));
-$("#a-laden").addEventListener("click", () => $("#a-datei").click());
-$("#a-datei").addEventListener("change", async () => {
-  const texte = await Promise.all([...$("#a-datei").files].map((f) => f.text()));
-  const neu = [$("#a-wissen").value.trim(), ...texte.map((t) => t.trim())].filter(Boolean).join("\n\n");
-  if (neu.length > 300000) return void melde("Die Wissensdatei ist zu groß (höchstens 300.000 Zeichen).");
-  $("#a-wissen").value = neu;
-  $("#a-datei").value = "";
-  zaehle();
-});
-$("#a-formular").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  try {
-    const farben = ["#0069b4", "#004080", "#31435e"];
-    const { id } = await sende("/api/agenten", { name: $("#a-name").value, beschreibung: $("#a-prompt").value, wissen: $("#a-wissen").value, figur: $("#a-symbol").value, farbe: farben[AGENTEN.size % farben.length] });
-    $("#a-formular").reset();
-    zaehle();
-    zeigeAgentFelder(false);
-    oeffneAgent(id);
-  } catch (fehler) {
-    melde(fehler.message);
-  }
-});
-
-beschrifte("#m-neu", "plus", "Neues Meeting anlegen");
-beschrifte("#m-anlegen", "plus", "Anlegen und öffnen");
+beschrifte("#m-neu", "plus", "Neues Meeting einrichten");
+beschrifte("#m-anlegen", "plus", "Einrichten und öffnen");
 beschrifte("#m-abbrechen", "x", "Abbrechen");
-beschrifte("#a-neu", "plus", "Neuen Agenten anlegen");
-beschrifte("#a-anlegen", "plus", "Anlegen und öffnen");
-beschrifte("#a-abbrechen", "x", "Abbrechen");
-beschrifte("#a-laden", "plus", "Datei laden (.md)");
-beschrifte("#a-oeffnen", "pfeil", "Agent öffnen");
 
-/** Richtet das erste Auswahlfeld links an der Oberkante des ersten Kastens im Hauptfenster aus. */
-function richteAus() {
-  const wahl = $("#wahl");
-  wahl.style.marginTop = "";
-  const ziel = [...document.querySelectorAll("#b-start, #b-meeting, #b-agenten")].find((e) => !e.hidden);
-  if (!ziel || matchMedia("(max-width: 900px)").matches) return;
-  const versatz = ziel.getBoundingClientRect().top - wahl.getBoundingClientRect().top;
-  if (versatz > 0) wahl.style.marginTop = `${versatz}px`;
-}
-addEventListener("resize", richteAus);
-document.fonts?.ready.then(richteAus);
-
-zeigeBereich();
 verbinde((daten) => {
   stand = daten;
-  ladeMeetings();
-  ladeAgenten();
-  zeigeMeetingKnopf();
+  if (modus === "meeting") ladeMeetings();
 });

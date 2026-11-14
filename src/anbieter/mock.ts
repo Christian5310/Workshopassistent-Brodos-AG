@@ -1,6 +1,6 @@
 import { MOCK_FRAGEN, MOCK_SKRIPT } from "../mock/skript.ts";
 import { store } from "../store.ts";
-import { einstellungen } from "../einstellungen.ts";
+import { agentenFuer, einstellungen } from "../einstellungen.ts";
 import type { Protokoll } from "../types.ts";
 import type { ChatKontext, Sprachmodell, TranskriptQuelle } from "./schnittstellen.ts";
 
@@ -96,7 +96,7 @@ export class MockSprachmodell implements Sprachmodell {
       `[Mock] Im Protokoll stehen ${offen.length} offene To-dos, davon ${ohneOwner} ohne Owner. Ohne Verantwortliche bleibt jede Übergabe ein Risiko.`,
       `[Mock] ${fragen} offene Frage(n) im Protokoll. Klärt die zuerst, die den Pilot blockieren würde, und legt den Rest auf einen Termin.`,
     ];
-    const gefragt = einstellungen.agenten.filter((a) => an === "alle" || a.id === an);
+    const gefragt = agentenFuer(store.daten.agenten).filter((a) => an === "alle" || a.id === an);
     return gefragt.map((a) => {
       const i = einstellungen.agenten.indexOf(a) % bausteine.length;
       return { von: a.id, text: an === "alle" ? bausteine[i]! : `${bausteine[i]} Aus meiner Rolle (${a.name}) heraus: Legt heute fest, woran ihr den Erfolg messt.` };

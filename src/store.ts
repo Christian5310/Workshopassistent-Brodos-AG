@@ -20,6 +20,8 @@ export interface Tag {
   geschlossenAm?: number;
   /** Nachweis: wann das Einverständnis der Teilnehmenden bestätigt und die Aufnahme gestartet wurde */
   einwilligungen?: { bestaetigtUm: string; aufnahmeStart: number; wortlaut: string }[];
+  /** IDs der Spezial-Agenten, die an diesem Meeting teilnehmen. Fehlt die Angabe, nehmen alle teil. */
+  agenten?: string[];
   /** Hintergrundwissen zu diesem Meeting (Kontext für die Spezial-Agenten) */
   briefing: string;
   /** Fachbegriffe und Namen, die die Transkription richtig schreiben soll (mit Komma getrennt) */
@@ -197,6 +199,14 @@ class Store {
     agendaAnwenden(tag.protokoll, e.agenda);
     schreibe(tag);
     return tag;
+  }
+
+  /** Speichert die Agenten-Auswahl eines Meetings, das gerade nicht geöffnet ist. */
+  setzeAgenten(id: string, agenten: string[]): void {
+    const tag = this.hole(id);
+    if (!tag) return;
+    tag.agenten = agenten;
+    schreibe(tag);
   }
 
   /** Öffnet ein Meeting im Assistenten. Ein abgeschlossenes wird dabei wieder geöffnet. */

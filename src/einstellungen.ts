@@ -172,6 +172,9 @@ export function speichere(neu: Einstellungen): void {
 
 export const agent = (id: string) => einstellungen.agenten.find((a) => a.id === id);
 
+/** Die Agenten, die an einem Meeting teilnehmen (ohne Auswahl: alle). */
+export const agentenFuer = (ids?: string[]) => (ids ? einstellungen.agenten.filter((a) => ids.includes(a.id)) : einstellungen.agenten);
+
 /** Legt einen Agenten an; die ID entsteht aus dem Namen und bleibt danach fest. */
 export function agentAnlegen(eingabe: z.infer<typeof AgentEingabeSchema>): Agent {
   const kurz = eingabe.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "agent";
@@ -186,7 +189,7 @@ export function agentAnlegen(eingabe: z.infer<typeof AgentEingabeSchema>): Agent
  * Setzt die Platzhalter im Prompt der Spezial-Agenten ein. Diesen Text bekommt das Sprachmodell.
  * Wissensdateien werden nur für die gefragten Agenten angehängt – das hält den Prompt klein und die Antwort schnell.
  */
-export function promptAgentenFertig(meeting: { protokoll: Protokoll; briefing: string }, an: Adressat = "alle"): string {
+export function promptAgentenFertig(meeting: { protokoll: Protokoll; briefing: string; agenten?: string[] }, an: Adressat = "alle"): string {
   const e = einstellungen;
   const zeile = (a: Agent) =>
     `- ${a.name}: ${a.beschreibung}` + ((an === "alle" || an === a.id) && a.wissen.trim() ? `\n\n<wissen agent="${a.name}">\n${a.wissen.trim()}\n</wissen>\n` : "");
@@ -194,7 +197,7 @@ export function promptAgentenFertig(meeting: { protokoll: Protokoll; briefing: s
     "[BRODOS-BRIEFING]": meeting.briefing.trim() || "(kein Hintergrundwissen hinterlegt)",
     "[AGENDA]": meeting.protokoll.agenda.map((a, i) => `${i + 1}. ${a.titel}${a.status === "läuft" ? " (läuft gerade)" : ""}`).join("\n"),
     "[STAND]": JSON.stringify(meeting.protokoll),
-    "[AGENTEN]": e.agenten.map(zeile).join("\n"),
+    "[AGENTEN]": agentenFuer(meeting.agenten).map(zeile).join("\n"),
   };
   return Object.entries(ersetzungen).reduce((text, [platzhalter, wert]) => text.replaceAll(platzhalter, wert), e.promptAgenten);
 }

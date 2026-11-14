@@ -63,7 +63,12 @@ export interface Schnappschuss {
   tag: { id: string; name: string; datum: string } | null;
   protokoll: Protokoll;
   /** Anzeigenamen der Spezial-Agenten (in der Admin-Ansicht einstellbar) */
+  /** Die Agenten, die am geöffneten Meeting teilnehmen */
   agenten: { id: string; name: string; figur: string; farbe: string }[];
+  /** Alle im Admin angelegten Agenten (zum Hinzufügen) */
+  agentenAlle: { id: string; name: string; figur: string; farbe: string }[];
+  /** Der Workshop, zu dem das geöffnete Meeting gehört – oder null bei einem normalen Meeting */
+  workshop: { id: string; name: string } | null;
   chat: ChatNachricht[];
   status: {
     aufnahme: boolean;

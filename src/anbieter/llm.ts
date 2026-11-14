@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { config } from "../config.ts";
-import { einstellungen, promptAgentenFertig } from "../einstellungen.ts";
+import { agentenFuer, einstellungen, promptAgentenFertig } from "../einstellungen.ts";
 import { store } from "../store.ts";
 import type { Protokoll } from "../types.ts";
 import type { ChatKontext, Sprachmodell } from "./schnittstellen.ts";
@@ -20,7 +20,7 @@ const FORMAT_STAND = `Format von STAND (genau diese Felder, IDs bestehender Eint
 /** Anleitung für Sprachbefehle. Greift nur, wenn im Abschnitt das Aktivierungswort fällt (der Server prüft das zusätzlich). */
 function sprachbefehle(): string {
   const wort = einstellungen.aktivierungswort;
-  const agenten = einstellungen.agenten.map((a) => `"${a.id}" (${a.name})`).join(", ");
+  const agenten = agentenFuer(store.daten.agenten).map((a) => `"${a.id}" (${a.name})`).join(", ");
   return `Zusätzlich zu den Feldern von STAND gibst du zwei weitere Felder zurück. Fülle sie NUR, wenn im ABSCHNITT jemand ausdrücklich "${wort}" anspricht; sonst "befehle": [] und "frage": null.
 - "befehle": Änderungen an bestehenden Einträgen, die "${wort}" ausdrücklich aufgetragen werden.
   Löschen ("${wort}, lösche das To-do …"): {"aktion": "loeschen", "id": "T3"}
@@ -66,7 +66,7 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
   }
 
   async expertenrunde({ frage, an, verlauf }: ChatKontext): Promise<{ von: string; text: string }[]> {
-    const gefragt = einstellungen.agenten.filter((a) => an === "alle" || a.id === an);
+    const gefragt = agentenFuer(store.daten.agenten).filter((a) => an === "alle" || a.id === an);
     const name = (id: string) => einstellungen.agenten.find((a) => a.id === id)?.name ?? "Agent";
     const letzteMinuten = store.daten.transkript.slice(-5).map((t) => t.text).join("\n");
     const format =

@@ -8,18 +8,21 @@ const $ = (id) => document.querySelector(id);
 // Zutritt nur mit bestätigtem Einverständnis der Teilnehmenden (Bildschirm nach dem Eintreten). Gilt je Browser-Tab.
 const einwilligung = (() => { try { return sessionStorage.getItem("broki-einwilligung"); } catch { return null; } })();
 if (!einwilligung) location.replace("/einwilligung");
-const BEREICHE = { uebersicht: "/uebersicht", workshops: "/workshops", assistent: "/screen1", agenten: "/screen2", archiv: "/archiv", admin: "/admin", regie: "/regie" };
+// Bereiche im Fenster. "assistent" und "agenten" gehören zum Abhalten eines Meetings oder Workshops
+// und haben keinen eigenen Punkt in der Navigation oben.
+const BEREICHE = { start: "/uebersicht", meeting: "/uebersicht?b=meeting", workshop: "/workshops", assistent: "/screen1", agenten: "/screen2", archiv: "/archiv", admin: "/admin", regie: "/regie" };
+const TITEL = { start: "Start", meeting: "Meeting", workshop: "Workshop", assistent: "Meeting Assistent", agenten: "Agenten", archiv: "Archiv", admin: "Admin", regie: "Regie" };
+const ALT = { uebersicht: "start", workshops: "workshop" }; // frühere Namen
+let gehoertZuWorkshop = false;
 
-// ── Navigation: Der Bereich steht in der Adresse hinter dem #, der Inhalt lädt im Fenster darunter ──
 function zeigeBereich() {
-  if (location.hash === "#start") {
-    // Frisch eingetreten: zur Übersicht, dort ohne Vorauswahl beginnen.
-    try { sessionStorage.removeItem("broki-uebersicht"); } catch {}
-    return void location.replace("#uebersicht");
-  }
-  const bereich = location.hash.slice(1) in BEREICHE ? location.hash.slice(1) : "uebersicht";
+  let bereich = location.hash.slice(1);
+  if (bereich in ALT) return void location.replace(`#${ALT[bereich]}`);
+  if (!(bereich in BEREICHE)) bereich = "start";
+  // Assistent und Agenten zählen zu dem, was gerade abgehalten wird: Meeting oder Workshop.
+  const navPunkt = bereich === "assistent" || bereich === "agenten" ? (gehoertZuWorkshop ? "workshop" : "meeting") : bereich;
   for (const a of document.querySelectorAll(".app-kopf nav a")) {
-    if (a.getAttribute("href") === `#${bereich}`) a.setAttribute("aria-current", "page");
+    if (a.dataset.nav === navPunkt) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   }
   const rahmen = $("#inhalt");
@@ -27,7 +30,7 @@ function zeigeBereich() {
     rahmen.dataset.bereich = bereich;
     rahmen.src = BEREICHE[bereich];
   }
-  document.title = `${document.querySelector('.app-kopf nav a[aria-current="page"]').textContent} · BroKI`;
+  document.title = `${TITEL[bereich]} · BroKI`;
 }
 window.addEventListener("hashchange", zeigeBereich);
 zeigeBereich();
@@ -83,6 +86,7 @@ window.merlin = {
 
 verbinde((stand) => {
   status = stand.status;
+  if (gehoertZuWorkshop !== (stand.workshop !== null)) { gehoertZuWorkshop = stand.workshop !== null; zeigeBereich(); }
   quelle = status.quelle;
   $("#mock").hidden = !status.mock;
 

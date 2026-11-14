@@ -79,6 +79,39 @@ export function gehe(bereich) {
   else location.href = `/app#${bereich}`;
 }
 
+/**
+ * Linke Leiste zum Abhalten: zwischen Meeting Assistent und Agenten wechseln, ohne dass die Aufnahme stoppt.
+ * Gehört das Meeting zu einem Workshop, stehen darüber "Einrichten" und "Material".
+ */
+export function zeigeAbhalten(ziel, aktiv, stand) {
+  const feld = (text, iconName, istAktiv, beiKlick, zusatz = "") => {
+    const k = el("button", `select-item${istAktiv ? " is-active" : ""}`);
+    k.type = "button";
+    if (istAktiv) k.setAttribute("aria-current", "page");
+    const t = el("span");
+    t.append(text);
+    if (zusatz) t.append(el("span", "zusatz", zusatz));
+    k.append(icon(iconName), t);
+    k.addEventListener("click", beiKlick);
+    return k;
+  };
+  const teile = [];
+  if (stand.workshop) {
+    const zumWorkshop = (bereich) => () => {
+      try { sessionStorage.setItem("broki-ws", stand.workshop.id); sessionStorage.setItem("broki-ws-bereich", bereich); } catch {}
+      gehe("workshop");
+    };
+    teile.push(el("h2", "", "Auswahl"), feld("Einrichten", "kalender", false, zumWorkshop("ueberblick")), feld("Material", "text", false, zumWorkshop("material")));
+  }
+  const n = stand.agenten.length;
+  teile.push(
+    el("h2", "", "Abhalten"),
+    feld("Meeting Assistent", "mic", aktiv === "assistent", () => gehe("assistent")),
+    feld("Agenten", "users", aktiv === "agenten", () => gehe("agenten"), n ? `${n} dabei` : "noch keiner hinzugefügt"),
+  );
+  ziel.replaceChildren(...teile);
+}
+
 /** Die Aufnahme-Steuerung des Rahmens (starten, pausieren). */
 export const merlin = () => rahmen?.merlin;
 

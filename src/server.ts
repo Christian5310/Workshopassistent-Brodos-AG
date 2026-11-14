@@ -34,6 +34,13 @@ function merkeSchritt(was: string): void {
   if (schritte.length > 30) schritte.shift();
 }
 
+/** Zu welchem Workshop ein Meeting gehört (kleiner Zwischenspeicher, wird bei Änderungen an Workshops geleert). */
+let workshopIndex: Map<string, { id: string; name: string }> | null = null;
+function workshopVon(meetingId: string): { id: string; name: string } | null {
+  workshopIndex ??= new Map(workshops.liste().map((w) => [w.meetingId, { id: w.id, name: w.name }]));
+  return workshopIndex.get(meetingId) ?? null;
+}
+
 // ── Live-Updates per Server-Sent Events ──────────────────────────────────────
 const zuhoerer = new Set<Response>();
 
@@ -41,7 +48,9 @@ function schnappschuss(): Schnappschuss {
   return {
     tag: store.istOffen ? { id: store.daten.id, name: store.daten.name, datum: store.daten.datum } : null,
     protokoll: store.daten.protokoll,
-    agenten: admin.einstellungen.agenten.map(({ id, name, figur, farbe }) => ({ id, name, figur, farbe })),
+    agenten: admin.agentenFuer(store.istOffen ? store.daten.agenten : undefined).map(({ id, name, figur, farbe }) => ({ id, name, figur, farbe })),
+    agentenAlle: admin.einstellungen.agenten.map(({ id, name, figur, farbe }) => ({ id, name, figur, farbe })),
+    workshop: store.istOffen ? workshopVon(store.daten.id) : null,
     chat: store.daten.chat,
     status: { aufnahme, quelle, letzterZyklus: store.daten.letzterZyklus, zyklusSekunden: takt(), mock: config.mock, chat: chatStatus, hinweis, arbeit, rueckgaengig: schritte.at(-1)?.was ?? null },
   };
@@ -249,7 +258,7 @@ app.get("/api/regie/diagnose", (_req, res) => {
  * Langer Text wird an Satzgrenzen in Abschnitte von rund 900 Zeichen geteilt – so groß wie eine Minute Gespräch.
  */
 app.post("/api/regie/text", (req, res) => {
-  if (!store.istOffen) return void res.status(409).json({ fehler: "Bitte erst in der Übersicht ein Meeting anlegen oder öffnen." });
+  if (!store.istOffen) return void res.status(409).json({ fehler: "Bitte erst unter Meeting oder Workshop eines einrichten oder öffnen." });
   const text = String(req.body?.text ?? "").replace(/\s+/g, " ").trim();
   if (!text) return void res.status(400).json({ fehler: "Bitte Text eingeben." });
   const abschnitte: string[] = [];
@@ -272,7 +281,8 @@ app.get("/api/transcript", (_req, res) => {
 /** Stellt eine Frage an die Spezial-Agenten und legt Frage und Antworten im Chat ab. */
 async function stelleFrage(holeFrage: () => Promise<string | null>, an: Adressat): Promise<{ ok: true } | { ok: false; code: number; fehler: string }> {
   if (!store.istOffen) return { ok: false, code: 409, fehler: "Bitte erst in der Übersicht ein Meeting anlegen oder öffnen." };
-  if (an !== "alle" && !admin.agent(an)) return { ok: false, code: 400, fehler: "Unbekannter Adressat." };
+  if (an !== "alle" && !admin.agentenFuer(store.daten.agenten).some((a) => a.id === an)) return { ok: false, code: 400, fehler: "Dieser Agent nimmt an diesem Meeting nicht teil." };
+  if (!admin.agentenFuer(store.daten.agenten).length) return { ok: false, code: 400, fehler: "Für dieses Meeting ist noch kein Agent hinzugefügt." };
   if (chatStatus !== "bereit") return { ok: false, code: 409, fehler: "Die Spezial-Agenten denken noch nach." };
 
   chatStatus = "denkt nach";
@@ -522,7 +532,7 @@ const holeTag = (id: string, res: Response) => {
 };
 
 app.get("/api/tage", (_req, res) => {
-  res.json(store.liste().map((t) => archiv.kurzinfo(t, store.istOffen ? store.daten.id : "")));
+  res.json(store.liste().map((t) => archiv.kurzinfo(t, store.istOffen ? store.daten.id : "", workshopVon(t.id)?.id ?? null)));
 });
 
 app.post("/api/tage", (req, res) => {
@@ -564,6 +574,19 @@ app.post("/api/meeting/schliessen", async (_req, res) => {
   arbeit = null;
   senden();
   res.json({ ok: true, id: tag?.id });
+});
+
+/** Legt fest, welche Agenten an einem Meeting teilnehmen. Body: { agenten: string[] } */
+app.put("/api/tage/:id/agenten", (req, res) => {
+  const tag = holeTag(req.params.id, res);
+  if (!tag) return;
+  const e = z.object({ agenten: z.array(z.string()).max(12) }).safeParse(req.body);
+  if (!e.success) return void res.status(400).json({ fehler: "Ungültige Auswahl." });
+  tag.agenten = e.data.agenten.filter((id) => admin.agent(id));
+  if (store.istOffen && store.daten.id === tag.id) store.speichern();
+  else store.aendere(tag.id, { name: tag.name, datum: tag.datum, agenda: tag.protokoll.agenda.map((a) => a.titel) }), store.setzeAgenten(tag.id, tag.agenten);
+  senden();
+  res.json({ ok: true });
 });
 
 app.get("/api/tage/:id", (req, res) => {
@@ -625,6 +648,7 @@ app.post("/api/workshops", (req, res) => {
   if (!e.success) return void res.status(400).json({ fehler: "Bitte Name, Datum, Agenda und Teilnehmer prüfen." });
   const meeting = store.erstelle({ name: e.data.name, datum: e.data.datum, agenda: e.data.agenda });
   const w = workshops.erstelle(e.data.name, e.data.datum, meeting.id, e.data.teilnehmer);
+  workshopIndex = null;
   res.json({ ok: true, id: w.id });
 });
 
@@ -640,6 +664,7 @@ app.put("/api/workshops/:id", (req, res) => {
   const w = workshops.aendere(req.params.id, (x) => Object.assign(x, { name: e.data.name, datum: e.data.datum, teilnehmer: e.data.teilnehmer }));
   if (!w) return void res.status(404).json({ fehler: "Workshop nicht gefunden." });
   store.aendere(w.meetingId, { name: e.data.name, datum: e.data.datum, agenda: e.data.agenda });
+  workshopIndex = null;
   senden();
   res.json({ ok: true });
 });
@@ -647,6 +672,8 @@ app.put("/api/workshops/:id", (req, res) => {
 /** Löscht den Workshop mit seinem Material. Das Meeting bleibt im Archiv und wird dort gelöscht. */
 app.delete("/api/workshops/:id", (req, res) => {
   if (!workshops.loesche(req.params.id)) return void res.status(404).json({ fehler: "Workshop nicht gefunden." });
+  workshopIndex = null;
+  senden();
   res.json({ ok: true });
 });
 

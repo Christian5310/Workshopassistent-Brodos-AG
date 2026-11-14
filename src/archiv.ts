@@ -100,8 +100,10 @@ export function fuerBroki(tag: Tag, prompt: string): string {
 }
 
 /** Kurzinfo für Listen (Auswahl, Admin, Archiv). */
-export function kurzinfo(tag: Tag, aktivId: string) {
+export function kurzinfo(tag: Tag, aktivId: string, workshopId: string | null = null) {
   return {
+    /** Gehört das Meeting zu einem Workshop, wird es dort geöffnet, nicht in der Meeting-Auswahl. */
+    workshop: workshopId,
     id: tag.id,
     name: tag.name,
     datum: tag.datum,

@@ -1,4 +1,4 @@
-import { AGENTEN, el, gehe, icon, imRahmen, sende, verbinde, zeigeChat } from "./common.js";
+import { AGENTEN, el, icon, imRahmen, sende, verbinde, zeigeAbhalten, zeigeChat } from "./common.js";
 
 imRahmen("agenten");
 
@@ -6,49 +6,71 @@ const chat = document.querySelector("#chat");
 const statusZeile = document.querySelector("#chatstatus");
 const formular = document.querySelector("#formular");
 const text = document.querySelector("#text");
-// Auswahlfeld links: "Alle Agenten", die bestehenden Agenten und der Weg zur Neuanlage (Übersicht)
-const NEU = "__neu__";
+// "Frage an": Alle teilnehmenden Agenten oder einer davon
 const an = { value: "alle" };
 const wahl = document.querySelector("#agentwahl");
 let wahlStand = "";
-/** In der Übersicht gewählter Agent: wird einmalig übernommen. */
-let gewuenscht = null;
-try { gewuenscht = sessionStorage.getItem("broki-agent"); sessionStorage.removeItem("broki-agent"); } catch {}
-
 function zeigeWahl() {
   const stand = JSON.stringify([...AGENTEN.values()]);
   if (stand === wahlStand) return;
   wahlStand = stand;
-  const vorher = gewuenscht ?? wahl.value ?? an.value;
+  const vorher = wahl.value || an.value;
   const option = (wert, text) => { const o = el("option", "", text); o.value = wert; return o; };
-  wahl.replaceChildren(option("alle", "Alle Agenten"), ...[...AGENTEN.values()].map((a) => option(a.id, a.name)), option(NEU, "Neuen Agenten anlegen …"));
-  wahl.value = [...wahl.options].some((o) => o.value === vorher) && vorher !== NEU ? vorher : "alle";
-  if (wahl.value === gewuenscht || AGENTEN.size) gewuenscht = null;
+  wahl.replaceChildren(option("alle", "An alle"), ...[...AGENTEN.values()].map((a) => option(a.id, a.name)));
+  wahl.value = [...wahl.options].some((o) => o.value === vorher) ? vorher : "alle";
   an.value = wahl.value;
 }
-wahl.addEventListener("change", () => {
-  if (wahl.value === NEU) {
-    try { sessionStorage.setItem("broki-uebersicht", "agenten"); } catch {}
-    return void gehe("uebersicht");
-  }
-  an.value = wahl.value;
-});
+wahl.addEventListener("change", () => (an.value = wahl.value));
+
+// Agenten hinzufügen: Haken setzen = der Agent nimmt an diesem Meeting bzw. Workshop teil
+let listeStand = "";
+function zeigeAgentenliste(daten) {
+  const kennung = JSON.stringify([daten.agentenAlle, daten.agenten.map((a) => a.id), daten.tag?.id]);
+  if (kennung === listeStand) return;
+  listeStand = kennung;
+  const dabei = new Set(daten.agenten.map((a) => a.id));
+  document.querySelector("#agentenliste").replaceChildren(
+    ...daten.agentenAlle.map((a) => {
+      const zeile = el("label", `select-item agentenwahl${dabei.has(a.id) ? " ist-dabei" : ""}`);
+      const haken = el("input");
+      haken.type = "checkbox";
+      haken.checked = dabei.has(a.id);
+      haken.disabled = !daten.tag;
+      haken.addEventListener("change", async () => {
+        const neu = daten.agentenAlle.map((x) => x.id).filter((id) => (id === a.id ? haken.checked : dabei.has(id)));
+        try {
+          await sende(`/api/tage/${daten.tag.id}/agenten`, { agenten: neu }, "PUT");
+        } catch (fehler) {
+          zeigeChatStatus(fehler.message);
+        }
+      });
+      zeile.append(haken, icon(a.figur), el("span", "", a.name));
+      return zeile;
+    }),
+  );
+}
 
 let hoertZu = false;
 let denkt = false;
 
 function zeigeChatStatus(fehler = "") {
   if (ohneMeeting && !fehler) return;
-  statusZeile.textContent = fehler || (hoertZu ? "hört zu …" : denkt ? "denkt nach …" : "Antworten nur auf Frage, per Sprache oder Text.");
+  statusZeile.textContent = fehler || (hoertZu ? "hört zu …" : denkt ? "denkt nach …" : AGENTEN.size ? "Antworten nur auf Frage, per Sprache oder Text." : "Noch kein Agent dabei. Hake links mindestens einen an.");
   ptt.classList.toggle("hoert", hoertZu);
   formular.querySelector("button[type=submit]").disabled = denkt;
 }
 
 let ohneMeeting = false;
-verbinde(({ chat: nachrichten, status, tag }) => {
+verbinde((daten) => {
+  const { chat: nachrichten, status, tag } = daten;
+  document.querySelector("#kontext-titel").textContent = daten.workshop ? "Workshop" : "Meeting";
+  document.querySelector("#meeting-name").textContent = tag ? tag.name : "Noch kein Meeting geöffnet";
+  zeigeAgentenliste(daten);
+  document.querySelector("#abhalten").hidden = !tag;
+  if (tag) zeigeAbhalten(document.querySelector("#abhalten"), "agenten", daten);
   ohneMeeting = tag === null;
   document.querySelector("#formular").hidden = ohneMeeting;
-  if (ohneMeeting) statusZeile.textContent = "Kein Meeting geöffnet. Bitte in der Übersicht ein Meeting anlegen oder öffnen.";
+  if (ohneMeeting) statusZeile.textContent = "Kein Meeting geöffnet. Bitte oben unter Meeting oder Workshop eines einrichten oder öffnen.";
   zeigeWahl();
   denkt = status.chat === "denkt nach";
   quelle = status.quelle;

@@ -1,4 +1,4 @@
-import { el, gehe, icon, imRahmen, knopf, merlin, sende, verbinde } from "./common.js";
+import { el, gehe, icon, imRahmen, knopf, merlin, sende, verbinde, zeigeAbhalten } from "./common.js";
 
 imRahmen("assistent");
 const $ = (id) => document.querySelector(id);
@@ -46,14 +46,10 @@ function fuelle(id, eintraege, leerText) {
   liste.querySelector(".neu")?.scrollIntoView({ block: "nearest" });
 }
 
-// ── Meeting wählen und wechseln läuft über die Übersicht ──
+// ── Meeting wählen und wechseln läuft über "Meeting" bzw. "Workshop" in der Navigation ──
 let abschlussInfo = null;
-const zurUebersicht = () => {
-  try { sessionStorage.setItem("broki-uebersicht", "meeting"); } catch {}
-  gehe("uebersicht");
-};
-$("#wechseln").addEventListener("click", zurUebersicht);
-$("#verwalten").addEventListener("click", () => gehe("admin"));
+const zurAuswahl = () => gehe(letzterStand?.workshop ? "workshop" : letzterStand?.tag ? "meeting" : "start");
+$("#wechseln").addEventListener("click", zurAuswahl);
 
 // ── Aufnahme: Starten und Pausieren laufen über den Rahmen, der das Mikrofon hält ──
 $("#start").addEventListener("click", versuche(() => merlin().starten()));
@@ -231,7 +227,11 @@ function zeige(daten) {
   an = status.aufnahme;
   letzterZyklus = status.letzterZyklus;
   $("#meeting-name").textContent = tag ? `${tag.name} · ${new Date(`${tag.datum}T12:00:00`).toLocaleDateString("de-DE")}` : "Noch kein Meeting geöffnet";
+  $("#kontext-titel").textContent = daten.workshop ? "Workshop" : "Meeting";
+  $("#wechseln").textContent = daten.workshop ? "Workshop wechseln" : "Meeting wechseln";
   $("#wechseln").hidden = tag === null;
+  $("#abhalten").hidden = tag === null;
+  if (tag) zeigeAbhalten($("#abhalten"), "assistent", daten);
   $("#wechseln").disabled = an;
   $("#wechseln").title = an ? "Zum Wechseln erst pausieren." : "";
 
@@ -242,8 +242,8 @@ function zeige(daten) {
   if (!offen) {
     const kreis = el("span", "kreis");
     kreis.append(icon(abschlussInfo ? "archive" : "kalender"));
-    const weiter = knopf("Meeting anlegen oder öffnen", "pfeil");
-    weiter.addEventListener("click", zurUebersicht);
+    const weiter = knopf("Meeting oder Workshop wählen", "pfeil");
+    weiter.addEventListener("click", () => gehe("start"));
     leer.replaceChildren(kreis, el("p", "", abschlussInfo ? `„${abschlussInfo.name}" ist abgeschlossen und liegt im Archiv.` : "Kein Meeting geöffnet."), weiter);
     if (abschlussInfo) {
       const archiv = knopf("Zum Archiv", "archive", "zweit");

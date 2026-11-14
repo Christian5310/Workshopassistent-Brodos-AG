@@ -28,18 +28,17 @@ Dann im Browser `http://localhost:3000` öffnen:
 |---|---|
 | `/` | Einstiegsseite mit „Eintreten" (noch ohne Login) |
 | `/einwilligung` | Zweiter Bildschirm: Hinweise zur Verarbeitung zum Aufklappen, Bestätigung des Einverständnisses, „Weiter" |
-| `/app` | App-Rahmen mit der Navigation Übersicht · Workshops · Assistent · Agenten · Archiv · Admin · Regie |
+| `/app` | App-Rahmen mit der Navigation Meeting · Workshop · Archiv · Admin · Regie |
 
-Der Rahmen bleibt beim Wechsel der Bereiche stehen und hält das Mikrofon. Die Aufnahme läuft deshalb weiter, wenn du vom Assistenten ins Archiv oder in den Admin wechselst. Die Kopfzeile zeigt in jedem Bereich, ob aufgenommen wird.
+Nach dem Eintreten wählt man, was man abhält: ein **Meeting** (tägliche Arbeit) oder einen **Workshop** (größerer Rahmen mit Teilnehmern und Material). Der Rahmen bleibt beim Wechsel der Bereiche stehen und hält das Mikrofon; die Aufnahme läuft deshalb weiter, auch beim Umschalten zwischen Meeting Assistent und Agenten.
 
 | Bereich | Inhalt |
 |---|---|
-| Übersicht | Einstieg nach dem Eintreten: links „KI Transkriptionsassistent" oder „KI Wissensagenten" wählen, dann neu anlegen oder Bestehendes öffnen |
-| Workshops | Der größere Rahmen: Teilnehmer, eingereichtes Material (Markdown), Verdichtung zu Wissen für die Agenten, Durchführung mit Assistent und Agenten in einem Fenster |
-| Assistent | Aufnahme starten/pausieren, Meeting schließen; Agenda, To-dos, Vorschläge, Entscheidungen, offene Fragen |
-| Agenten | Spezial-Agenten fragen, per Text oder Push-to-Talk (Leertaste halten) |
+| Meeting | Neues Meeting einrichten oder bestehendes öffnen |
+| Workshop | Neuen Workshop einrichten oder bestehenden öffnen; Einrichten (Rahmen, Teilnehmer), Material, Verdichtung zu Wissen |
+| Abhalten (linke Leiste) | Meeting Assistent (Aufnahme, Agenda, To-dos) und Agenten (hinzufügen, fragen); im Workshop zusätzlich Einrichten und Material |
 | Archiv | Alle Meetings mit To-do-Liste, Entscheidungen, Fragen und Transkript, je mit Download |
-| Admin | Meetings, Spezial-Agenten, unter „Erweitert" Prompts, Takt und Aktivierungswort |
+| Admin | Meetings, Spezial-Agenten (nur hier angelegt und gepflegt), unter „Erweitert" Prompts, Takt und Aktivierungswort |
 | Regie | Diagnose, Text einspeisen, Inhalte löschen |
 
 Der Knopf mit dem Vollbild-Symbol schaltet den Präsentationsmodus: Das Fenster füllt den Bildschirm, die Schrift wächst für den Beamer.

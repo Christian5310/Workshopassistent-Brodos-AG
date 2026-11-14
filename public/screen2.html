@@ -3,19 +3,23 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Agenten · BroKI</title></head>
 <body class="ansicht">
   <aside class="seitenleiste">
-    <h2><label for="agentwahl">Agent</label></h2>
-    <select id="agentwahl"></select>
-    <p class="hilfe">Wähle, wer antwortet. Neue Agenten legst du in der Übersicht an, Prompt und Wissen pflegst du im Admin.</p>
+    <h2 id="kontext-titel">Meeting</h2>
+    <p id="meeting-name" class="meeting-name">Noch kein Meeting geöffnet</p>
+    <h2>Agenten hinzufügen</h2>
+    <p class="hilfe" id="agenten-hilfe">Wer hier angehakt ist, nimmt teil und antwortet bei „Frage an alle". Angelegt und gepflegt werden Agenten im Admin.</p>
+    <div id="agentenliste" class="akkordeon"></div>
+    <div id="abhalten" class="akkordeon abhalten"></div>
   </aside>
   <main class="inhalt">
     <div class="seitenkopf">
       <div>
-        <h1>KI Wissensagenten</h1>
+        <h1>Agenten</h1>
         <p id="chatstatus" class="unterzeile" role="status"></p>
       </div>
     </div>
     <div id="chat" class="chat" aria-live="polite"></div>
     <form id="formular" class="eingabe">
+      <select id="agentwahl" aria-label="An wen geht die Frage?"></select>
       <input id="text" type="text" placeholder="Frage tippen …" autocomplete="off" aria-label="Frage an die Spezial-Agenten">
       <button type="button" id="ptt" class="zweit" title="Gedrückt halten (oder Leertaste halten), sprechen, loslassen"></button>
       <button type="submit" id="senden"></button>

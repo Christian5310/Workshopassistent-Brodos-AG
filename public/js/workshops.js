@@ -1,7 +1,7 @@
 // Workshops: der größere Rahmen. Aus einem Fenster: Workshop anlegen, Material sammeln, Assistent und Agenten steuern.
-import { el, fuelleAgentenWahl, gehe, icon, imRahmen, knopf, merlin, sende, verbinde, zeigeChat } from "./common.js";
+import { el, gehe, icon, imRahmen, knopf, sende, verbinde } from "./common.js";
 
-imRahmen("workshops");
+imRahmen("workshop");
 const $ = (id) => document.querySelector(id);
 const hole = async (pfad) => (await fetch(pfad)).json();
 const melde = (text) => ($("#meldung").textContent = text);
@@ -22,7 +22,7 @@ const NEU = "__neu__";
 let liste = []; // alle Workshops (Kurzinfo)
 let aktuell = null; // gewählter Workshop oder null (= neuer Workshop)
 let stand = null; // letzter Stand vom Server (geöffnetes Meeting, Aufnahme …)
-const BEREICHE = [["ueberblick", "Überblick", "kalender"], ["material", "Material", "text"], ["durchfuehrung", "Durchführung", "play"]];
+const BEREICHE = [["ueberblick", "Einrichten", "kalender"], ["material", "Material", "text"]];
 let bereich = "ueberblick";
 try { bereich = sessionStorage.getItem("broki-ws-bereich") ?? bereich; } catch {}
 const merke = (schluessel, wert) => { try { sessionStorage.setItem(schluessel, wert); } catch {} };
@@ -34,16 +34,21 @@ async function lade(waehle) {
   if (id === undefined) { try { id = sessionStorage.getItem("broki-ws"); } catch {} }
   aktuell = liste.find((w) => w.id === id) ?? null;
   const wahl = $("#ws-wahl");
-  wahl.replaceChildren(option(NEU, "Neuen Workshop anlegen"), ...liste.map((w) => option(w.id, `${w.name} · ${datum(w.datum)}`)));
+  wahl.replaceChildren(option(NEU, "Neuen Workshop einrichten"), ...liste.map((w) => option(w.id, `${w.name} · ${datum(w.datum)}`)));
   wahl.value = aktuell?.id ?? NEU;
   if (aktuell) merke("broki-ws", aktuell.id);
   zeige();
 }
-$("#ws-wahl").addEventListener("change", () => {
+// Bestehenden Workshop wählen: direkt ins Fenster zum Abhalten. Neu: erst einrichten.
+$("#ws-wahl").addEventListener("change", versuche(async () => {
   const id = $("#ws-wahl").value;
-  if (id === NEU) { try { sessionStorage.removeItem("broki-ws"); } catch {} }
-  lade(id === NEU ? null : id);
-});
+  if (id === NEU) {
+    try { sessionStorage.removeItem("broki-ws"); } catch {}
+    return void (await lade(null));
+  }
+  await lade(id);
+  if (aktuell?.meetingVorhanden && !(stand?.status.aufnahme && stand.tag?.id !== aktuell.meetingId)) await oeffne("assistent");
+}));
 
 function zeige() {
   const neu = aktuell === null;
@@ -62,14 +67,15 @@ function zeige() {
       return k;
     }),
   );
-  $("#titel").textContent = neu ? "Neuer Workshop" : aktuell.name;
+  if (!BEREICHE.some(([id]) => id === bereich)) bereich = "ueberblick";
+  $("#titel").textContent = neu ? "Workshop Assistent" : aktuell.name;
   $("#unterzeile").textContent = neu
-    ? "Ein Workshop bündelt Teilnehmer, Material, den Transkriptionsassistenten und die Wissensagenten in einem Fenster."
+    ? "Richte einen neuen Workshop ein oder wähle links einen bestehenden. Mit dem Workshop entsteht auch sein Meeting Assistent."
     : `${datum(aktuell.datum)} · ${aktuell.teilnehmer.length} Teilnehmer · ${aktuell.material.length} Material-Einträge`;
   for (const [id] of BEREICHE) $(`#b-${id}`).hidden = id !== bereich;
   if (bereich === "ueberblick") zeigeUeberblick();
   if (bereich === "material") zeigeMaterial();
-  zeigeDurchfuehrung();
+  zeigeAbhaltenWs();
 }
 
 // ── Überblick / Neuer Workshop ──
@@ -105,12 +111,12 @@ function zeigeUeberblick() {
       }),
     );
   }
-  $("#form-titel").textContent = neu ? "Workshop anlegen" : "Rahmen und Teilnehmer";
+  $("#form-titel").textContent = neu ? "Neuen Workshop einrichten" : "Rahmen und Teilnehmer";
   $("#ws-name").value = aktuell?.name ?? "";
   $("#ws-datum").value = aktuell?.datum ?? new Date().toLocaleDateString("sv-SE");
   $("#ws-agenda").value = (aktuell?.agenda ?? []).join("\n");
   $("#teilnehmer").replaceChildren(...(aktuell?.teilnehmer ?? []).map(teilnehmerZeile));
-  beschrifte("#ws-speichern", neu ? "plus" : "check", neu ? "Workshop anlegen" : "Speichern");
+  beschrifte("#ws-speichern", neu ? "plus" : "check", neu ? "Workshop einrichten" : "Speichern");
   $("#ws-loeschen").hidden = neu;
 }
 $("#tn-neu").addEventListener("click", () => {
@@ -234,108 +240,27 @@ $("#wissen-speichern").addEventListener("click", versuche(async () => {
   $("#wissen-info").textContent = `Übernommen um ${new Date().toLocaleTimeString("de-DE")}. Die Agenten nutzen es ab der nächsten Frage.`;
 }));
 
-// ── Durchführung: Assistent und Agenten in einem Fenster ──
-function zeigeDurchfuehrung() {
-  const kopf = $("#kopf-aktionen");
-  kopf.replaceChildren();
-  if (bereich !== "durchfuehrung" || !aktuell || !stand) return;
-  const offen = stand.tag?.id === aktuell.meetingId;
-  const an = stand.status.aufnahme;
-  $("#df-inhalt").hidden = !offen;
-  const leer = $("#df-leer");
-  leer.hidden = offen;
-  if (!offen) {
-    const kreis = el("span", "kreis");
-    kreis.append(icon("play"));
-    const text = !aktuell.meetingVorhanden
-      ? "Das Meeting dieses Workshops wurde gelöscht."
-      : an
-        ? "In einem anderen Meeting läuft gerade die Aufnahme. Bitte dort erst pausieren."
-        : aktuell.meetingAbgeschlossen
-          ? "Dieser Workshop ist abgeschlossen. Du kannst ihn wieder öffnen."
-          : "Öffne den Workshop, um Assistent und Agenten zu steuern.";
-    leer.replaceChildren(kreis, el("p", "", text));
-    if (aktuell.meetingVorhanden && !an) {
-      const k = knopf(aktuell.meetingAbgeschlossen ? "Workshop wieder öffnen" : "Workshop öffnen", "pfeil");
-      k.addEventListener("click", versuche(() => sende(`/api/tage/${aktuell.meetingId}/aktivieren`)));
-      leer.append(k);
-    }
-    return;
+// ── Abhalten: Meeting Assistent und Agenten des Workshops öffnen ──
+async function oeffne(ziel) {
+  if (!aktuell.meetingVorhanden) throw new Error("Das Meeting dieses Workshops wurde gelöscht.");
+  if (stand?.tag?.id !== aktuell.meetingId) {
+    if (stand?.status.aufnahme) throw new Error("In einem anderen Meeting läuft gerade die Aufnahme. Bitte dort erst pausieren.");
+    await sende(`/api/tage/${aktuell.meetingId}/aktivieren`);
   }
-  const p = stand.protokoll;
-
-  // Steuerung oben rechts
-  const voll = knopf("Volle Ansicht", "liste", "zweit");
-  voll.title = "Zum Transkriptionsassistenten mit Bearbeiten, Rückgängig und Transkript";
-  voll.addEventListener("click", () => gehe("assistent"));
-  const start = knopf(an ? "Pausieren" : stand.status.letzterZyklus ? "Aufnahme fortsetzen" : "Aufnahme starten", an ? "pause" : "play");
-  start.addEventListener("click", versuche(() => (an ? merlin().pausieren() : merlin().starten())));
-  kopf.append(voll, start);
-  $("#unterzeile").textContent = stand.status.arbeit ?? (an ? "Aufnahme läuft." : "Bereit. Wähle einen Agendapunkt und starte die Aufnahme.");
-
-  $("#df-agenda").replaceChildren(
-    ...p.agenda.map((a) => {
-      const k = el("button", `select-item agenda-item${a.status === "läuft" ? " is-active" : a.status === "erledigt" ? " ist-erledigt" : ""}`);
-      k.type = "button";
-      k.setAttribute("aria-pressed", String(a.status === "läuft"));
-      k.append(icon(a.status === "läuft" ? "laeuft" : a.status === "erledigt" ? "erledigt" : "kreis"), el("span", "", a.titel));
-      k.addEventListener("click", versuche(() => sende(`/api/agenda/${a.id}/aktiv`)));
-      return k;
-    }),
-  );
-
-  const todos = p.todos.filter((t) => !t.gruppe);
-  $("#df-todo-zahl").textContent = `${todos.filter((t) => t.status === "offen").length} offen`;
-  $("#df-todos").replaceChildren(
-    ...(todos.length ? todos : [null]).map((t) => {
-      if (!t) return el("li", "leer", "Noch keine To-dos.");
-      const li = el("li", t.status);
-      const box = el("span", "box");
-      box.append(icon("check"));
-      box.setAttribute("role", "checkbox");
-      box.setAttribute("aria-checked", String(t.status === "erledigt"));
-      box.setAttribute("aria-label", `Erledigt: ${t.text}`);
-      box.tabIndex = 0;
-      const haken = versuche(() => sende(`/api/todos/${t.id}`, { status: t.status === "erledigt" ? "offen" : "erledigt" }, "PATCH"));
-      box.addEventListener("click", haken);
-      box.addEventListener("keydown", (e) => (e.key === " " || e.key === "Enter") && (e.preventDefault(), haken()));
-      const text = el("div", "todo-text");
-      const meta = el("span", "meta");
-      meta.append("Wer: ", el("b", "", t.owner), "  ·  Bis: ", el("b", "", t.frist));
-      text.append(el("span", "text", t.text), meta);
-      li.append(box, text);
-      return li;
-    }),
-  );
-
-  $("#df-vorschlag-karte").hidden = !p.vorschlaege.length;
-  $("#df-vorschlaege").replaceChildren(
-    ...p.vorschlaege.map((v) => {
-      const li = el("li");
-      const rahmen = el("div", "vorschlag");
-      const knoepfe = el("div", "reihe");
-      for (const [aktion, titel, iconName, klasse] of [["annehmen", "Übernehmen", "check", "klein"], ["verwerfen", "Verwerfen", "x", "zweit klein"]]) {
-        const k = knopf(titel, iconName, klasse);
-        k.addEventListener("click", versuche(() => sende(`/api/vorschlag/${v.id}/${aktion}`)));
-        knoepfe.append(k);
-      }
-      rahmen.append(el("div", "text", v.text), knoepfe);
-      li.append(rahmen);
-      return li;
-    }),
-  );
-
-  fuelleAgentenWahl($("#df-an"));
-  zeigeChat($("#df-chat"), stand.chat, stand.status.chat === "denkt nach");
-  $("#df-chatstatus").textContent = stand.status.chat === "denkt nach" ? "denkt nach …" : "antworten nur auf Frage";
-  $("#df-senden").disabled = stand.status.chat === "denkt nach";
+  gehe(ziel);
 }
-$("#df-frage").addEventListener("submit", versuche(async () => {
-  const text = $("#df-text").value.trim();
-  if (!text) return;
-  $("#df-text").value = "";
-  await sende("/api/chat", { text, an: $("#df-an").value });
-}));
+function zeigeAbhaltenWs() {
+  const ziel = $("#ws-abhalten");
+  if (!aktuell) return void ziel.replaceChildren();
+  const feld = (text, iconName, zielBereich) => {
+    const k = el("button", "select-item");
+    k.type = "button";
+    k.append(icon(iconName), el("span", "", text));
+    k.addEventListener("click", versuche(() => oeffne(zielBereich)));
+    return k;
+  };
+  ziel.replaceChildren(el("h2", "", "Abhalten"), feld("Meeting Assistent", "mic", "assistent"), feld("Agenten", "users", "agenten"));
+}
 
 // Dialog zum Ansehen eines Materials
 const dialog = el("dialog");
@@ -361,10 +286,8 @@ beschrifte("#mat-laden", "plus", "Markdown-Dateien laden");
 beschrifte("#mat-speichern", "plus", "Material speichern");
 beschrifte("#verdichten", "regler", "Aus Material verdichten");
 beschrifte("#wissen-speichern", "check", "Als Wissen übernehmen");
-beschrifte("#df-senden", "senden", "Senden");
 
 await lade();
 verbinde((daten) => {
   stand = daten;
-  zeigeDurchfuehrung();
 });
