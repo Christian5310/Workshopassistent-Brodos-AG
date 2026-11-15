@@ -194,7 +194,9 @@ export function regeln(text: string): Befehl | null {
   const einstellung = findeEinstellung(s);
   if (einstellung) return { aktion: "einstellung", ziel: einstellung };
   if (/(lösch|loesch|entfern)/.test(s)) return { aktion: "loeschen" };
-  if (/^(zurück|zurueck|wieder)( zu[mr]?| ins?| in das| in den)?( (aktuelle[nmrs]?|laufende[nmrs]?|offene[nmrs]?|geöffnete[nmrs]?))?( (meeting|workshop|besprechung|assistent(en)?|meeting assistent(en)?))?( zurück)?$/.test(s)) return { aktion: "zurueck" };
+  // "Zurück zum Meeting", "Bring mich zurück ins Meeting", "Ich will wieder ins Meeting", "Zurück zum laufenden Workshop"
+  if (/^(zurück|zurueck)$/.test(s) || (/(zurück|zurueck|wieder)/.test(s) && /(meeting|workshop|besprechung|assistent)/.test(s) && !/(auswahl|start|übersicht|uebersicht|neue[nsr]?)/.test(s) && !finde(meetings(), s, 0.6) && !finde(workshops.liste(), s, 0.6)))
+    return { aktion: "zurueck" };
   if (/(dokument|unterlage|datei|material|interview|einreichung)/.test(s) && /(zeig|öffne|oeffne|finde|such|wo |welche|liste|anzeigen|ansehen|gibt es|hol)/.test(s) && !/zusammenfass/.test(s)) return { aktion: "material", text };
   if ((m = s.match(/(letzte[nm]?|neueste[nm]?|meine[nm]?|alle[nm]?|unsere[nm]?|bisherige[nm]?|welche) (meetings|workshops|besprechungen)( und (meetings|workshops))?/)) || (m = s.match(/zeig.* (meetings|workshops)( und (meetings|workshops))?$/))) {
     return { aktion: "liste", art: /meetings|besprechungen/.test(s) && /workshops/.test(s) ? "alle" : /workshops/.test(s) ? "workshops" : "meetings" };

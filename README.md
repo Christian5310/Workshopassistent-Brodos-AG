@@ -72,7 +72,7 @@ Merlin schwebt rechts unten neben dem Fenster (auf der Startseite in der Mitte) 
 - **Während Merlin zuhört oder spricht,** ist die Meeting-Aufnahme stumm. Befehle landen also nicht im Protokoll.
 - **Pausen-Erinnerung** (Admin → Erweitert): nach einstellbarer Zeit ununterbrochener Aufnahme, wahlweise auch vorgelesen (nur auf dem Aufnahmegerät).
 - **Finden:** Einstellungen („Wo ändere ich die Lesegeschwindigkeit?" → Admin, Feld wird gelb markiert), letzte Meetings und Workshops (abgeschlossene öffnen im Archiv), Material eines Workshops (öffnet in neuem Tab), „Zurück zum Meeting".
-- **Zurück ins laufende Meeting:** Bei laufender Aufnahme ist „Meeting" bzw. „Workshop" oben gelb mit rotem Punkt. Ein Klick darauf oder auf die Aufnahme-Anzeige führt direkt in den Meeting Assistenten.
+- **Zurück ins Meeting:** Ist ein Meeting oder Workshop geöffnet und man ist woanders, ist „Meeting" bzw. „Workshop" oben hervorgehoben (läuft: gelb mit rotem Punkt, pausiert: hellgelb). Ein Klick darauf oder auf die Aufnahme-Anzeige führt direkt in den Meeting Assistenten. Nach „Meeting schließen" ist die Navigation wieder normal.
 - **Zwei Wege:** Mit Klick reagiert Merlin sofort. Ohne Klick im Gespräch gesagt („Merlin, To-do für …") wirkt es nur auf das Protokoll (siehe Sprachbefehle).
 
 ## Sprachbefehle (im Gespräch, ohne Klick)

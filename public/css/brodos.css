@@ -604,3 +604,6 @@ details.einklappen[open] > summary { margin-bottom: var(--space-2); }
 .aufnahme-anzeige.klickbar { cursor: pointer; border-radius: var(--radius-sm); }
 .aufnahme-anzeige.klickbar:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) { .app-kopf nav a.laeuft::before { animation: none; } }
+/* Geöffnetes, aber pausiertes Meeting: hervorgehoben ohne roten Punkt */
+.app-kopf nav a.offen { display: inline-flex; align-items: center; align-self: center; min-height: 2rem; padding: 0.25rem 0.75rem; border: 1px solid var(--accent); border-radius: 999px; background: #fff8d1; color: var(--ink); font-weight: 600; }
+.app-kopf nav a.offen:hover { background: var(--accent); color: var(--ink); }

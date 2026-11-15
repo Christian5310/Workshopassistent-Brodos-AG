@@ -33,7 +33,7 @@ function zeigeBereich() {
   }
   document.title = `${TITEL[bereich]} · BroKI`;
 }
-window.addEventListener("hashchange", () => { zeigeBereich(); merlinNavi?.bereichGewechselt(); });
+window.addEventListener("hashchange", () => { zeigeBereich(); merlinNavi?.bereichGewechselt(); if (status) zeigeRueckweg(); });
 zeigeBereich();
 /** Wechselt den Bereich; neuLaden lädt die Ansicht auch dann neu, wenn sie schon offen ist (z. B. für Merlins Aufträge). */
 function geheZu(ziel, neuLaden = false) {
@@ -98,8 +98,12 @@ window.merlin = {
 merlinNavi = starteMerlin({ gehe: geheZu, bereich: aktuellerBereich, steuerung: window.merlin, istAufnahmegeraet: () => istAufnahmegeraet() });
 window.merlin.navigator = merlinNavi.schnittstelle;
 
+let meetingOffen = false;
+let meetingName = "";
 verbinde((stand) => {
   status = stand.status;
+  meetingOffen = stand.tag !== null;
+  meetingName = stand.workshop?.name ?? stand.tag?.name ?? "";
   merlinNavi.aktualisiere(stand);
   if (gehoertZuWorkshop !== (stand.workshop !== null)) { gehoertZuWorkshop = stand.workshop !== null; zeigeBereich(); }
   quelle = status.quelle;
@@ -121,22 +125,26 @@ verbinde((stand) => {
 function zeigeRueckweg() {
   const laeuft = status?.aufnahme === true;
   const ziel = gehoertZuWorkshop ? "workshop" : "meeting";
+  const imMeeting = ["assistent", "agenten"].includes(aktuellerBereich());
   for (const a of document.querySelectorAll(".app-kopf nav a")) {
-    const an = laeuft && a.dataset.nav === ziel;
-    a.classList.toggle("laeuft", an);
-    if (an) a.title = `Zurück zum laufenden ${ziel === "workshop" ? "Workshop" : "Meeting"}`;
+    // Offenes Meeting (läuft oder pausiert), solange man woanders ist: hervorgehoben, Klick führt zurück.
+    // Nach "Meeting schließen" ist kein Meeting mehr offen und die Navigation wieder normal.
+    const an = meetingOffen && a.dataset.nav === ziel && (laeuft || !imMeeting);
+    a.classList.toggle("laeuft", an && laeuft);
+    a.classList.toggle("offen", an && !laeuft);
+    if (an) a.title = `Zurück zum ${laeuft ? "laufenden" : "geöffneten"} ${ziel === "workshop" ? "Workshop" : "Meeting"}${meetingName ? ` „${meetingName}“` : ""}`;
     else a.removeAttribute("title");
   }
-  $("#aufnahme").classList.toggle("klickbar", laeuft);
-  $("#aufnahme").tabIndex = laeuft ? 0 : -1;
-  $("#aufnahme").title = laeuft ? "Zurück zum laufenden Meeting" : "";
+  $("#aufnahme").classList.toggle("klickbar", meetingOffen);
+  $("#aufnahme").tabIndex = meetingOffen ? 0 : -1;
+  if (!laeuft) $("#aufnahme").title = meetingOffen ? "Zurück zum geöffneten Meeting" : "";
 }
 document.querySelector(".app-kopf nav").addEventListener("click", (e) => {
-  if (!e.target.closest("a.laeuft")) return;
+  if (!e.target.closest("a.laeuft, a.offen")) return;
   e.preventDefault();
   geheZu("assistent");
 });
-const zumLaufenden = () => { if (status?.aufnahme) geheZu("assistent"); };
+const zumLaufenden = () => { if (meetingOffen) geheZu("assistent"); };
 $("#aufnahme").addEventListener("click", zumLaufenden);
 $("#aufnahme").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); zumLaufenden(); } });
 
