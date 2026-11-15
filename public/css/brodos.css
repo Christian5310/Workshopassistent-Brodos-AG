@@ -579,3 +579,6 @@ details.einklappen[open] > summary { margin-bottom: var(--space-2); }
 .merlin-mitte .merlin-frage { position: relative; max-width: 34rem; padding: 0.875rem 1.25rem; border-radius: var(--radius-lg); background: #fff8d1; border: 2px solid var(--accent); font-size: 1.125rem; line-height: 1.6rem; font-weight: 500; }
 .merlin-mitte .merlin-frage::before { content: ""; position: absolute; top: -0.6rem; left: 50%; width: 1rem; height: 1rem; background: #fff8d1; border-left: 2px solid var(--accent); border-top: 2px solid var(--accent); transform: translateX(-50%) rotate(45deg); }
 .merlin-mitte .reihe { justify-content: center; }
+.merlin-chip.ziel { display: inline-flex; align-items: center; gap: 0.25rem; background: var(--surface); border-color: var(--brand); color: var(--brand); }
+.merlin-chip.ziel .icon { width: 0.875rem; height: 0.875rem; }
+.merlin-chip.ziel:hover { background: var(--brand); color: var(--on-brand); }

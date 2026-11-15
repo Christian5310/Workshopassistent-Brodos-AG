@@ -98,12 +98,16 @@ export function starteMerlin(rahmen) {
     if (b === "agenten") return [aufnahme, "Zum Meeting Assistenten", "Lies die Agenda vor"];
     return ["Zum Meeting Assistenten", "Zu den Agenten", aufnahme];
   }
+  let auswahl = []; // von Merlin angebotene Ziele, z. B. die vorhandenen Meetings
   function zeigeVorschlaege() {
+    const knoepfe = auswahl.length ? auswahl.map((a) => [a.text, a.befehl, true]) : vorschlaege().map((t) => [t, t, false]);
     $("#merlin-vorschlaege").replaceChildren(
-      ...vorschlaege().map((text) => {
-        const k = el("button", "merlin-chip", text);
+      ...knoepfe.map(([text, satz, ziel]) => {
+        const k = el("button", `merlin-chip${ziel ? " ziel" : ""}`);
         k.type = "button";
-        k.addEventListener("click", () => befehl(text, false));
+        if (ziel) k.append(icon("pfeil"));
+        k.append(text);
+        k.addEventListener("click", () => befehl(satz, false));
         return k;
       }),
     );
@@ -112,6 +116,7 @@ export function starteMerlin(rahmen) {
   // ── Befehl: Text an den Server, Aktion hier ausführen ──
   async function befehl(text, gesprochen) {
     if (!text.trim()) return;
+    auswahl = [];
     abbrechen();
     info("");
     zustand("denkt");
@@ -132,6 +137,7 @@ export function starteMerlin(rahmen) {
   });
 
   async function ausfuehren(e, gesprochen) {
+    auswahl = e.auswahl ?? [];
     const antworte = (text = e.antwort) => { sage(text); if (gesprochen) sprich(text); };
     switch (e.aktion) {
       case "gehe":
@@ -244,6 +250,7 @@ export function starteMerlin(rahmen) {
     abbrechen();
     info("");
     hoert = true;
+    auswahl = [];
     zustand("hoert");
     sage("Ich höre zu … Klick noch einmal, wenn du fertig bist.");
     rahmen.steuerung.aufnahme.stumm = true; // der Befehl soll nicht im Meeting-Protokoll landen

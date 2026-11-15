@@ -139,7 +139,7 @@ Erlaubte Aktionen:
 {"aktion": "hilfe"}
 {"aktion": "unbekannt"}
 
-Regeln: Löschen gibt es nicht (dann "unbekannt"). Im Zweifel "unbekannt". "eingereicht" = eingereichtes Material zusammenfassen. "assistent" = Meeting Assistent mit Protokoll und To-dos.`,
+Regeln: Löschen gibt es nicht (dann "unbekannt"). Im Zweifel "unbekannt". Will jemand zu einem bestimmten Meeting oder Workshop, nimm "meeting-oeffnen" bzw. "workshop-oeffnen" und übernimm den Namen GENAU aus der Liste im KONTEXT (auch bei Hörfehlern den ähnlichsten). "assistent" und "agenten" nur, wenn bereits ein Meeting geöffnet ist. "eingereicht" = eingereichtes Material zusammenfassen. "assistent" = Meeting Assistent mit Protokoll und To-dos.`,
         },
         { role: "user", content: `KONTEXT:\n${kontext}\n\nSATZ: ${text.slice(0, 500)}` },
       ],
