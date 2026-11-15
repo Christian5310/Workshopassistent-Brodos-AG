@@ -35,7 +35,7 @@ Nach dem Eintreten wählt man, was man abhält: ein **Meeting** (tägliche Arbei
 | Bereich | Inhalt |
 |---|---|
 | Meeting | Neues Meeting einrichten oder bestehendes öffnen |
-| Workshop | Neuen Workshop einrichten oder bestehenden öffnen; Einrichten (Rahmen, Teilnehmer), Material, Verdichtung zum Agenten-Briefing |
+| Workshop | Wie beim Meeting: links „Neuer Workshop", rechts „Bestehender Workshop" (öffnen oder bearbeiten); dann Einrichten (Rahmen, Teilnehmer), Material, Verdichtung zum Agenten-Briefing |
 | Abhalten (linke Leiste) | Meeting Assistent (Aufnahme, Agenda, To-dos) und Agenten (hinzufügen, fragen); im Workshop zusätzlich Einrichten und Material |
 | Archiv | Alle Meetings mit To-do-Liste, Entscheidungen, Fragen und Transkript, je mit Download |
 | Admin | Meetings: Grundeinstellungen (Takt, Aktivierungswort, Schutz vor zu vielen To-dos, Sprachfragen) und bestehende Meetings bearbeiten; Spezial-Agenten (nur hier angelegt und gepflegt); Erweitert: Merlin (Stimme, Lesegeschwindigkeit, Pausen-Erinnerung) und Prompts |

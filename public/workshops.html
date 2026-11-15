@@ -3,8 +3,14 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Workshop · BroKI</title></head>
 <body class="ansicht">
   <aside class="seitenleiste">
-    <h2><label for="ws-wahl">Workshop</label></h2>
-    <select id="ws-wahl"></select>
+    <div id="start-wahl-block" hidden>
+      <h2>Auswahl</h2>
+      <div id="start-wahl" class="akkordeon"></div>
+    </div>
+    <div id="ws-wahl-block">
+      <h2><label for="ws-wahl">Workshop</label></h2>
+      <select id="ws-wahl"></select>
+    </div>
     <h2 id="bereich-titel">Auswahl</h2>
     <div id="bereiche" class="akkordeon"></div>
     <div id="ws-abhalten" class="akkordeon abhalten"></div>
@@ -15,6 +21,25 @@
       <div id="kopf-aktionen" class="aktionen"></div>
     </div>
     <div id="meldung" class="hinweisband" role="alert"></div>
+
+    <!-- Start: neuen Workshop einrichten oder bestehenden öffnen (wie beim Meeting) -->
+    <div id="b-wahl" class="zweispaltig" hidden>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Neuer Workshop</h2></div>
+        <div class="kasten-inhalt stapel">
+          <p class="gedaempft">Richte einen Workshop mit Name, Datum, Agenda und Teilnehmern ein. Danach sammelst du das Material.</p>
+          <div class="reihe"><button type="button" id="wahl-neu"></button></div>
+        </div>
+      </section>
+      <section class="kasten">
+        <div class="kasten-kopf"><h2>Bestehender Workshop</h2></div>
+        <form id="wahl-formular" class="kasten-inhalt stapel">
+          <p class="gedaempft">Wähle einen bestehenden Workshop aus.</p>
+          <div class="feld"><select id="wahl-ws" aria-label="Bestehender Workshop"></select><p id="wahl-info"></p></div>
+          <div class="reihe"><button type="submit" id="wahl-oeffnen"></button><button type="button" id="wahl-bearbeiten" class="zweit"></button></div>
+        </form>
+      </section>
+    </div>
 
     <!-- Neuer Workshop / Überblick: dieselben Felder -->
     <section id="b-ueberblick" hidden>
@@ -33,7 +58,7 @@
             <div id="teilnehmer" class="stapel"></div>
             <div class="reihe"><button type="button" id="tn-neu" class="zweit klein"></button></div>
           </div>
-          <div class="reihe schrittleiste"><button type="button" id="ws-loeschen" class="zweit" hidden></button><button type="button" id="ws-speichern" class="zweit" hidden></button><button type="submit" id="ws-weiter"></button></div>
+          <div class="reihe schrittleiste"><button type="button" id="ws-abbrechen" class="zweit" hidden></button><button type="button" id="ws-loeschen" class="zweit" hidden></button><button type="button" id="ws-speichern" class="zweit" hidden></button><button type="submit" id="ws-weiter"></button></div>
         </div>
       </form>
     </section>

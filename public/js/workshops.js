@@ -23,7 +23,8 @@ const datum = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("de-DE");
 const NEU = "__neu__";
 
 let liste = []; // alle Workshops (Kurzinfo)
-let aktuell = null; // gewählter Workshop oder null (= neuer Workshop)
+let aktuell = null; // gewählter Workshop oder null (= Auswahl bzw. neuer Workshop)
+let neuAnlegen = false; // ohne gewählten Workshop: true = Formular "Neuer Workshop", false = Auswahl neu/bestehend
 let stand = null; // letzter Stand vom Server (geöffnetes Meeting, Aufnahme …)
 const BEREICHE = [["ueberblick", "Einrichten", "kalender"], ["material", "Material", "text"]];
 let bereich = "ueberblick";
@@ -39,14 +40,41 @@ async function lade(waehle) {
   const wahl = $("#ws-wahl");
   wahl.replaceChildren(option(NEU, "Neuen Workshop einrichten"), ...liste.map((w) => option(w.id, `${w.name} · ${datum(w.datum)}`)));
   wahl.value = aktuell?.id ?? NEU;
-  if (aktuell) merke("broki-ws", aktuell.id);
+  if (aktuell) { merke("broki-ws", aktuell.id); neuAnlegen = false; }
+  // Auswahl "Bestehender Workshop"
+  const bestehend = $("#wahl-ws");
+  const vorher = bestehend.value;
+  bestehend.replaceChildren(option("", liste.length ? "Bitte wählen …" : "Noch kein Workshop angelegt"), ...liste.map((w) => option(w.id, `${w.name} · ${datum(w.datum)}`)));
+  bestehend.value = liste.some((w) => w.id === vorher) ? vorher : "";
+  zeigeWahlKnoepfe();
   zeige();
 }
+function zeigeWahlKnoepfe() {
+  const w = liste.find((x) => x.id === $("#wahl-ws").value);
+  const blockiert = !!w && stand?.status.aufnahme && stand.tag?.id !== w.meetingId;
+  $("#wahl-oeffnen").disabled = !w || blockiert;
+  $("#wahl-bearbeiten").disabled = !w;
+  $("#wahl-info").textContent = blockiert ? "In einem anderen Meeting läuft gerade die Aufnahme. Bitte dort erst pausieren. Bearbeiten geht trotzdem." : "";
+}
+$("#wahl-ws").addEventListener("change", zeigeWahlKnoepfe);
+// Öffnen: direkt zum Meeting Assistenten des Workshops (wie beim Meeting). Bearbeiten: Einrichten und Material.
+$("#wahl-formular").addEventListener("submit", versuche(async () => {
+  await lade($("#wahl-ws").value);
+  await oeffne("assistent");
+}));
+$("#wahl-bearbeiten").addEventListener("click", versuche(async () => {
+  bereich = "ueberblick";
+  merke("broki-ws-bereich", bereich);
+  await lade($("#wahl-ws").value);
+}));
+$("#wahl-neu").addEventListener("click", () => { neuAnlegen = true; zeige(); $("#ws-name").focus(); });
+$("#ws-abbrechen").addEventListener("click", () => { neuAnlegen = false; melde(""); zeige(); });
 // Bestehenden Workshop wählen: direkt ins Fenster zum Abhalten. Neu: erst einrichten.
 $("#ws-wahl").addEventListener("change", versuche(async () => {
   const id = $("#ws-wahl").value;
   if (id === NEU) {
     try { sessionStorage.removeItem("broki-ws"); } catch {}
+    neuAnlegen = false; // zurück zur Auswahl: neu oder bestehend
     return void (await lade(null));
   }
   await lade(id);
@@ -55,8 +83,12 @@ $("#ws-wahl").addEventListener("change", versuche(async () => {
 
 function zeige() {
   const neu = aktuell === null;
+  const wahlModus = neu && !neuAnlegen;
   if (neu) bereich = "ueberblick";
   $("#bereich-titel").hidden = neu;
+  $("#b-wahl").hidden = !wahlModus;
+  $("#ws-wahl-block").hidden = neu;
+  $("#start-wahl-block").hidden = !neu;
   $("#bereiche").replaceChildren(
     ...(neu ? [] : BEREICHE).map(([id, name, iconName]) => {
       const k = el("button", `select-item${id === bereich ? " is-active" : ""}`);
@@ -73,13 +105,38 @@ function zeige() {
   if (!BEREICHE.some(([id]) => id === bereich)) bereich = "ueberblick";
   $("#titel").textContent = neu ? "Workshop Assistent" : aktuell.name;
   $("#unterzeile").textContent = neu
-    ? "Richte einen neuen Workshop ein oder wähle links einen bestehenden. Mit dem Workshop entsteht auch sein Meeting Assistent."
+    ? wahlModus
+      ? "Richte einen neuen Workshop ein oder öffne einen bestehenden."
+      : "Mit dem Workshop entsteht auch sein Meeting Assistent."
     : `${datum(aktuell.datum)} · ${aktuell.teilnehmer.length} Teilnehmer · ${aktuell.material.length} Material-Einträge`;
-  for (const [id] of BEREICHE) $(`#b-${id}`).hidden = id !== bereich;
+  for (const [id] of BEREICHE) $(`#b-${id}`).hidden = wahlModus || id !== bereich;
+  if (wahlModus) requestAnimationFrame(richteAus);
   if (bereich === "ueberblick") zeigeUeberblick();
   if (bereich === "material") zeigeMaterial();
   zeigeAbhaltenWs();
 }
+
+/** Wie beim Meeting: die Auswahl links beginnt auf Höhe der Kästen im Hauptfenster. */
+function richteAus() {
+  const links = $("#start-wahl");
+  links.style.marginTop = "";
+  if ($("#b-wahl").hidden || matchMedia("(max-width: 900px)").matches) return;
+  const versatz = $("#b-wahl").getBoundingClientRect().top - links.getBoundingClientRect().top;
+  if (versatz > 0) links.style.marginTop = `${versatz}px`;
+}
+addEventListener("resize", richteAus);
+document.fonts?.ready.then(richteAus);
+
+// Links ohne gewählten Workshop: dieselben zwei Wege wie auf der Startseite, Workshop ist markiert
+$("#start-wahl").replaceChildren(
+  ...[["meeting", "Meeting Assistent", "mic"], ["workshop", "Workshop Assistent", "users"]].map(([id, name, iconName]) => {
+    const k = el("button", `select-item${id === "workshop" ? " is-active" : ""}`);
+    k.type = "button";
+    k.append(icon(iconName), el("span", "", name));
+    k.addEventListener("click", () => { if (id === "workshop") { neuAnlegen = false; zeige(); } else gehe(id); });
+    return k;
+  }),
+);
 
 // ── Überblick / Neuer Workshop ──
 function teilnehmerZeile(t = { name: "", rolle: "" }) {
@@ -122,6 +179,7 @@ function zeigeUeberblick() {
   beschrifte("#ws-speichern", "check", "Speichern");
   beschrifte("#ws-weiter", "pfeil", neu ? "Workshop einrichten und weiter" : "Weiter");
   $("#ws-speichern").hidden = $("#ws-loeschen").hidden = neu;
+  $("#ws-abbrechen").hidden = !neu;
 }
 $("#tn-neu").addEventListener("click", () => {
   const zeile = teilnehmerZeile();
@@ -317,7 +375,20 @@ beschrifte("#mat-speichern", "plus", "Text speichern");
 beschrifte("#verdichten", "regler", "Aus Material verdichten");
 beschrifte("#wissen-speichern", "check", "Als Briefing übernehmen");
 
+beschrifte("#wahl-neu", "plus", "Neuen Workshop einrichten");
+beschrifte("#wahl-oeffnen", "pfeil", "Workshop öffnen");
+beschrifte("#wahl-bearbeiten", "kalender", "Bearbeiten");
+$("#wahl-bearbeiten").title = "Rahmen, Teilnehmer und Material bearbeiten";
+beschrifte("#ws-abbrechen", "x", "Abbrechen");
+
+// Auftrag von Merlin ("Neuer Workshop"): gleich das Formular öffnen
+try {
+  if (JSON.parse(sessionStorage.getItem("merlin-auftrag") ?? "null")?.aktion === "workshop-neu") neuAnlegen = true;
+  sessionStorage.removeItem("merlin-auftrag");
+} catch {}
+
 await lade();
 verbinde((daten) => {
   stand = daten;
+  zeigeWahlKnoepfe();
 });

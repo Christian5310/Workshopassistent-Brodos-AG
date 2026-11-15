@@ -151,6 +151,7 @@ export function starteMerlin(rahmen) {
         break;
       case "workshop-neu":
         try { sessionStorage.removeItem("broki-ws"); sessionStorage.setItem("broki-ws-bereich", "ueberblick"); } catch {}
+        merkeAuftrag({ aktion: "workshop-neu" });
         antworte();
         rahmen.gehe("workshop", true);
         break;
