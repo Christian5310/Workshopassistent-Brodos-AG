@@ -38,12 +38,12 @@ const AntwortSchema = z.object({ antworten: z.array(z.object({ rolle: z.string()
  * Passt für Mistral (/v1/chat/completions) und Broki/Open WebUI (/api/chat/completions) – nur die .env unterscheidet sich.
  */
 export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
-  async #frage(nachrichten: Nachricht[], maxTokens: number): Promise<unknown> {
+  async #frage(nachrichten: Nachricht[], maxTokens: number, modell = config.llm.modell, zeitlimitMs = 60_000): Promise<unknown> {
     const antwort = await fetch(config.llm.basisUrl + config.llm.pfad, {
       method: "POST",
       headers: { Authorization: `Bearer ${config.llm.schluessel}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: config.llm.modell, messages: nachrichten, temperature: 0.2, max_tokens: maxTokens, response_format: { type: "json_object" } }),
-      signal: AbortSignal.timeout(60_000),
+      body: JSON.stringify({ model: modell, messages: nachrichten, temperature: 0.2, max_tokens: maxTokens, response_format: { type: "json_object" } }),
+      signal: AbortSignal.timeout(zeitlimitMs),
     });
     if (!antwort.ok) throw new Error(`Sprachmodell: HTTP ${antwort.status} ${(await antwort.text()).slice(0, 300)}`);
     const daten = (await antwort.json()) as { choices?: { message?: { content?: string } }[] };
@@ -143,7 +143,9 @@ Regeln: Löschen gibt es nicht (dann "unbekannt"). Im Zweifel "unbekannt". Will 
         },
         { role: "user", content: `KONTEXT:\n${kontext}\n\nSATZ: ${text.slice(0, 500)}` },
       ],
-      200,
+      120,
+      config.llm.modellMerlin, // klein und schnell: es geht nur um die Zuordnung zu einer Aktion
+      6_000, // länger soll niemand auf Merlin warten; danach fragt er nach
     );
   }
 

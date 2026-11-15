@@ -28,6 +28,8 @@ export const config = {
     pfad: process.env.LLM_CHAT_PATH || "/v1/chat/completions",
     schluessel: process.env.LLM_API_KEY || process.env.MISTRAL_API_KEY || "",
     modell: process.env.LLM_MODEL || "mistral-medium-latest",
+    /** Merlin-Befehle brauchen nur ein kleines, schnelles Modell. Bei Mistral standardmäßig mistral-small, sonst wie LLM_MODEL. */
+    modellMerlin: process.env.LLM_MODEL_MERLIN || ((process.env.LLM_BASE_URL || "https://api.mistral.ai").includes("mistral.ai") ? "mistral-small-latest" : process.env.LLM_MODEL || "mistral-medium-latest"),
   },
   pfade: {
     public: path.join(wurzel, "public"),

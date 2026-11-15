@@ -120,10 +120,14 @@ export function starteMerlin(rahmen) {
     abbrechen();
     info("");
     zustand("denkt");
+    const geduld = setTimeout(() => sage("Einen Moment …"), 400);
     try {
       const e = await sende("/api/merlin/befehl", { text, bereich: rahmen.bereich() });
+      clearTimeout(geduld);
+      if (e.ki) info(`Per KI zugeordnet (${(e.ms / 1000).toLocaleString("de-DE", { maximumFractionDigits: 1 })} s)`);
       await ausfuehren(e, gesprochen);
     } catch (fehler) {
+      clearTimeout(geduld);
       sage(fehler.message);
     } finally {
       if (!knopf.classList.contains("spricht")) zustand(null);
@@ -307,7 +311,7 @@ export function starteMerlin(rahmen) {
       });
       const e = await antwort.json();
       if (!antwort.ok) throw new Error(e.fehler ?? `Fehler ${antwort.status}`);
-      info(`Verstanden: „${e.erkannt}“`);
+      info(`Verstanden: „${e.erkannt}“${e.ki ? ` · per KI zugeordnet (${(e.ms / 1000).toLocaleString("de-DE", { maximumFractionDigits: 1 })} s)` : ""}`);
       await ausfuehren(e, true);
     } catch (fehler) {
       sage(fehler.message);

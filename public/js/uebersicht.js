@@ -30,13 +30,13 @@ $("#b-start").hidden = modus !== "start";
 $("#merlin-mitte").hidden = modus !== "start";
 // Merlin in der Mitte öffnet dasselbe Panel wie die Bubble im Rahmen (public/js/merlin.js)
 const navi = () => window.parent?.merlin?.navigator;
-$("#merlin-figur").addEventListener("click", () => navi()?.hoere());
-$("#merlin-sprechen-start").replaceChildren(icon("mic"), "Mit Merlin sprechen");
-$("#merlin-sprechen-start").addEventListener("click", () => navi()?.hoere());
-$("#merlin-tippen-start").addEventListener("click", () => navi()?.oeffne());
+$("#merlin-figur").addEventListener("click", () => navi()?.oeffne());
+// Start: ohne Auswahl links (sie wäre doppelt), Merlin mittig, darunter Trennlinie und die zwei Wege
+document.body.classList.toggle("start-modus", modus === "start");
+$("#start-trenner").hidden = modus !== "start";
 $("#b-meeting").hidden = modus !== "meeting";
 $("#titel").textContent = modus === "start" ? "Was möchtest du abhalten?" : "Meeting Assistent";
-$("#unterzeile").textContent = modus === "start" ? "Wähle eine Kachel, links in der Auswahl oder sag es Merlin." : "Richte ein neues Meeting ein oder öffne ein bestehendes.";
+$("#unterzeile").textContent = modus === "start" ? "" : "Richte ein neues Meeting ein oder öffne ein bestehendes.";
 $("#b-start").replaceChildren(
   ...Object.entries(WEGE).map(([id, w]) => {
     const k = el("button", "kachel");
@@ -54,7 +54,7 @@ function richteAus() {
   const wahl = $("#wahl");
   wahl.style.marginTop = "";
   const ziel = modus === "start" ? $("#b-start") : $("#b-meeting");
-  if (matchMedia("(max-width: 900px)").matches) return;
+  if (modus === "start" || matchMedia("(max-width: 900px)").matches) return;
   const versatz = ziel.getBoundingClientRect().top - wahl.getBoundingClientRect().top;
   if (versatz > 0) wahl.style.marginTop = `${versatz}px`;
 }

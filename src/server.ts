@@ -347,17 +347,31 @@ app.post("/api/chat-audio", express.raw({ type: "audio/*", limit: "8mb" }), (req
 });
 
 // ── Merlin als Navigator: getippter oder gesprochener Befehl → eine Aktion, die der Browser ausführt ──
-async function merlinDeuten(text: string, bereich: string): Promise<merlin.Ergebnis & { erkannt: string }> {
+async function merlinDeuten(text: string, bereich: string): Promise<merlin.Ergebnis & { erkannt: string; ki: boolean; ms: number }> {
+  const beginn = Date.now();
   let befehl = merlin.regeln(text);
-  if (!befehl && !config.mock) {
+  const ki = !befehl && !config.mock;
+  if (ki) {
     try {
       const geprueft = merlin.BefehlSchema.safeParse(await anbieter.sprachmodell.merlinBefehl(text, merlin.kontextFuerModell(bereich)));
       befehl = geprueft.success ? geprueft.data : null;
     } catch (fehler) {
-      console.error("Merlin-Befehl:", fehler);
+      console.error("Merlin-Befehl:", (fehler as Error).message);
     }
   }
-  return { ...merlin.aufloesen(befehl ?? { aktion: "unbekannt" }, aufnahme), erkannt: text };
+  const ergebnis = merlin.aufloesen(befehl ?? { aktion: "unbekannt" }, aufnahme);
+  const ms = Date.now() - beginn;
+  console.log(`Merlin: „${text.slice(0, 80)}" → ${ergebnis.aktion} (${ki ? "KI" : "Regel"}, ${ms} ms)`);
+  return { ...ergebnis, erkannt: text, ki, ms };
+}
+
+/** Merlins Texte für ein Meeting im Hintergrund vorbereiten, damit "Begrüße alle" sofort antwortet. */
+function bereiteAnsagenVor(id: string): void {
+  const tag = store.hole(id);
+  if (!tag || tag.ansagen) return;
+  entwerfeAnsagen(tag)
+    .then((texte) => { if (!store.hole(id)?.ansagen) store.setzeAnsagen(id, texte); })
+    .catch((fehler) => console.warn("Ansagen vorbereiten:", (fehler as Error).message));
 }
 
 app.post("/api/merlin/befehl", async (req, res) => {
@@ -627,6 +641,7 @@ app.put("/api/tage/:id", (req, res) => {
 app.post("/api/tage/:id/aktivieren", (req, res) => {
   if (aufnahme) return void res.status(409).json({ fehler: "Bitte erst pausieren, dann das Meeting wechseln." });
   if (!store.wechsle(req.params.id)) return void res.status(404).json({ fehler: "Meeting nicht gefunden." });
+  bereiteAnsagenVor(req.params.id);
   schritte.length = 0;
   hinweis = null;
   senden();
@@ -793,6 +808,7 @@ app.post("/api/workshops/:id/oeffnen", (req, res) => {
     schritte.length = 0;
     hinweis = null;
   }
+  bereiteAnsagenVor(id);
   senden();
   res.json({ ok: true, meetingId: id });
 });
