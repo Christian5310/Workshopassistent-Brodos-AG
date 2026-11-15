@@ -100,12 +100,16 @@ window.merlin.navigator = merlinNavi.schnittstelle;
 
 let meetingOffen = false;
 let meetingName = "";
+/** Ein Fehler in einem Teil soll die anderen Anzeigen (Aufnahme, Rückweg) nicht blockieren. */
+const sicher = (name, aufgabe) => { try { aufgabe(); } catch (fehler) { console.error(`BroKI Rahmen (${name}):`, fehler); } };
+
 verbinde((stand) => {
   status = stand.status;
   meetingOffen = stand.tag !== null;
   meetingName = stand.workshop?.name ?? stand.tag?.name ?? "";
-  merlinNavi.aktualisiere(stand);
-  if (gehoertZuWorkshop !== (stand.workshop !== null)) { gehoertZuWorkshop = stand.workshop !== null; zeigeBereich(); }
+  if (gehoertZuWorkshop !== (stand.workshop !== null)) { gehoertZuWorkshop = stand.workshop !== null; sicher("Bereich", zeigeBereich); }
+  sicher("Rückweg", zeigeRueckweg);
+  sicher("Merlin", () => merlinNavi.aktualisiere(stand));
   quelle = status.quelle;
   $("#mock").hidden = !status.mock;
 
@@ -117,8 +121,8 @@ verbinde((stand) => {
   const fremd = "Die Aufnahme läuft auf einem anderen Gerät. Dieses Gerät zeigt nur an.";
   if (status.aufnahme && quelle === "mikro" && !istAufnahmegeraet()) $("#rahmenhinweis").textContent ||= fremd;
   if (!status.aufnahme && $("#rahmenhinweis").textContent === fremd) melde("");
-  zeigeAufnahme();
-  zeigeRueckweg();
+  sicher("Aufnahme", zeigeAufnahme);
+  sicher("Rückweg", zeigeRueckweg);
 });
 
 // ── Zurück ins laufende Meeting: bei laufender Aufnahme ist "Meeting" bzw. "Workshop" oben gelb und führt direkt hin ──
@@ -165,7 +169,12 @@ function zeigeAufnahme() {
     ? status.letzterZyklus ? "Pausiert" : "Keine Aufnahme"
     : aufnahme.laeuft ? `Aufnahme · ${rest} s` : "Aufnahme läuft";
 }
-setInterval(zeigeAufnahme, 500);
+setInterval(() => { sicher("Aufnahme", zeigeAufnahme); sicher("Rückweg", zeigeRueckweg); }, 500);
+
+// Stand der App-Dateien: steht beim Überfahren des Prototyp-Schilds. Zeigt, ob der Browser die neue Version geladen hat.
+const STAND = "15.11.2026 · Rückweg v3";
+document.querySelector(".badge.prototyp")?.setAttribute("title", `Stand: ${STAND}`);
+console.info(`BroKI Rahmen, Stand ${STAND}`);
 
 // Beim Schließen des Tabs warnen, solange aufgenommen wird.
 window.addEventListener("beforeunload", (ereignis) => {

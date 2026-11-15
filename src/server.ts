@@ -880,7 +880,8 @@ app.put("/api/workshops/:id/wissen", (req, res) => {
 // Die frühere Auswahlseite gibt es nicht mehr: Die Navigation steht oben im App-Rahmen.
 app.get("/start", (_req, res) => res.redirect("/app"));
 
-app.use(express.static(config.pfade.public, { extensions: ["html"] }));
+// "no-cache": der Browser fragt bei jedem Laden nach, ob es eine neue Version gibt (wichtig nach git pull)
+app.use(express.static(config.pfade.public, { extensions: ["html"], setHeaders: (res) => res.setHeader("Cache-Control", "no-cache") }));
 
 app.listen(config.port, config.host, () => {
   console.log(`BroKI läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"}, Quelle: ${quelle})`);
