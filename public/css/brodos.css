@@ -593,3 +593,14 @@ details.einklappen[open] > summary { margin-bottom: var(--space-2); }
 .merlin-mitte .merlin-hinweis { margin: 0; font-size: 0.875rem; color: var(--ink-muted); }
 .trenner { border: 0; border-top: 1px solid var(--line); margin: var(--space-4) auto; }
 .start-modus #b-start { margin-top: var(--space-2); }
+
+/* Merlin zeigt im Admin, wo eine Einstellung steht */
+.merlin-markiert { outline: 3px solid var(--accent); outline-offset: 6px; border-radius: var(--radius-sm); background: #fff8d1; transition: outline-color 0.4s, background 0.4s; }
+
+/* Laufendes Meeting/Workshop: Navigationspunkt gelb, ein Klick führt zurück */
+.app-kopf nav a.laeuft { display: inline-flex; align-items: center; align-self: center; gap: 0.375rem; min-height: 2rem; padding: 0.25rem 0.75rem; border: 0; border-radius: 999px; background: var(--accent); color: var(--ink); font-weight: 600; }
+.app-kopf nav a.laeuft::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #d6001c; animation: aufnahmepuls 1.4s ease-in-out infinite; }
+.app-kopf nav a.laeuft:hover { background: #ffe14d; color: var(--ink); }
+.aufnahme-anzeige.klickbar { cursor: pointer; border-radius: var(--radius-sm); }
+.aufnahme-anzeige.klickbar:hover { text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) { .app-kopf nav a.laeuft::before { animation: none; } }

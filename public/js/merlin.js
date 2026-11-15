@@ -100,14 +100,22 @@ export function starteMerlin(rahmen) {
   }
   let auswahl = []; // von Merlin angebotene Ziele, z. B. die vorhandenen Meetings
   function zeigeVorschlaege() {
-    const knoepfe = auswahl.length ? auswahl.map((a) => [a.text, a.befehl, true]) : vorschlaege().map((t) => [t, t, false]);
+    const knoepfe = auswahl.length ? auswahl : vorschlaege().map((t) => ({ text: t, befehl: t, einfach: true }));
     $("#merlin-vorschlaege").replaceChildren(
-      ...knoepfe.map(([text, satz, ziel]) => {
-        const k = el("button", `merlin-chip${ziel ? " ziel" : ""}`);
+      ...knoepfe.map((a) => {
+        const k = el("button", `merlin-chip${a.einfach ? "" : " ziel"}`);
         k.type = "button";
-        if (ziel) k.append(icon("pfeil"));
-        k.append(text);
-        k.addEventListener("click", () => befehl(satz, false));
+        if (!a.einfach) k.append(icon(a.link ? "text" : a.archiv ? "archive" : "pfeil"));
+        k.append(a.text);
+        k.addEventListener("click", () => {
+          if (a.link) return void window.open(a.link, "_blank", "noopener"); // Material in neuem Tab
+          if (a.archiv) {
+            merkeAuftrag({ aktion: "archiv", id: a.archiv });
+            sage(`Ich öffne „${a.text.replace(/ \(Archiv\)$/, "")}“ im Archiv.`);
+            return void rahmen.gehe("archiv", true);
+          }
+          befehl(a.befehl, false);
+        });
         return k;
       }),
     );
@@ -147,6 +155,14 @@ export function starteMerlin(rahmen) {
       case "gehe":
         antworte();
         rahmen.gehe(e.ziel);
+        break;
+      case "einstellung":
+        // Admin öffnet den Bereich und hebt das Feld hervor (public/js/admin.js)
+        try { sessionStorage.setItem("merlin-admin", e.bereich); } catch {}
+        merkeAuftrag({ aktion: "einstellung", feld: e.feld });
+        antworte();
+        rahmen.gehe("admin", true);
+        setTimeout(() => { if (!hoert) schliesse(); }, 1500); // sonst verdeckt das Panel das markierte Feld
         break;
       case "meeting-neu":
         merkeAuftrag({ aktion: "meeting-neu", name: e.name });

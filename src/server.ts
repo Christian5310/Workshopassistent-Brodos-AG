@@ -835,6 +835,11 @@ app.get("/api/workshops/:id/material/:mid", (req, res) => {
   if (!w) return;
   const m = w.material.find((x) => x.id === req.params.mid);
   if (!m) return void res.status(404).json({ fehler: "Material nicht gefunden." });
+  if (req.query.ansehen !== undefined) {
+    // Zum Lesen im Browser (Merlin öffnet Material per Klick in einem neuen Tab)
+    const esc = (t: string) => t.replace(/[&<>"]/g, (z) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[z]!);
+    return void res.type("html").send(`<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(m.titel)}</title><link rel="stylesheet" href="/css/brodos.css"></head><body style="padding:2rem;max-width:60rem;margin:0 auto;background:#fff"><h1>${esc(m.titel)}</h1><p class="gedaempft">${esc(w.name)}${m.person ? ` · von ${esc(m.person)}` : ""}</p><pre style="white-space:pre-wrap;font-family:inherit;font-size:1rem;line-height:1.6">${esc(m.text)}</pre></body></html>`);
+  }
   if (req.query.download === undefined) return void res.json(m);
   const dateiname = m.titel.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 60) || "material";
   res.attachment(`${dateiname}.md`).type("text/markdown; charset=utf-8").send(m.text);

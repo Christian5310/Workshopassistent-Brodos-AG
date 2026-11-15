@@ -12,6 +12,22 @@ import * as workshops from "./workshops.ts";
 export const ZIELE = ["start", "meeting", "workshop", "assistent", "agenten", "archiv", "admin", "regie"] as const;
 export const STATIONEN = ["begruessung", "eingereicht", "regeln", "agenda"] as const;
 
+/** Wo welche Einstellung steht (Admin-Bereich und Feld), damit Merlin hinführen kann. */
+export const EINSTELLUNGEN = {
+  lesetempo: { bereich: "erweitert", feld: "lesetempo", name: "zur Lesegeschwindigkeit" },
+  stimme: { bereich: "erweitert", feld: "stimme", name: "zu meiner Stimme" },
+  pause: { bereich: "erweitert", feld: "pauseAn", name: "zur Pausen-Erinnerung" },
+  prompts: { bereich: "erweitert", feld: "promptAssistent", name: "zu den Prompts" },
+  takt: { bereich: "meetings", feld: "takt", name: "zum Takt der Transkription" },
+  wort: { bereich: "meetings", feld: "wort", name: "zum Aktivierungswort" },
+  schutz: { bereich: "meetings", feld: "maxTodos", name: "zum Schutz vor zu vielen To-dos" },
+  sprachfragen: { bereich: "meetings", feld: "sprachfragen", name: "zu den Sprachfragen an die Agenten" },
+  agenten: { bereich: "agenten", feld: "agent-liste", name: "zu den Spezial-Agenten" },
+  meetings: { bereich: "meetings", feld: "meeting-liste", name: "zu den Meetings (Agenda, Hintergrundwissen, Fachbegriffe)" },
+  workshops: { bereich: "workshops", feld: "workshop-liste", name: "zu den Workshops" },
+} as const;
+const BEREICH_NAME: Record<string, string> = { erweitert: "Admin → Erweitert", meetings: "Admin → Meetings", agenten: "Admin → Spezial-Agenten", workshops: "Admin → Workshops" };
+
 export const BefehlSchema = z.discriminatedUnion("aktion", [
   z.object({ aktion: z.literal("gehe"), ziel: z.enum(ZIELE) }),
   z.object({ aktion: z.literal("meeting-neu"), name: z.string().max(80).optional() }),
@@ -23,6 +39,10 @@ export const BefehlSchema = z.discriminatedUnion("aktion", [
   z.object({ aktion: z.literal("meeting-schliessen") }),
   z.object({ aktion: z.literal("ansage"), station: z.enum(STATIONEN) }),
   z.object({ aktion: z.literal("frage"), an: z.string().max(40), text: z.string().min(1).max(2000) }),
+  z.object({ aktion: z.literal("einstellung"), ziel: z.enum(Object.keys(EINSTELLUNGEN) as [keyof typeof EINSTELLUNGEN, ...(keyof typeof EINSTELLUNGEN)[]]) }),
+  z.object({ aktion: z.literal("liste"), art: z.enum(["meetings", "workshops", "alle"]) }),
+  z.object({ aktion: z.literal("zurueck") }),
+  z.object({ aktion: z.literal("material"), text: z.string().max(500) }),
   z.object({ aktion: z.literal("hilfe") }),
   z.object({ aktion: z.literal("loeschen") }),
   z.object({ aktion: z.literal("unbekannt") }),
@@ -30,7 +50,34 @@ export const BefehlSchema = z.discriminatedUnion("aktion", [
 export type Befehl = z.infer<typeof BefehlSchema>;
 
 /** Vorschläge, die Merlin als Knöpfe anbietet (z. B. die vorhandenen Meetings). */
-export type Auswahl = { text: string; befehl: string };
+export type Auswahl = { text: string; befehl?: string; link?: string; archiv?: string };
+
+/** Die neuesten Meetings (auch abgeschlossene, die öffnen im Archiv). */
+function auswahlLetzteMeetings(anzahl: number): Auswahl[] {
+  return meetings()
+    .sort((a, b) => b.datum.localeCompare(a.datum))
+    .slice(0, anzahl)
+    .map((t) => (t.abgeschlossen ? { text: `${t.name} (Archiv)`, archiv: t.id } : { text: t.name, befehl: `öffne das Meeting ${t.name}` }));
+}
+
+/** Material eines Workshops finden; Suche über Titel und "Von wem". */
+function findeMaterial(text: string): { antwort: string; auswahl: Auswahl[] } {
+  const alle = workshops.liste();
+  const offen = store.istOffen ? alle.find((w) => w.meetingId === store.daten.id) : undefined;
+  const genannt = finde(alle, text, 0.5);
+  const liste = genannt ? [genannt] : offen ? [offen] : alle;
+  const nameWorte = new Set(liste.length === 1 ? inhaltsworte(liste[0]!.name) : []);
+  const suche = inhaltsworte(text).filter((w) => !nameWorte.has(w) && !/^(zeig|zeige|finde|such|suche|dokument|dokumente|unterlagen|datei|dateien|material|materialien|einreichung|einreichungen|gibt|alle|ansehen|anzeigen|hol|hole|welche|liste|mir|uns|ist|sind|gib|bitte|alles)$/.test(w));
+  const eintraege = liste.flatMap((w) => w.material.map((m) => ({ w, m })));
+  const passend = suche.length ? eintraege.filter(({ m }) => suche.some((s) => inhaltsworte(`${m.titel} ${m.person}`).some((t) => aehnlich(s, t) >= 0.75))) : eintraege;
+  const treffer = (passend.length ? passend : eintraege).slice(0, 8);
+  const wo = liste.length === 1 ? `zum Workshop „${liste[0]!.name}“` : "in den Workshops";
+  if (!treffer.length) return { antwort: `Ich habe kein Material ${wo} gefunden.`, auswahl: [] };
+  return {
+    antwort: suche.length && !passend.length ? `Dazu habe ich nichts Passendes gefunden. Hier ist alles Material ${wo}:` : `Hier ist das Material ${wo}. Ein Klick öffnet es.`,
+    auswahl: treffer.map(({ w, m }) => ({ text: liste.length > 1 ? `${m.titel} · ${w.name}` : m.titel, link: `/api/workshops/${w.id}/material/${m.id}?ansehen` })),
+  };
+}
 
 /** Die neuesten offenen Meetings bzw. Workshops als Auswahl. */
 function auswahlMeetings(): Auswahl[] {
@@ -54,7 +101,8 @@ export type Ergebnis =
   | { aktion: "aufnahme-start" | "aufnahme-pause" | "meeting-schliessen"; antwort: string }
   | { aktion: "ansage"; station: (typeof STATIONEN)[number]; antwort: string }
   | { aktion: "frage"; an: string; text: string; antwort: string }
-  | { aktion: "hilfe" | "unbekannt" | "hinweis"; antwort: string };
+  | { aktion: "einstellung"; bereich: string; feld: string; antwort: string }
+  | { aktion: "hilfe" | "unbekannt" | "hinweis"; antwort: string; auswahl?: Auswahl[] };
 
 const klein = (s: string) =>
   s
@@ -114,6 +162,24 @@ function finde<T extends { name: string }>(liste: T[], satz: string, schwelle = 
 
 const meetings = () => store.liste().filter((t) => !workshops.liste().some((w) => w.meetingId === t.id));
 
+/** Erkennt, ob jemand eine Einstellung sucht ("Ich möchte die Lesegeschwindigkeit ändern"). */
+function findeEinstellung(s: string): keyof typeof EINSTELLUNGEN | null {
+  const absicht = /(einstell|änder|aender|anpass|wo kann ich|wo finde|wo stell|konfigur|schneller|langsamer|bearbeit|verwalt|lösch|loesch|hinzufüg|anleg|neue[nr]? agent)/.test(s);
+  if (/lesegeschwindigkeit|lesetempo|vorlesegeschwindigkeit|vorlesetempo|(schneller|langsamer) (vor)?(lesen|sprechen|reden)|(liest|sprichst|redest) (zu |viel zu )?(schnell|langsam)/.test(s)) return "lesetempo";
+  if (/pausen ?erinnerung|an (eine |die )?pause erinnern/.test(s)) return "pause";
+  if (/aktivierungswort|weckwort|wake ?word/.test(s)) return "wort";
+  if (/\btakt\b|intervall|wie oft (wird )?(gesendet|transkribiert)/.test(s)) return "takt";
+  if (/sprachfragen|per sprache fragen/.test(s)) return "sprachfragen";
+  if (/obergrenze|zu viele to ?dos|schutz vor/.test(s)) return "schutz";
+  if (!absicht) return null;
+  if (/stimme/.test(s)) return "stimme";
+  if (/prompt/.test(s)) return "prompts";
+  if (/agent|fachwissen|wissensdatei/.test(s)) return "agenten";
+  if (/workshops?\b/.test(s) && !/to ?do|entscheidung|frage/.test(s)) return "workshops";
+  if (/(meetings?|besprechung)\b|hintergrundwissen|fachbegriffe/.test(s) && !/to ?do|entscheidung|frage/.test(s)) return "meetings";
+  return null;
+}
+
 /** Feste Regeln. Reihenfolge zählt: spezielle Formulierungen vor allgemeinen. */
 export function regeln(text: string): Befehl | null {
   const s = bereinige(text);
@@ -125,7 +191,14 @@ export function regeln(text: string): Befehl | null {
     const frage = rest.join(",").trim();
     if (frage) return { aktion: "frage", an: (adressat ?? "alle").replace(/^(den|die|das)\s+/i, "").trim(), text: frage };
   }
+  const einstellung = findeEinstellung(s);
+  if (einstellung) return { aktion: "einstellung", ziel: einstellung };
   if (/(lösch|loesch|entfern)/.test(s)) return { aktion: "loeschen" };
+  if (/^(zurück|zurueck|wieder)( zu[mr]?| ins?| in das| in den)?( (aktuelle[nmrs]?|laufende[nmrs]?|offene[nmrs]?|geöffnete[nmrs]?))?( (meeting|workshop|besprechung|assistent(en)?|meeting assistent(en)?))?( zurück)?$/.test(s)) return { aktion: "zurueck" };
+  if (/(dokument|unterlage|datei|material|interview|einreichung)/.test(s) && /(zeig|öffne|oeffne|finde|such|wo |welche|liste|anzeigen|ansehen|gibt es|hol)/.test(s) && !/zusammenfass/.test(s)) return { aktion: "material", text };
+  if ((m = s.match(/(letzte[nm]?|neueste[nm]?|meine[nm]?|alle[nm]?|unsere[nm]?|bisherige[nm]?|welche) (meetings|workshops|besprechungen)( und (meetings|workshops))?/)) || (m = s.match(/zeig.* (meetings|workshops)( und (meetings|workshops))?$/))) {
+    return { aktion: "liste", art: /meetings|besprechungen/.test(s) && /workshops/.test(s) ? "alle" : /workshops/.test(s) ? "workshops" : "meetings" };
+  }
   if (/^(hilfe|was kannst du|welche befehle|was geht)/.test(s)) return { aktion: "hilfe" };
   if (/(meeting|sitzung) (schliessen|abschliessen|beenden)|(schliesse|schliess|beende) (das |die )?(meeting|sitzung)/.test(s)) return { aktion: "meeting-schliessen" };
   if (/((aufnahme|transkription|aufzeichnung|mitschrift)\w* (starten|start|beginnen|fortsetzen|los))|((starte|beginne|setze) (die |mit der )?(aufnahme|transkription|aufzeichnung|mitschrift))|^(mitschreiben|nimm auf|aufnehmen)/.test(s))
@@ -183,7 +256,7 @@ const NAMEN: Record<(typeof ZIELE)[number], string> = { start: "zur Auswahl", me
 const STATION_TEXT: Record<(typeof STATIONEN)[number], string> = { begruessung: "Ich begrüße alle.", eingereicht: "Ich fasse das eingereichte Material zusammen.", regeln: "Ich erkläre die Regeln.", agenda: "Ich lese die Agenda vor." };
 
 export const HILFE =
-  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Fasse das Material zusammen“ oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
+  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Zeig das Material zum Workshop …“, „Wo ändere ich die Lesegeschwindigkeit?“ oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
 
 /** Prüft den Befehl gegen den Zustand der App und löst Namen in IDs auf. */
 export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
@@ -245,10 +318,26 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
       if (!agent && !/alle|experten|runde/.test(gesucht)) return { aktion: "frage", an: "alle", text: b.text, antwort: `„${b.an}“ ist nicht dabei. Ich gebe die Frage an alle Agenten.` };
       return { aktion: "frage", an: agent?.id ?? "alle", text: b.text, antwort: agent ? `Ich frage den ${agent.name}.` : "Ich frage alle Agenten." };
     }
+    case "einstellung": {
+      const e = EINSTELLUNGEN[b.ziel];
+      return { aktion: "einstellung", bereich: e.bereich, feld: e.feld, antwort: `Ich bringe dich ${e.name}: ${BEREICH_NAME[e.bereich]}.` };
+    }
+    case "liste": {
+      const auswahl = b.art === "workshops" ? auswahlWorkshops() : b.art === "alle" ? [...auswahlLetzteMeetings(4), ...auswahlWorkshops().slice(0, 3).map((a) => ({ ...a, text: `Workshop: ${a.text}` }))] : auswahlLetzteMeetings(6);
+      if (!auswahl.length) return { aktion: "hinweis", antwort: b.art === "workshops" ? "Es gibt noch keinen Workshop." : "Es gibt noch kein Meeting." };
+      return { aktion: "hinweis", antwort: b.art === "workshops" ? "Das sind die Workshops. Ein Klick öffnet einen." : "Das sind die letzten Einträge. Ein Klick öffnet sie, abgeschlossene im Archiv.", auswahl };
+    }
+    case "zurueck": {
+      if (!store.istOffen) return { aktion: "gehe", ziel: "meeting", antwort: "Gerade ist kein Meeting geöffnet. Welches soll ich öffnen?", auswahl: auswahlMeetings() };
+      const w = workshops.liste().find((x) => x.meetingId === store.daten.id);
+      return { aktion: "gehe", ziel: "assistent", antwort: w ? `Zurück zum Workshop „${w.name}“.` : `Zurück zu „${store.daten.name}“.` };
+    }
+    case "material":
+      return { aktion: "hinweis", ...findeMaterial(b.text) };
     case "hilfe":
       return { aktion: "hilfe", antwort: HILFE };
     case "loeschen":
-      return { aktion: "hinweis", antwort: "Löschen kann ich nicht. Das geht bewusst nur per Klick." };
+      return { aktion: "hinweis", antwort: "Löschen kann ich nicht. Das geht bewusst nur per Klick: To-dos und Einträge im Meeting Assistenten, Meetings und Workshops im Admin." };
     default:
       return { aktion: "unbekannt", antwort: "Das habe ich nicht verstanden. Sag zum Beispiel „Zu den Agenten“ oder „Aufnahme starten“. Mit „Hilfe“ zeige ich dir alles." };
   }

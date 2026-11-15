@@ -9,6 +9,15 @@ let gewaehlt = null;
 
 verbinde(() => ladeListe()); // hält Zahlen und Namen aktuell, auch während eine Aufnahme läuft
 
+// Auftrag von Merlin ("Zeig die letzten Meetings" → abgeschlossenes Meeting anklicken): direkt anzeigen
+try {
+  const auftrag = JSON.parse(sessionStorage.getItem("merlin-auftrag") ?? "null");
+  if (auftrag?.aktion === "archiv") {
+    sessionStorage.removeItem("merlin-auftrag");
+    setTimeout(() => zeige(auftrag.id), 0);
+  }
+} catch {}
+
 async function ladeListe() {
   const meetings = await hole("/api/tage");
   const liste = $("#eintraege");

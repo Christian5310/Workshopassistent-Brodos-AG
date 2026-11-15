@@ -136,6 +136,10 @@ Erlaubte Aktionen:
 {"aktion": "meeting-schliessen"}
 {"aktion": "ansage", "station": "begruessung|eingereicht|regeln|agenda"}
 {"aktion": "frage", "an": "alle oder Name des Agenten", "text": "die Frage"}
+{"aktion": "einstellung", "ziel": "lesetempo|stimme|pause|prompts|takt|wort|schutz|sprachfragen|agenten|meetings|workshops"}
+{"aktion": "liste", "art": "meetings|workshops|alle"}  (letzte/alle Meetings oder Workshops zeigen)
+{"aktion": "zurueck"}  (zurück ins gerade geöffnete Meeting bzw. den Workshop)
+{"aktion": "material", "text": "der Satz"}  (hinterlegte Dokumente/Material eines Workshops finden)
 {"aktion": "hilfe"}
 {"aktion": "unbekannt"}
 

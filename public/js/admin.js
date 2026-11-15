@@ -1,4 +1,4 @@
-import { avatar, el, icon, imRahmen, knopf, sende } from "./common.js";
+import { avatar, el, gehe, icon, imRahmen, knopf, sende } from "./common.js";
 
 imRahmen("admin");
 
@@ -114,6 +114,66 @@ async function zeigeMeetings() {
     if (m.neu) name.focus();
   }
   gespeichert = null;
+}
+
+// ── Workshops: bearbeiten und löschen (anlegen im Bereich Workshop) ──
+let offenerWorkshop = null;
+let workshopGespeichert = null;
+
+async function zeigeWorkshops() {
+  const alle = await hole("/api/workshops");
+  const liste = $("#workshop-liste");
+  liste.replaceChildren();
+  if (!alle.length) liste.append(el("p", "gedaempft", "Noch keine Workshops. Neue legst du im Bereich Workshop an."));
+  for (const w of alle) {
+    const { d, inhalt } = eintrag({
+      titel: w.name,
+      info: `${datumKurz(w.datum)} · ${w.teilnehmer.length} Teilnehmer · ${w.material.length} Material`,
+      offen: offenerWorkshop === w.id,
+    });
+    d.addEventListener("toggle", () => { if (d.open) offenerWorkshop = w.id; else if (offenerWorkshop === w.id) offenerWorkshop = null; });
+    const name = eingabe("text", w.name, { maxLength: 80 });
+    const datum = eingabe("date", w.datum);
+    const agenda = eingabe("textarea", w.agenda.join("\n"), { rows: 5 });
+    const teilnehmer = eingabe("textarea", w.teilnehmer.map((t) => (t.rolle ? `${t.name}, ${t.rolle}` : t.name)).join("\n"), { rows: 5, placeholder: "Name, Rolle" });
+    const kopfzeile = el("div", "zweispaltig");
+    kopfzeile.append(feld("Name", name), feld("Datum", datum));
+
+    const speichern = async () => {
+      await sende(`/api/workshops/${w.id}`, {
+        name: name.value,
+        datum: datum.value,
+        agenda: agenda.value.split("\n").map((z) => z.trim()).filter(Boolean),
+        teilnehmer: teilnehmer.value.split("\n").map((z) => z.trim()).filter(Boolean).map((z) => { const [n, ...r] = z.split(","); return { name: n.trim(), rolle: r.join(",").trim() }; }),
+      }, "PUT");
+      offenerWorkshop = workshopGespeichert = w.id;
+      await zeigeWorkshops();
+    };
+    const loeschen = async () => {
+      if (!confirm(`Den Workshop „${w.name}" mit seinem Material (${w.material.length} Einträge) wirklich löschen? Das Meeting des Workshops mit Transkript und To-dos bleibt im Archiv und kann dort gelöscht werden.`)) return;
+      await sende(`/api/workshops/${w.id}`, {}, "DELETE");
+      try { if (sessionStorage.getItem("broki-ws") === w.id) sessionStorage.removeItem("broki-ws"); } catch {}
+      offenerWorkshop = null;
+      await zeigeWorkshops();
+      zeigeMeetings(); // das Meeting erscheint jetzt als normales Meeting
+    };
+    const leiste = aktionen(speichern, loeschen);
+    const material = knopf("Material bearbeiten", "text", "zweit");
+    material.addEventListener("click", () => {
+      try { sessionStorage.setItem("broki-ws", w.id); sessionStorage.setItem("broki-ws-bereich", "material"); } catch {}
+      gehe("workshop");
+    });
+    leiste.insertBefore(material, leiste.querySelector(".meldung"));
+    if (workshopGespeichert === w.id) leiste.querySelector(".meldung").textContent = "Gespeichert.";
+    inhalt.append(
+      kopfzeile,
+      feld("Agenda", agenda, "Ein Punkt pro Zeile. Gilt auch für das Meeting des Workshops."),
+      feld("Teilnehmer", teilnehmer, "Ein Eintrag pro Zeile: Name, Rolle."),
+      leiste,
+    );
+    liste.append(d);
+  }
+  workshopGespeichert = null;
 }
 
 // ── Spezial-Agenten ──
@@ -311,7 +371,7 @@ for (const knopf of document.querySelectorAll("[data-standard]")) {
 }
 
 // ── Auswahl links: ein Bereich ist sichtbar ──
-const BEREICHE = [["meetings", "Meetings", "kalender"], ["agenten", "Spezial-Agenten", "users"], ["erweitert", "Erweitert", "regler"]];
+const BEREICHE = [["meetings", "Meetings", "kalender"], ["workshops", "Workshops", "liste"], ["agenten", "Spezial-Agenten", "users"], ["erweitert", "Erweitert", "regler"]];
 let bereich = "meetings";
 try { bereich = sessionStorage.getItem("merlin-admin") ?? bereich; } catch {}
 function zeigeBereich() {
@@ -336,7 +396,23 @@ $("#agent-neu").append(icon("plus"), "Neuer Agent");
 $("#erweitert-speichern").append(icon("check"), "Speichern");
 $("#grund-speichern").append(icon("check"), "Speichern");
 $("#probe").append(icon("play"), "Probe hören");
+if (!BEREICHE.some(([id]) => id === bereich)) bereich = "meetings";
 zeigeBereich();
 await ladeErweitert();
-zeigeMeetings();
-zeigeAgenten();
+await Promise.all([zeigeMeetings(), zeigeWorkshops(), zeigeAgenten()]);
+
+// Auftrag von Merlin ("Wo ändere ich die Lesegeschwindigkeit?"): Feld zeigen und kurz hervorheben
+try {
+  const auftrag = JSON.parse(sessionStorage.getItem("merlin-auftrag") ?? "null");
+  if (auftrag?.aktion === "einstellung") {
+    sessionStorage.removeItem("merlin-auftrag");
+    const ziel = document.getElementById(auftrag.feld);
+    const rahmen = ziel?.closest(".feld") ?? ziel;
+    if (rahmen) {
+      rahmen.scrollIntoView({ behavior: "smooth", block: "center" });
+      rahmen.classList.add("merlin-markiert");
+      setTimeout(() => rahmen.classList.remove("merlin-markiert"), 4000);
+      if (ziel.matches("input, select, textarea")) ziel.focus({ preventScroll: true });
+    }
+  }
+} catch {}

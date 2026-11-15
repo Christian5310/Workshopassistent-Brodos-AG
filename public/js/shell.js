@@ -114,7 +114,31 @@ verbinde((stand) => {
   if (status.aufnahme && quelle === "mikro" && !istAufnahmegeraet()) $("#rahmenhinweis").textContent ||= fremd;
   if (!status.aufnahme && $("#rahmenhinweis").textContent === fremd) melde("");
   zeigeAufnahme();
+  zeigeRueckweg();
 });
+
+// ── Zurück ins laufende Meeting: bei laufender Aufnahme ist "Meeting" bzw. "Workshop" oben gelb und führt direkt hin ──
+function zeigeRueckweg() {
+  const laeuft = status?.aufnahme === true;
+  const ziel = gehoertZuWorkshop ? "workshop" : "meeting";
+  for (const a of document.querySelectorAll(".app-kopf nav a")) {
+    const an = laeuft && a.dataset.nav === ziel;
+    a.classList.toggle("laeuft", an);
+    if (an) a.title = `Zurück zum laufenden ${ziel === "workshop" ? "Workshop" : "Meeting"}`;
+    else a.removeAttribute("title");
+  }
+  $("#aufnahme").classList.toggle("klickbar", laeuft);
+  $("#aufnahme").tabIndex = laeuft ? 0 : -1;
+  $("#aufnahme").title = laeuft ? "Zurück zum laufenden Meeting" : "";
+}
+document.querySelector(".app-kopf nav").addEventListener("click", (e) => {
+  if (!e.target.closest("a.laeuft")) return;
+  e.preventDefault();
+  geheZu("assistent");
+});
+const zumLaufenden = () => { if (status?.aufnahme) geheZu("assistent"); };
+$("#aufnahme").addEventListener("click", zumLaufenden);
+$("#aufnahme").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); zumLaufenden(); } });
 
 /** Anzeige in der Kopfzeile: ist in jedem Bereich sichtbar, damit klar bleibt, dass aufgenommen wird. */
 function zeigeAufnahme() {
@@ -128,7 +152,7 @@ function zeigeAufnahme() {
   // Countdown: der Balken wird bis zum Senden des Abschnitts kürzer
   $("#countdown").firstElementChild.style.width = `${Math.min(100, (restMs / (aufnahme.abschnittMs || 30000)) * 100)}%`;
   if (!aufnahme.laeuft) $("#aufnahme").style.setProperty("--pegel", "0");
-  $("#aufnahme").title = aufnahme.laeuft ? `Der laufende Abschnitt wird in ${rest} Sekunden gesendet.` : "";
+  $("#aufnahme").title = laeuft ? `Zurück zum laufenden Meeting${aufnahme.laeuft ? ` · nächster Abschnitt in ${rest} s` : ""}` : "";
   $("#aufnahme-text").textContent = !laeuft
     ? status.letzterZyklus ? "Pausiert" : "Keine Aufnahme"
     : aufnahme.laeuft ? `Aufnahme · ${rest} s` : "Aufnahme läuft";

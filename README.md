@@ -38,7 +38,7 @@ Nach dem Eintreten wählt man, was man abhält: ein **Meeting** (tägliche Arbei
 | Workshop | Wie beim Meeting: links „Neuer Workshop", rechts „Bestehender Workshop" (öffnen oder bearbeiten); dann Einrichten (Rahmen, Teilnehmer), Material, Verdichtung zum Agenten-Briefing |
 | Abhalten (linke Leiste) | Meeting Assistent (Aufnahme, Agenda, To-dos) und Agenten (hinzufügen, fragen); im Workshop zusätzlich Einrichten und Material |
 | Archiv | Alle Meetings mit To-do-Liste, Entscheidungen, Fragen und Transkript, je mit Download |
-| Admin | Meetings: Grundeinstellungen (Takt, Aktivierungswort, Schutz vor zu vielen To-dos, Sprachfragen) und bestehende Meetings bearbeiten; Spezial-Agenten (nur hier angelegt und gepflegt); Erweitert: Merlin (Stimme, Lesegeschwindigkeit, Pausen-Erinnerung) und Prompts |
+| Admin | Workshops: Rahmen, Agenda, Teilnehmer ändern oder löschen; Meetings: Grundeinstellungen (Takt, Aktivierungswort, Schutz vor zu vielen To-dos, Sprachfragen) und bestehende Meetings bearbeiten; Spezial-Agenten (nur hier angelegt und gepflegt); Erweitert: Merlin (Stimme, Lesegeschwindigkeit, Pausen-Erinnerung) und Prompts |
 | Regie | Diagnose, Text einspeisen, Inhalte löschen |
 
 Der Knopf mit dem Vollbild-Symbol schaltet den Präsentationsmodus: Das Fenster füllt den Bildschirm, die Schrift wächst für den Beamer.
@@ -71,6 +71,8 @@ Merlin schwebt rechts unten neben dem Fenster (auf der Startseite in der Mitte) 
 - **Erkennung:** zuerst feste Regeln (`src/merlin.ts`, ohne KI), nur bei unbekannten Sätzen das Sprachmodell. Die App führt die Aktion so aus wie ein Klick.
 - **Während Merlin zuhört oder spricht,** ist die Meeting-Aufnahme stumm. Befehle landen also nicht im Protokoll.
 - **Pausen-Erinnerung** (Admin → Erweitert): nach einstellbarer Zeit ununterbrochener Aufnahme, wahlweise auch vorgelesen (nur auf dem Aufnahmegerät).
+- **Finden:** Einstellungen („Wo ändere ich die Lesegeschwindigkeit?" → Admin, Feld wird gelb markiert), letzte Meetings und Workshops (abgeschlossene öffnen im Archiv), Material eines Workshops (öffnet in neuem Tab), „Zurück zum Meeting".
+- **Zurück ins laufende Meeting:** Bei laufender Aufnahme ist „Meeting" bzw. „Workshop" oben gelb mit rotem Punkt. Ein Klick darauf oder auf die Aufnahme-Anzeige führt direkt in den Meeting Assistenten.
 - **Zwei Wege:** Mit Klick reagiert Merlin sofort. Ohne Klick im Gespräch gesagt („Merlin, To-do für …") wirkt es nur auf das Protokoll (siehe Sprachbefehle).
 
 ## Sprachbefehle (im Gespräch, ohne Klick)
