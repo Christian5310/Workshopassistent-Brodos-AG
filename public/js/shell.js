@@ -144,9 +144,17 @@ function zeigeRueckweg() {
   if (!laeuft) $("#aufnahme").title = meetingOffen ? "Zurück zum geöffneten Meeting" : "";
 }
 document.querySelector(".app-kopf nav").addEventListener("click", (e) => {
-  if (!e.target.closest("a.laeuft, a.offen")) return;
-  e.preventDefault();
-  geheZu("assistent");
+  const link = e.target.closest("a[data-nav]");
+  if (!link) return;
+  if (link.matches(".laeuft, .offen")) {
+    e.preventDefault();
+    return void geheZu("assistent");
+  }
+  // Klick auf den Bereich, in dem man schon ist: neu laden, also zurück zu seinem Anfang (z. B. Workshop-Auswahl)
+  if (link.dataset.nav === aktuellerBereich()) {
+    e.preventDefault();
+    geheZu(link.dataset.nav, true);
+  }
 });
 const zumLaufenden = () => { if (meetingOffen) geheZu("assistent"); };
 $("#aufnahme").addEventListener("click", zumLaufenden);

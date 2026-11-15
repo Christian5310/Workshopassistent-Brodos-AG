@@ -160,7 +160,7 @@ async function zeigeWorkshops() {
     const leiste = aktionen(speichern, loeschen);
     const material = knopf("Material bearbeiten", "text", "zweit");
     material.addEventListener("click", () => {
-      try { sessionStorage.setItem("broki-ws", w.id); sessionStorage.setItem("broki-ws-bereich", "material"); } catch {}
+      try { sessionStorage.setItem("broki-ws", w.id); sessionStorage.setItem("broki-ws-bereich", "material"); sessionStorage.setItem("broki-ws-direkt", "1"); } catch {}
       gehe("workshop");
     });
     leiste.insertBefore(material, leiste.querySelector(".meldung"));

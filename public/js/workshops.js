@@ -35,7 +35,15 @@ const merke = (schluessel, wert) => { try { sessionStorage.setItem(schluessel, w
 async function lade(waehle) {
   liste = await hole("/api/workshops");
   let id = waehle;
-  if (id === undefined) { try { id = sessionStorage.getItem("broki-ws"); } catch {} }
+  // Wie beim Meeting: wer über "Workshop" kommt, sieht zuerst die Auswahl (neu oder bestehend).
+  // Direkt in einen Workshop geht es nur bei einem gezielten Sprung ("Einrichten", "Material", Admin "Material bearbeiten").
+  let gemerkt = null;
+  try { gemerkt = sessionStorage.getItem("broki-ws"); } catch {}
+  if (id === undefined) {
+    let direkt = false;
+    try { direkt = sessionStorage.getItem("broki-ws-direkt") === "1"; sessionStorage.removeItem("broki-ws-direkt"); } catch {}
+    id = direkt ? gemerkt : null;
+  }
   aktuell = liste.find((w) => w.id === id) ?? null;
   const wahl = $("#ws-wahl");
   wahl.replaceChildren(option(NEU, "Neuen Workshop einrichten"), ...liste.map((w) => option(w.id, `${w.name} · ${datum(w.datum)}`)));
@@ -45,7 +53,7 @@ async function lade(waehle) {
   const bestehend = $("#wahl-ws");
   const vorher = bestehend.value;
   bestehend.replaceChildren(option("", liste.length ? "Bitte wählen …" : "Noch kein Workshop angelegt"), ...liste.map((w) => option(w.id, `${w.name} · ${datum(w.datum)}`)));
-  bestehend.value = liste.some((w) => w.id === vorher) ? vorher : "";
+  bestehend.value = liste.some((w) => w.id === vorher) && vorher ? vorher : liste.some((w) => w.id === gemerkt) ? gemerkt : ""; // zuletzt genutzter Workshop vorgewählt
   zeigeWahlKnoepfe();
   zeige();
 }

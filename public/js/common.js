@@ -98,7 +98,7 @@ export function zeigeAbhalten(ziel, aktiv, stand) {
   const teile = [];
   if (stand.workshop) {
     const zumWorkshop = (bereich) => () => {
-      try { sessionStorage.setItem("broki-ws", stand.workshop.id); sessionStorage.setItem("broki-ws-bereich", bereich); } catch {}
+      try { sessionStorage.setItem("broki-ws", stand.workshop.id); sessionStorage.setItem("broki-ws-bereich", bereich); sessionStorage.setItem("broki-ws-direkt", "1"); } catch {}
       gehe("workshop");
     };
     teile.push(el("h2", "", "Auswahl"), feld("Einrichten", "kalender", false, zumWorkshop("ueberblick")), feld("Material", "text", false, zumWorkshop("material")));
