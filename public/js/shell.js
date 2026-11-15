@@ -2,6 +2,7 @@
 // weiter, wenn man vom Assistenten zu Agenten, Archiv oder Admin wechselt.
 import { Aufnahme } from "./aufnahme.js";
 import { sende, verbinde } from "./common.js";
+import { starteMerlin } from "./merlin.js";
 
 const $ = (id) => document.querySelector(id);
 
@@ -32,8 +33,16 @@ function zeigeBereich() {
   }
   document.title = `${TITEL[bereich]} · BroKI`;
 }
-window.addEventListener("hashchange", zeigeBereich);
+window.addEventListener("hashchange", () => { zeigeBereich(); merlinNavi?.bereichGewechselt(); });
 zeigeBereich();
+/** Wechselt den Bereich; neuLaden lädt die Ansicht auch dann neu, wenn sie schon offen ist (z. B. für Merlins Aufträge). */
+function geheZu(ziel, neuLaden = false) {
+  if (neuLaden) $("#inhalt").dataset.bereich = "";
+  if (location.hash.slice(1) === ziel) zeigeBereich();
+  else location.hash = ziel;
+}
+const aktuellerBereich = () => $("#inhalt").dataset.bereich || "start";
+let merlinNavi = null;
 
 // ── Präsentationsmodus: Fenster füllt den Bildschirm, Schrift wächst mit (für den Beamer) ──
 const pKnopf = $("#praesentation");
@@ -85,8 +94,13 @@ window.merlin = {
   },
 };
 
+// ── Merlin: schwebt außerhalb des Fensters, navigiert, stimmt ein, erinnert an Pausen ──
+merlinNavi = starteMerlin({ gehe: geheZu, bereich: aktuellerBereich, steuerung: window.merlin, istAufnahmegeraet: () => istAufnahmegeraet() });
+window.merlin.navigator = merlinNavi.schnittstelle;
+
 verbinde((stand) => {
   status = stand.status;
+  merlinNavi.aktualisiere(stand);
   if (gehoertZuWorkshop !== (stand.workshop !== null)) { gehoertZuWorkshop = stand.workshop !== null; zeigeBereich(); }
   quelle = status.quelle;
   $("#mock").hidden = !status.mock;

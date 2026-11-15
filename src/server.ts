@@ -5,6 +5,7 @@ import { erstelleAnbieter } from "./anbieter/index.ts";
 import * as archiv from "./archiv.ts";
 import { config, quelle } from "./config.ts";
 import * as admin from "./einstellungen.ts";
+import * as merlin from "./merlin.ts";
 import * as workshops from "./workshops.ts";
 import * as ansagen from "./ansagen.ts";
 import { store } from "./store.ts";
@@ -14,6 +15,8 @@ const anbieter = erstelleAnbieter();
 
 // Laufzeitstatus (bewusst nicht gespeichert: nach einem Neustart ist die Aufnahme pausiert)
 let aufnahme = false;
+/** Seit wann die Aufnahme ohne Pause läuft (für Merlins Pausen-Erinnerung) */
+let aufnahmeSeit: number | null = null;
 let chatStatus: ChatStatus = "bereit";
 let hinweis: string | null = null;
 let arbeit: string | null = null;
@@ -54,7 +57,8 @@ function schnappschuss(): Schnappschuss {
     workshop: store.istOffen ? workshopVon(store.daten.id) : null,
     chat: store.daten.chat,
     vorlesen: { stimme: admin.einstellungen.stimme, tempo: admin.einstellungen.lesetempo },
-    status: { aufnahme, quelle, letzterZyklus: store.daten.letzterZyklus, zyklusSekunden: takt(), mock: config.mock, chat: chatStatus, hinweis, arbeit, rueckgaengig: schritte.at(-1)?.was ?? null },
+    pause: { an: admin.einstellungen.pauseAn, minuten: admin.einstellungen.pauseMinuten, sprechen: admin.einstellungen.pauseSprechen },
+    status: { aufnahme, aufnahmeSeit, quelle, letzterZyklus: store.daten.letzterZyklus, zyklusSekunden: takt(), mock: config.mock, chat: chatStatus, hinweis, arbeit, rueckgaengig: schritte.at(-1)?.was ?? null },
   };
 }
 
@@ -185,6 +189,7 @@ async function zyklus(): Promise<void> {
 function starten(): void {
   if (aufnahme) return;
   aufnahme = true;
+  aufnahmeSeit = Date.now();
   hinweis = null;
   arbeit = null;
   if (quelle === "timer") {
@@ -197,6 +202,7 @@ function starten(): void {
 function pausieren(neuerHinweis: string | null = null): void {
   if (aufnahme) pausiertUm = Date.now();
   aufnahme = false;
+  aufnahmeSeit = null;
   hinweis = neuerHinweis;
   if (zyklusTimer) clearInterval(zyklusTimer);
   zyklusTimer = null;
@@ -338,6 +344,39 @@ app.post("/api/chat-audio", express.raw({ type: "audio/*", limit: "8mb" }), (req
     (req.query.an as Adressat) ?? "alle",
     res,
   );
+});
+
+// ── Merlin als Navigator: getippter oder gesprochener Befehl → eine Aktion, die der Browser ausführt ──
+async function merlinDeuten(text: string, bereich: string): Promise<merlin.Ergebnis & { erkannt: string }> {
+  let befehl = merlin.regeln(text);
+  if (!befehl && !config.mock) {
+    try {
+      const geprueft = merlin.BefehlSchema.safeParse(await anbieter.sprachmodell.merlinBefehl(text, merlin.kontextFuerModell(bereich)));
+      befehl = geprueft.success ? geprueft.data : null;
+    } catch (fehler) {
+      console.error("Merlin-Befehl:", fehler);
+    }
+  }
+  return { ...merlin.aufloesen(befehl ?? { aktion: "unbekannt" }, aufnahme), erkannt: text };
+}
+
+app.post("/api/merlin/befehl", async (req, res) => {
+  const text = String(req.body?.text ?? "").trim().slice(0, 500);
+  if (!text) return void res.status(400).json({ fehler: "Bitte etwas eingeben." });
+  res.json(await merlinDeuten(text, String(req.body?.bereich ?? "")));
+});
+
+/** Gesprochener Befehl: Audio im Body, wird nach der Transkription verworfen. */
+app.post("/api/merlin/audio", express.raw({ type: "audio/*", limit: "4mb" }), async (req, res) => {
+  const audio = req.body as Buffer;
+  if (quelle === "mikro" && (!Buffer.isBuffer(audio) || audio.length < 1000)) return void res.status(400).json({ fehler: "Ich habe nichts gehört. Klick mich an, sprich, und klick dann noch einmal." });
+  try {
+    const text = (await anbieter.transkript.transkribiere(quelle === "mikro" ? audio : null, "befehl", String(req.headers["content-type"] ?? "audio/webm"), merlin.begriffeFuerBefehl())) ?? "";
+    if (!text.trim()) return void res.status(422).json({ fehler: "Ich habe nichts verstanden. Bitte noch einmal." });
+    res.json(await merlinDeuten(text, String(req.query.bereich ?? "")));
+  } catch (fehler) {
+    res.status(502).json({ fehler: `Spracherkennung fehlgeschlagen: ${(fehler as Error).message}` });
+  }
 });
 
 /** Vorschlag bestätigen (wird zum To-do) oder verwerfen. */

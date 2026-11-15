@@ -212,95 +212,8 @@ for (const [knopfId, art] of [["#alle-e", "entscheidungen"], ["#alle-f", "fragen
 }
 $("#uebersicht").addEventListener("close", () => { alleArt = null; inBearbeitung = null; });
 
-// ── Merlin als Bubble: liest zur Einstimmung vor. Solange er spricht, ist das Mikrofon stumm. ──
-const STATIONEN = [["begruessung", "Begrüßung"], ["eingereicht", "Eingereicht"], ["regeln", "Regeln"], ["agenda", "Agenda"]];
-let ansagen = null;
-let station = 0;
-let bearbeitet = false;
-let vorlesen = { stimme: "", tempo: 0.98 }; // aus Admin → Erweitert → Merlin-Bubble
-const stimme = () => speechSynthesis.getVoices().find((v) => vorlesen.stimme && v.name === vorlesen.stimme) ?? speechSynthesis.getVoices().find((v) => v.lang?.startsWith("de")) ?? null;
+// Merlin (Navigation, Einstimmung, Pausen-Erinnerung) lebt im App-Rahmen: public/js/merlin.js
 
-async function ladeAnsagen(neu = false) {
-  $("#merlin-info").textContent = neu || !ansagen ? "Merlin bereitet die Texte vor …" : "";
-  ansagen = await (await fetch(`/api/tage/${tagId}/ansagen${neu ? "?neu" : ""}`)).json();
-  $("#merlin-info").textContent = "";
-  zeigeMerlin();
-}
-function zeigeMerlin() {
-  $("#merlin-stationen").replaceChildren(
-    ...STATIONEN.map(([id, name], i) => {
-      const k = el("button", `merlin-station${i === station ? " ist-aktiv" : ""}`, name);
-      k.type = "button";
-      k.setAttribute("role", "tab");
-      k.setAttribute("aria-selected", String(i === station));
-      k.addEventListener("click", () => { verstumme(); station = i; zeigeMerlin(); });
-      return k;
-    }),
-  );
-  const text = ansagen?.[STATIONEN[station][0]] ?? "";
-  $("#merlin-blase").textContent = text;
-  $("#merlin-text").value = text;
-  $("#merlin-blase").hidden = bearbeitet;
-  $("#merlin-text").hidden = !bearbeitet;
-  $("#merlin-bearbeiten").textContent = bearbeitet ? "Text speichern" : "Text bearbeiten";
-  $("#merlin-weiter").hidden = station === STATIONEN.length - 1;
-}
-function stummschalten(an) {
-  try { merlin().aufnahme.stumm = an; } catch {}
-}
-function verstumme() {
-  if ("speechSynthesis" in window) speechSynthesis.cancel();
-  stummschalten(false);
-  document.querySelector("#merlin-knopf").classList.remove("spricht");
-  beschrifte($("#merlin-sprechen"), "play", "Vorlesen");
-}
-function sprich() {
-  if (!("speechSynthesis" in window)) return void ($("#merlin-info").textContent = "Dieser Browser kann nicht vorlesen. Der Text steht in der Sprechblase.");
-  if (speechSynthesis.speaking) return verstumme();
-  const satz = new SpeechSynthesisUtterance($("#merlin-blase").textContent);
-  satz.lang = "de-DE";
-  satz.voice = stimme();
-  satz.rate = vorlesen.tempo;
-  satz.onend = satz.onerror = () => verstumme();
-  stummschalten(true); // Merlin soll sich nicht selbst mitschreiben
-  document.querySelector("#merlin-knopf").classList.add("spricht");
-  beschrifte($("#merlin-sprechen"), "pause", "Stopp");
-  speechSynthesis.speak(satz);
-}
-function schliesseMerlin() {
-  verstumme();
-  $("#merlin").hidden = true;
-  $("#merlin-knopf").setAttribute("aria-expanded", "false");
-  $("#merlin-knopf").classList.toggle("leise", an);
-}
-$("#merlin-knopf").addEventListener("click", versuche(async () => {
-  if (!$("#merlin").hidden) return schliesseMerlin();
-  $("#merlin").hidden = false;
-  $("#merlin-knopf").setAttribute("aria-expanded", "true");
-  $("#merlin-knopf").classList.remove("leise");
-  if (!ansagen || ansagen.__tag !== tagId) { await ladeAnsagen(); ansagen.__tag = tagId; }
-}));
-$("#merlin-zu").addEventListener("click", schliesseMerlin);
-$("#merlin-sprechen").addEventListener("click", sprich);
-$("#merlin-weiter").addEventListener("click", () => { verstumme(); station = Math.min(station + 1, STATIONEN.length - 1); zeigeMerlin(); sprich(); });
-$("#merlin-bearbeiten").addEventListener("click", versuche(async () => {
-  if (bearbeitet) {
-    ansagen[STATIONEN[station][0]] = $("#merlin-text").value;
-    const { __tag, ...texte } = ansagen;
-    await sende(`/api/tage/${tagId}/ansagen`, texte, "PUT");
-  }
-  bearbeitet = !bearbeitet;
-  zeigeMerlin();
-}));
-$("#merlin-neu").addEventListener("click", versuche(async () => {
-  if (!confirm("Alle vier Texte neu entwerfen? Eigene Änderungen gehen dabei verloren.")) return;
-  verstumme();
-  await ladeAnsagen(true);
-  ansagen.__tag = tagId;
-}));
-beschrifte($("#merlin-sprechen"), "play", "Vorlesen");
-beschrifte($("#merlin-weiter"), "pfeil", "Weiter");
-if ("speechSynthesis" in window) speechSynthesis.onvoiceschanged = () => {};
 
 // ── To-dos: anklicken zum Bearbeiten, Kästchen zum Abhaken ──
 let bearbeite = null; // ID des To-dos, das gerade bearbeitet wird; solange wird die Liste nicht neu aufgebaut
@@ -491,10 +404,6 @@ function zeige(daten) {
   $("#alle-f").hidden = !protokoll.offene_fragen.length;
   $("#alle-f").textContent = `Alle anzeigen (${protokoll.offene_fragen.length})`;
   if (!inBearbeitung) zeigeAlle(); // offenes Fenster aktuell halten, Eingaben nicht überschreiben
-  if (daten.vorlesen) vorlesen = daten.vorlesen;
-  $("#merlin-knopf").hidden = !offen;
-  $("#merlin-knopf").classList.toggle("leise", an && $("#merlin").hidden); // während der Aufnahme kaum sichtbar
-  if (!offen) schliesseMerlin();
 
   ersterAufbau = false;
 }

@@ -12,13 +12,13 @@ const ENDUNG: Record<string, string> = { "audio/webm": "webm", "audio/mp4": "m4a
  * "context_bias" (kommagetrennte Begriffe) verbessert Fachwörter wie "DaaS+".
  */
 export class MistralTranskriptQuelle implements TranskriptQuelle {
-  async transkribiere(audio: Buffer | null, _zweck: "protokoll" | "chat", mime = "audio/webm"): Promise<string | null> {
+  async transkribiere(audio: Buffer | null, _zweck: "protokoll" | "chat" | "befehl", mime = "audio/webm", extra: string[] = []): Promise<string | null> {
     if (!audio) return "";
     const typ = mime.split(";")[0]!.trim();
     const formular = new FormData();
     formular.set("model", config.stt.modell);
     formular.set("language", "de");
-    const begriffe = [...new Set([einstellungen.aktivierungswort, ...store.daten.begriffe.split(/[,\n]/).map((b) => b.trim()).filter(Boolean)])]; // das Aktivierungswort muss sicher erkannt werden
+    const begriffe = [...new Set([einstellungen.aktivierungswort, ...extra, ...store.daten.begriffe.split(/[,\n]/).map((b) => b.trim()).filter(Boolean)])].slice(0, 100); // das Aktivierungswort muss sicher erkannt werden
     if (begriffe.length) formular.set("context_bias", begriffe.join(","));
     formular.set("file", new Blob([new Uint8Array(audio)], { type: typ }), `abschnitt.${ENDUNG[typ] ?? "webm"}`);
 

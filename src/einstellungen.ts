@@ -41,6 +41,11 @@ export const ErweitertSchema = z.object({
   stimme: z.string().max(200).default(""),
   /** Merlin-Bubble: Lesegeschwindigkeit (1 = normal) */
   lesetempo: z.number().min(0.6).max(1.5).default(0.98),
+  /** Merlin erinnert an eine Pause, wenn die Aufnahme so lange ohne Unterbrechung läuft */
+  pauseAn: z.boolean().default(false),
+  pauseMinuten: z.number().int().min(10).max(240).default(45),
+  /** Erinnerung auch vorlesen (nur auf dem Aufnahmegerät) */
+  pauseSprechen: z.boolean().default(true),
 });
 export const EinstellungenSchema = ErweitertSchema.extend({ agenten: z.array(AgentSchema).min(1).max(12) });
 export type Einstellungen = z.infer<typeof EinstellungenSchema>;
@@ -149,6 +154,9 @@ Regeln:
     sprachfragen: true,
     stimme: "",
     lesetempo: 0.98,
+    pauseAn: false,
+    pauseMinuten: 45,
+    pauseSprechen: true,
   };
 }
 

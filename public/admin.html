@@ -77,6 +77,18 @@
             </div>
           </div>
           <div class="kasten-inhalt reihe"><button type="button" id="probe" class="zweit"></button><span class="klein-text gedaempft">Spielt einen kurzen Satz mit Stimme und Tempo ab.</span></div>
+          <div class="kasten-inhalt zweispaltig">
+            <div class="feld">
+              <label class="haken"><input id="pauseAn" type="checkbox"> Pausen-Erinnerung</label>
+              <p>Merlin fragt, ob ihr eine Pause machen wollt, wenn die Aufnahme so lange ohne Unterbrechung läuft. „In 10 Minuten“ verschiebt die Erinnerung.</p>
+            </div>
+            <div class="feld">
+              <label for="pauseMinuten">Erinnern nach (Minuten)</label>
+              <input id="pauseMinuten" type="number" min="10" max="240" step="5">
+              <label class="haken"><input id="pauseSprechen" type="checkbox"> Erinnerung auch vorlesen</label>
+              <p>Vorgelesen wird nur auf dem Gerät, das aufnimmt. Das Mikrofon ist dabei stumm.</p>
+            </div>
+          </div>
         </section>
         <section class="kasten">
           <div class="kasten-kopf"><h2>Prompts</h2></div>

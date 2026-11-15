@@ -27,9 +27,16 @@ $("#wahl").replaceChildren(
 );
 
 $("#b-start").hidden = modus !== "start";
+$("#merlin-mitte").hidden = modus !== "start";
+// Merlin in der Mitte öffnet dasselbe Panel wie die Bubble im Rahmen (public/js/merlin.js)
+const navi = () => window.parent?.merlin?.navigator;
+$("#merlin-figur").addEventListener("click", () => navi()?.hoere());
+$("#merlin-sprechen-start").replaceChildren(icon("mic"), "Mit Merlin sprechen");
+$("#merlin-sprechen-start").addEventListener("click", () => navi()?.hoere());
+$("#merlin-tippen-start").addEventListener("click", () => navi()?.oeffne());
 $("#b-meeting").hidden = modus !== "meeting";
 $("#titel").textContent = modus === "start" ? "Was möchtest du abhalten?" : "Meeting Assistent";
-$("#unterzeile").textContent = modus === "start" ? "Wähle links oder hier: Meeting oder Workshop." : "Richte ein neues Meeting ein oder öffne ein bestehendes.";
+$("#unterzeile").textContent = modus === "start" ? "Wähle eine Kachel, links in der Auswahl oder sag es Merlin." : "Richte ein neues Meeting ein oder öffne ein bestehendes.";
 $("#b-start").replaceChildren(
   ...Object.entries(WEGE).map(([id, w]) => {
     const k = el("button", "kachel");
@@ -125,6 +132,16 @@ $("#m-formular").addEventListener("submit", async (e) => {
 
 beschrifte("#m-neu", "plus", "Neues Meeting einrichten");
 beschrifte("#m-anlegen", "plus", "Einrichten und öffnen");
+
+// Auftrag von Merlin ("Neues Meeting …"): Formular öffnen und, falls genannt, den Namen eintragen
+try {
+  const auftrag = JSON.parse(sessionStorage.getItem("merlin-auftrag") ?? "null");
+  sessionStorage.removeItem("merlin-auftrag");
+  if (auftrag?.aktion === "meeting-neu" && modus === "meeting") {
+    zeigeMeetingFelder(true);
+    if (auftrag.name) { $("#m-name").value = auftrag.name; $("#m-agenda").focus(); }
+  }
+} catch {}
 beschrifte("#m-abbrechen", "x", "Abbrechen");
 
 verbinde((daten) => {

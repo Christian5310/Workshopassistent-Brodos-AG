@@ -12,7 +12,12 @@
     </div>
     <div id="meldung" class="hinweisband" role="alert"></div>
 
-    <!-- Start: Meeting oder Workshop -->
+    <!-- Start: Merlin fragt in der Mitte, darunter die zwei Wege -->
+    <div id="merlin-mitte" class="merlin-mitte" hidden>
+      <button type="button" id="merlin-figur" class="merlin-figur" title="Merlin: sprich mit mir"><img src="/img/merlin-bubble.png" alt=""><span class="sr-only">Mit Merlin sprechen</span></button>
+      <p class="merlin-frage">Hallo, ich bin Merlin. Möchtest du ein <strong>Meeting</strong> oder einen <strong>Workshop</strong> abhalten?</p>
+      <div class="reihe"><button type="button" id="merlin-sprechen-start" class="zweit"></button><button type="button" id="merlin-tippen-start" class="textlink klein-text">lieber tippen</button></div>
+    </div>
     <div id="b-start" class="kacheln" hidden></div>
 
     <!-- Meeting: neues einrichten oder bestehendes öffnen -->

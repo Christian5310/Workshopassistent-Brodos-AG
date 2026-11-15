@@ -118,6 +118,35 @@ Regeln für "wissen":
     return geprueft;
   }
 
+  async merlinBefehl(text: string, kontext: string): Promise<unknown> {
+    return this.#frage(
+      [
+        {
+          role: "system",
+          content: `Du bist "Merlin", der Navigator einer Meeting-App. Ordne den Satz des Nutzers GENAU EINER Aktion zu. Antworte nur als JSON.
+
+Erlaubte Aktionen:
+{"aktion": "gehe", "ziel": "start|meeting|workshop|assistent|agenten|archiv|admin|regie"}
+{"aktion": "meeting-neu", "name": "…" (optional)}
+{"aktion": "workshop-neu"}
+{"aktion": "meeting-oeffnen", "name": "Name des Meetings"}
+{"aktion": "workshop-oeffnen", "name": "Name des Workshops"}
+{"aktion": "aufnahme-start"}
+{"aktion": "aufnahme-pause"}
+{"aktion": "meeting-schliessen"}
+{"aktion": "ansage", "station": "begruessung|eingereicht|regeln|agenda"}
+{"aktion": "frage", "an": "alle oder Name des Agenten", "text": "die Frage"}
+{"aktion": "hilfe"}
+{"aktion": "unbekannt"}
+
+Regeln: Löschen gibt es nicht (dann "unbekannt"). Im Zweifel "unbekannt". "eingereicht" = eingereichtes Material zusammenfassen. "assistent" = Meeting Assistent mit Protokoll und To-dos.`,
+        },
+        { role: "user", content: `KONTEXT:\n${kontext}\n\nSATZ: ${text.slice(0, 500)}` },
+      ],
+      200,
+    );
+  }
+
   async sprechtext(wissen: string, name: string): Promise<string> {
     const antwort = await this.#frage(
       [

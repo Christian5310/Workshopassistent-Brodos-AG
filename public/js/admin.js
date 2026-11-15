@@ -250,6 +250,9 @@ async function ladeErweitert() {
   $("#sprachfragen").checked = e.sprachfragen;
   gewuenschteStimme = e.stimme;
   $("#lesetempo").value = e.lesetempo;
+  $("#pauseAn").checked = e.pauseAn;
+  $("#pauseMinuten").value = e.pauseMinuten;
+  $("#pauseSprechen").checked = e.pauseSprechen;
   tempoText();
   fuelleStimmen();
   $("#hinweis").textContent = daten.mock ? "Mock-Modus: Meetings, Agenten-Namen und die Obergrenze wirken sofort. Prompts, Hintergrundwissen und Wissensdateien werden gespeichert, wirken aber erst mit einem echten Sprachmodell." : "";
@@ -290,7 +293,7 @@ $("#formular").addEventListener("submit", async (ereignis) => {
   try {
     await sende(
       "/api/admin/einstellungen",
-      { promptAssistent: $("#promptAssistent").value, promptAgenten: $("#promptAgenten").value, promptZusammenfassung: $("#promptZusammenfassung").value, stimme: $("#stimme").value, lesetempo: Number($("#lesetempo").value) },
+      { promptAssistent: $("#promptAssistent").value, promptAgenten: $("#promptAgenten").value, promptZusammenfassung: $("#promptZusammenfassung").value, stimme: $("#stimme").value, lesetempo: Number($("#lesetempo").value), pauseAn: $("#pauseAn").checked, pauseMinuten: Number($("#pauseMinuten").value), pauseSprechen: $("#pauseSprechen").checked },
       "PUT",
     );
     melde(`Gespeichert um ${new Date().toLocaleTimeString("de-DE")}.`);

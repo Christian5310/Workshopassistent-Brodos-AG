@@ -72,8 +72,12 @@ export interface Schnappschuss {
   chat: ChatNachricht[];
   /** Merlin-Bubble: Stimme und Tempo aus Admin → Erweitert */
   vorlesen: { stimme: string; tempo: number };
+  /** Merlin: Pausen-Erinnerung aus Admin → Erweitert */
+  pause: { an: boolean; minuten: number; sprechen: boolean };
   status: {
     aufnahme: boolean;
+    /** Zeitpunkt (ms), seit dem die Aufnahme ohne Pause läuft; null ohne Aufnahme */
+    aufnahmeSeit: number | null;
     /** "mikro": der Browser nimmt auf und schickt Schnipsel; "timer": Mock-Skript ohne Mikrofon */
     quelle: "mikro" | "timer";
     letzterZyklus: number | null;

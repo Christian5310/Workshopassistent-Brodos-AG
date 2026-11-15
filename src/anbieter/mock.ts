@@ -5,9 +5,16 @@ import type { Protokoll } from "../types.ts";
 import type { ChatKontext, Sprachmodell, TranskriptQuelle } from "./schnittstellen.ts";
 
 const warte = (ms: number) => new Promise((r) => setTimeout(r, ms));
+let mockBefehl = 0;
 
 export class MockTranskriptQuelle implements TranskriptQuelle {
-  async transkribiere(_audio: Buffer | null, zweck: "protokoll" | "chat"): Promise<string | null> {
+  async transkribiere(_audio: Buffer | null, zweck: "protokoll" | "chat" | "befehl"): Promise<string | null> {
+    if (zweck === "befehl") {
+      // Ohne echtes Mikrofon: Beispielsätze der Reihe nach
+      const beispiele = ["Merlin, zu den Agenten", "Merlin, lies die Agenda vor", "Merlin, zum Meeting Assistenten", "Merlin, was kannst du?"];
+      await warte(500);
+      return beispiele[mockBefehl++ % beispiele.length]!;
+    }
     if (zweck === "chat") {
       const frage = MOCK_FRAGEN[store.daten.mockFragenCursor % MOCK_FRAGEN.length];
       store.daten.mockFragenCursor++;
@@ -113,6 +120,10 @@ export class MockSprachmodell implements Sprachmodell {
   }
 
   /** Fake-Sprechtext: nennt nur den Umfang des Vorwissens. */
+  async merlinBefehl(): Promise<unknown> {
+    return { aktion: "unbekannt" }; // im Mock nur die festen Regeln
+  }
+
   async sprechtext(wissen: string) {
     await warte(500);
     return `[Mock] Zur Vorbereitung liegt Vorwissen im Umfang von ${wissen.length.toLocaleString("de-DE")} Zeichen vor. Die Zusammenfassung dazu formuliert das Sprachmodell im Live-Betrieb.`;

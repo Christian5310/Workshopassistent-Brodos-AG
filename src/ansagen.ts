@@ -27,6 +27,7 @@ export function vorlage(tag: Tag, workshop: Workshop | null, eingereicht: string
       `Ein paar Regeln für heute. Das Gespräch wird aufgezeichnet und in Text umgewandelt. Ich erkenne dabei nicht, wer spricht.` +
       ` Damit ein To-do bei der richtigen Person landet, nennt bitte Name und Frist. Zum Beispiel: ${wort}, To-do für Anna: Zahlen bis Freitag liefern.` +
       ` Bin ich unsicher, lege ich einen Vorschlag an, den ihr übernehmt oder verwerft.` +
+      ` Wenn ihr mich anklickt, reagiere ich sofort: Ich wechsle die Ansicht, starte oder pausiere die Aufnahme oder lese etwas vor. Was ihr ohne Klick zu mir sagt, landet nur im Protokoll.` +
       ` Die Aufnahme lässt sich jederzeit pausieren. Wer nicht aufgezeichnet werden möchte, sagt das bitte gleich.`,
     agenda: agenda.length
       ? `Das ist die Agenda für heute. ${agenda.map((a, i) => `${["Erstens", "Zweitens", "Drittens", "Viertens", "Fünftens", "Sechstens", "Siebtens", "Achtens"][i] ?? "Dann"}: ${a}.`).join(" ")} Dann legen wir los.`

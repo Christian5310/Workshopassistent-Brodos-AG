@@ -38,7 +38,7 @@ Nach dem Eintreten wählt man, was man abhält: ein **Meeting** (tägliche Arbei
 | Workshop | Neuen Workshop einrichten oder bestehenden öffnen; Einrichten (Rahmen, Teilnehmer), Material, Verdichtung zum Agenten-Briefing |
 | Abhalten (linke Leiste) | Meeting Assistent (Aufnahme, Agenda, To-dos) und Agenten (hinzufügen, fragen); im Workshop zusätzlich Einrichten und Material |
 | Archiv | Alle Meetings mit To-do-Liste, Entscheidungen, Fragen und Transkript, je mit Download |
-| Admin | Meetings: Grundeinstellungen (Takt, Aktivierungswort, Schutz vor zu vielen To-dos, Sprachfragen) und bestehende Meetings bearbeiten; Spezial-Agenten (nur hier angelegt und gepflegt); Erweitert: Merlin-Bubble (Stimme, Lesegeschwindigkeit) und Prompts |
+| Admin | Meetings: Grundeinstellungen (Takt, Aktivierungswort, Schutz vor zu vielen To-dos, Sprachfragen) und bestehende Meetings bearbeiten; Spezial-Agenten (nur hier angelegt und gepflegt); Erweitert: Merlin (Stimme, Lesegeschwindigkeit, Pausen-Erinnerung) und Prompts |
 | Regie | Diagnose, Text einspeisen, Inhalte löschen |
 
 Der Knopf mit dem Vollbild-Symbol schaltet den Präsentationsmodus: Das Fenster füllt den Bildschirm, die Schrift wächst für den Beamer.
@@ -62,7 +62,18 @@ Die Oberfläche folgt der Web-App-Designvorlage Brodos (Version 0.1): Farben, Sc
 
 Das ist eine technische Absicherung, keine rechtliche Prüfung. Rechtsgrundlage, Informationspflichten, Auftragsverarbeitung und die Beteiligung des Betriebsrats sind mit dem Datenschutz der Brodos AG zu klären.
 
-## Sprachbefehle
+## Merlin als Navigator
+
+Merlin schwebt rechts unten neben dem Fenster (auf der Startseite in der Mitte) und ist in allen Bereichen da (`public/js/merlin.js`).
+
+- **Anklicken:** Panel mit Vorschlägen je Bereich, Texteingabe und Mikrofon (klicken, sprechen, noch einmal klicken). Antwort in 1 bis 4 Sekunden.
+- **Befehle:** Neues Meeting (optional mit Namen), Meeting oder Workshop öffnen (per Name), Neuer Workshop, Aufnahme starten (2,5 s zum Abbrechen), Pause, Meeting schließen (mit Rückfrage), zu Agenten, Meeting Assistent, Archiv, Admin, Regie, Begrüßung, Agenda vorlesen, Material zusammenfassen, Regeln, „Frage an …: …", Hilfe. **Löschen geht über Merlin nicht.**
+- **Erkennung:** zuerst feste Regeln (`src/merlin.ts`, ohne KI), nur bei unbekannten Sätzen das Sprachmodell. Die App führt die Aktion so aus wie ein Klick.
+- **Während Merlin zuhört oder spricht,** ist die Meeting-Aufnahme stumm. Befehle landen also nicht im Protokoll.
+- **Pausen-Erinnerung** (Admin → Erweitert): nach einstellbarer Zeit ununterbrochener Aufnahme, wahlweise auch vorgelesen (nur auf dem Aufnahmegerät).
+- **Zwei Wege:** Mit Klick reagiert Merlin sofort. Ohne Klick im Gespräch gesagt („Merlin, To-do für …") wirkt es nur auf das Protokoll (siehe Sprachbefehle).
+
+## Sprachbefehle (im Gespräch, ohne Klick)
 
 Das Aktivierungswort (Standard „Merlin") und der Takt der Transkription stehen in der Admin-Ansicht unter „Meetings".
 
@@ -86,6 +97,7 @@ src/store.ts                Speicher: ein Meeting = eine Datei in data/tage/ (Ag
 src/einstellungen.ts        Admin-Einstellungen (data/einstellungen.json), Prompt-Platzhalter, Sicherheitsnetz für To-dos
 src/workshops.ts            Workshops: Teilnehmer und Material (data/workshops/), je mit eigenem Meeting
 src/archiv.ts               Aufbereitung eines Tages für Ansicht und Download
+src/merlin.ts               Merlin als Navigator: Befehle erkennen (Regeln, KI als Rückfall) und auflösen
 src/anbieter/               Schnittstellen + Mock (hier kommen Mistral und Broki dazu)
 src/mock/skript.ts          Fake-Transkript und Fake-Fragen
 public/                     Einstiegsseite, App-Rahmen (app.html, js/shell.js) und die Ansichten (HTML/CSS/JS ohne Build-Schritt)
@@ -109,6 +121,7 @@ public/assets/              Logo und Bilder aus der Designvorlage
 | `POST /api/agenda/:id/aktiv` | Agendapunkt von Hand auswählen |
 | `PATCH/DELETE /api/todos/:id` | To-do bearbeiten, abhaken, löschen |
 | `PATCH/DELETE /api/eintraege/:art/:id` | Entscheidung (`entscheidungen`) oder Frage (`fragen`) bearbeiten, als beantwortet markieren, löschen |
+| `POST /api/merlin/befehl`, `POST /api/merlin/audio` | Merlin: getippter bzw. gesprochener Befehl → Aktion für den Browser |
 | `GET/PUT /api/admin/einstellungen`, `GET /api/admin/vorschau` | Admin: Einstellungen lesen/speichern, fertigen Prompt ansehen |
 | `POST /api/todos/ablegen` | `{ name }`: aktuelle To-dos unter einer Kategorie ablegen; `{ name, zurueck: true }` holt sie zurück |
 | `POST /api/vorschlag/:id/annehmen` · `verwerfen` | Unsicheres To-do übernehmen oder verwerfen |
