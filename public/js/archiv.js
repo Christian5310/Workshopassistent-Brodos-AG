@@ -29,15 +29,16 @@ async function ladeListe() {
       const k = el("button", `select-item${m.id === gewaehlt ? " is-active" : ""}`);
       k.type = "button";
       const text = el("span");
-      text.append(m.name, el("span", "zusatz", `${datum(m.datum)} · ${m.todos} To-dos${m.aktiv ? " · geöffnet" : ""}`));
+      text.append(m.name, el("span", "zusatz", `${datum(m.datum)} · ${m.todos} To-dos · ${m.aktiv ? "geöffnet" : m.abgeschlossen ? "abgeschlossen" : "noch offen"}`));
       k.append(icon(m.abgeschlossen ? "archive" : "kalender"), text);
       k.addEventListener("click", () => zeige(m.id));
       liste.append(k);
     }
   };
-  gruppe("Abgeschlossen", meetings.filter((m) => m.abgeschlossen), "Noch kein abgeschlossenes Meeting.");
-  const offen = meetings.filter((m) => !m.abgeschlossen);
-  if (offen.length) gruppe("Noch nicht abgeschlossen", offen, "");
+  // Getrennt nach Meetings und Workshops, jeweils neueste zuerst
+  const neuesteZuerst = (a, b) => b.datum.localeCompare(a.datum) || (b.geschlossenAm ?? 0) - (a.geschlossenAm ?? 0);
+  gruppe("Meetings", meetings.filter((m) => !m.workshop).sort(neuesteZuerst), "Noch keine Meetings.");
+  gruppe("Workshops", meetings.filter((m) => m.workshop).sort(neuesteZuerst), "Noch keine Workshops.");
   if (!gewaehlt) zeigeLeer();
 }
 
@@ -98,6 +99,81 @@ function tabelle(spalten, zeilen, leer) {
 }
 
 const badge = (text, klasse = "") => el("span", `badge ${klasse}`.trim(), text);
+
+/** Kleine, sichere Markdown-Darstellung (Überschriften, Listen mit Einrückung, **fett**), ohne innerHTML. */
+function markdown(text) {
+  const wurzel = el("div", "ki-text");
+  const zeileMitFett = (ziel, zeile) => {
+    zeile.split(/(\*\*[^*]+\*\*)/).forEach((teil) => ziel.append(teil.startsWith("**") && teil.endsWith("**") ? el("strong", "", teil.slice(2, -2)) : teil));
+    return ziel;
+  };
+  let listen = []; // Stapel offener Listen je Einrückung
+  for (const roh of text.split("\n")) {
+    const zeile = roh.replace(/\s+$/, "");
+    const punkt = zeile.match(/^(\s*)[-*•]\s+(.*)$/);
+    const ueberschrift = zeile.match(/^(#{1,4})\s+(.*)$/);
+    if (punkt) {
+      const tiefe = Math.floor(punkt[1].replace(/\t/g, "  ").length / 2);
+      while (listen.length > tiefe + 1) listen.pop();
+      while (listen.length < tiefe + 1) {
+        const ul = el("ul");
+        (listen.at(-1)?.lastElementChild ?? wurzel).append(ul);
+        listen.push(ul);
+      }
+      listen.at(-1).append(zeileMitFett(el("li"), punkt[2]));
+      continue;
+    }
+    listen = [];
+    if (!zeile.trim()) continue;
+    if (ueberschrift) wurzel.append(zeileMitFett(el(ueberschrift[1].length <= 2 ? "h3" : "h4"), ueberschrift[2]));
+    else wurzel.append(zeileMitFett(el("p"), zeile));
+  }
+  return wurzel;
+}
+
+/** Kasten "KI-Zusammenfassung": erstellen, ansehen, kopieren, herunterladen. */
+function kiKasten(m) {
+  const s = el("section", "kasten");
+  const kopf = el("div", "kasten-kopf");
+  kopf.append(el("h2", "", "KI-Zusammenfassung"));
+  const inhalt = el("div", "kasten-inhalt stapel");
+  const info = el("span", "meldung");
+  info.setAttribute("role", "status");
+  const zeichne = (z) => {
+    const leiste = el("div", "reihe");
+    if (z) {
+      const kopieren = knopf("Kopieren", "kopieren", "zweit");
+      kopieren.addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(z.text); kopieren.replaceChildren(icon("check"), "Kopiert"); }
+        catch { info.textContent = "Kopieren ist hier gesperrt. Bitte herunterladen."; }
+      });
+      const neu = knopf("Neu erstellen", "undo", "zweit");
+      neu.addEventListener("click", () => { if (confirm("Die Zusammenfassung neu erstellen? Die bisherige wird ersetzt.")) erstelle(); });
+      leiste.append(kopieren, download("Herunterladen", `/api/tage/${m.id}/ki-zusammenfassung.md`, "btn zweit"), neu, info);
+      inhalt.replaceChildren(el("p", "klein-text gedaempft", `Erstellt am ${new Date(z.erstellt).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })} aus Protokoll und Transkript. Bitte vor dem Versand prüfen.`), markdown(z.text), leiste);
+    } else {
+      const los = knopf("KI-Zusammenfassung erstellen", "regler");
+      los.addEventListener("click", erstelle);
+      leiste.append(los, info);
+      inhalt.replaceChildren(el("p", "gedaempft", "Fasst das Meeting nach Themen gegliedert zusammen, mit Entscheidungen und den To-dos am Ende. Grundlage sind Protokoll und Transkript. Die Vorgabe dafür steht im Admin unter Erweitert → Prompts."), leiste);
+    }
+  };
+  async function erstelle() {
+    for (const k of inhalt.querySelectorAll("button")) k.disabled = true;
+    info.textContent = "Die KI fasst zusammen … das dauert bei einem langen Meeting bis zu einer Minute.";
+    try {
+      const antwort = await sende(`/api/tage/${m.id}/ki-zusammenfassung`);
+      info.textContent = "";
+      zeichne({ text: antwort.text, erstellt: antwort.erstellt });
+    } catch (fehler) {
+      for (const k of inhalt.querySelectorAll("button")) k.disabled = false;
+      info.textContent = fehler.message;
+    }
+  }
+  zeichne(m.kiZusammenfassung ?? null);
+  s.append(kopf, inhalt);
+  return s;
+}
 
 async function zeige(id) {
   gewaehlt = id;
@@ -219,6 +295,7 @@ async function zeige(id) {
     kasten("Entscheidungen", p.entscheidungen.length, [download("Markdown", md("entscheidungen"))], entscheidungen),
     kasten("Offene Fragen", p.offene_fragen.length, [], fragen),
     kasten("Fragen an die Spezial-Agenten", m.chat.filter((n) => n.von === "frage").length, [download("Markdown", md("fragen"))], qa),
+    kiKasten(m),
     kasten("Transkript", null, [download("Markdown", md("transkript"))], aufklapp),
   );
   detail.scrollTop = 0;

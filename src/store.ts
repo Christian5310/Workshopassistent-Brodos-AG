@@ -24,6 +24,8 @@ export interface Tag {
   agenten?: string[];
   /** Texte, die Merlin zur Einstimmung vorliest (Begrüßung, Eingereichtes, Regeln, Agenda) */
   ansagen?: Record<string, string>;
+  /** KI-Zusammenfassung aus Protokoll und Transkript (Archiv), als Markdown */
+  kiZusammenfassung?: { text: string; erstellt: number } | null;
   /** Hintergrundwissen zu diesem Meeting (Kontext für die Spezial-Agenten) */
   briefing: string;
   /** Fachbegriffe und Namen, die die Transkription richtig schreiben soll (mit Komma getrennt) */
@@ -201,6 +203,15 @@ class Store {
     agendaAnwenden(tag.protokoll, e.agenda);
     schreibe(tag);
     return tag;
+  }
+
+  /** Speichert die KI-Zusammenfassung am Meeting. */
+  setzeKiZusammenfassung(id: string, text: string): boolean {
+    const tag = this.hole(id);
+    if (!tag) return false;
+    tag.kiZusammenfassung = { text, erstellt: Date.now() };
+    schreibe(tag);
+    return true;
   }
 
   /** Speichert Merlins Ansagen am Meeting. */

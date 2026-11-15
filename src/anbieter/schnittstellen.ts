@@ -28,6 +28,8 @@ export interface Sprachmodell {
    */
   /** Fasst das Vorwissen eines Workshops in wenigen gesprochenen Sätzen zusammen (zum Vorlesen, ohne Namen). */
   sprechtext(wissen: string, name: string): Promise<string>;
+  /** Archiv: fasst ein Meeting nach der Vorgabe (prompt) zusammen. Liefert Markdown. */
+  fasseZusammen(prompt: string, inhalt: string, tag: { name: string; protokoll: Protokoll }): Promise<string>;
   /** Merlin: ordnet einen Satz genau einer App-Aktion zu (nur, wenn keine feste Regel greift). Ungeprüftes JSON. */
   merlinBefehl(text: string, kontext: string): Promise<unknown>;
   verdichte(material: { titel: string; art: string; text: string }[], kontext: { name: string; agenda: string[] }): Promise<{ wissen: string; begriffe: string }>;

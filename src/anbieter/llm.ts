@@ -118,6 +118,19 @@ Regeln für "wissen":
     return geprueft;
   }
 
+  async fasseZusammen(prompt: string, inhalt: string): Promise<string> {
+    const antwort = await this.#frage(
+      [
+        { role: "system", content: `${prompt}\n\nFormat: Markdown. Abschnitte als "## Überschrift", Stichpunkte mit "- ", Unterpunkte mit zwei Leerzeichen eingerückt. Antworte ausschließlich als JSON: {"markdown": "…"}` },
+        { role: "user", content: inhalt },
+      ],
+      4000,
+      config.llm.modell,
+      120_000, // ein ganzer Tag Transkript braucht etwas
+    );
+    return z.object({ markdown: z.string().min(1) }).parse(antwort).markdown.trim();
+  }
+
   async merlinBefehl(text: string, kontext: string): Promise<unknown> {
     return this.#frage(
       [

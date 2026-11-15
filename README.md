@@ -37,7 +37,7 @@ Nach dem Eintreten wählt man, was man abhält: ein **Meeting** (tägliche Arbei
 | Meeting | Neues Meeting einrichten oder bestehendes öffnen |
 | Workshop | Wie beim Meeting: links „Neuer Workshop", rechts „Bestehender Workshop" (öffnen oder bearbeiten); dann Einrichten (Rahmen, Teilnehmer), Material, Verdichtung zum Agenten-Briefing |
 | Abhalten (linke Leiste) | Meeting Assistent (Aufnahme, Agenda, To-dos) und Agenten (hinzufügen, fragen); im Workshop zusätzlich Einrichten und Material |
-| Archiv | Alle Meetings mit To-do-Liste, Entscheidungen, Fragen und Transkript, je mit Download |
+| Archiv | Getrennt nach MEETINGS und WORKSHOPS; je Eintrag To-do-Liste, Entscheidungen, Fragen, KI-Zusammenfassung (nach Themen, To-dos am Ende; kopieren oder herunterladen) und Transkript |
 | Admin | Workshops: Rahmen, Agenda, Teilnehmer ändern oder löschen; Meetings: Grundeinstellungen (Takt, Aktivierungswort, Schutz vor zu vielen To-dos, Sprachfragen) und bestehende Meetings bearbeiten; Spezial-Agenten (nur hier angelegt und gepflegt); Erweitert: Merlin (Stimme, Lesegeschwindigkeit, Pausen-Erinnerung) und Prompts |
 | Regie | Diagnose, Text einspeisen, Inhalte löschen |
 
@@ -123,6 +123,7 @@ public/assets/              Logo und Bilder aus der Designvorlage
 | `POST /api/agenda/:id/aktiv` | Agendapunkt von Hand auswählen |
 | `PATCH/DELETE /api/todos/:id` | To-do bearbeiten, abhaken, löschen |
 | `PATCH/DELETE /api/eintraege/:art/:id` | Entscheidung (`entscheidungen`) oder Frage (`fragen`) bearbeiten, als beantwortet markieren, löschen |
+| `POST /api/tage/:id/ki-zusammenfassung`, `GET /api/tage/:id/ki-zusammenfassung.md` | KI-Zusammenfassung erstellen (Prompt aus Admin → Erweitert) bzw. herunterladen |
 | `POST /api/merlin/befehl`, `POST /api/merlin/audio` | Merlin: getippter bzw. gesprochener Befehl → Aktion für den Browser |
 | `GET/PUT /api/admin/einstellungen`, `GET /api/admin/vorschau` | Admin: Einstellungen lesen/speichern, fertigen Prompt ansehen |
 | `POST /api/todos/ablegen` | `{ name }`: aktuelle To-dos unter einer Kategorie ablegen; `{ name, zurueck: true }` holt sie zurück |

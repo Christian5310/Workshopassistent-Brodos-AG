@@ -98,7 +98,7 @@ antworte nur aus dieser Rolle (max. 6 Sätze).
 Immer: Deutsch, Du-Form, konkret auf das Gesagte bezogen, keine Floskeln,
 keine erfundenen Zahlen oder Studien. Fehlen dir Infos über Brodos, sag das
 und stelle eine Rückfrage. Wiederhole nicht, was bereits im Protokoll steht.`,
-    promptZusammenfassung: `Du schreibst die Zusammenfassung eines Workshops. Grundlage sind das PROTOKOLL
+    promptZusammenfassung: `Du schreibst die Zusammenfassung eines Meetings oder Workshops. Grundlage sind das PROTOKOLL
 (live geführt, verlässlich) und das TRANSKRIPT (automatisch erstellt, ohne Sprecher,
 kann Hör- und Schreibfehler enthalten).
 

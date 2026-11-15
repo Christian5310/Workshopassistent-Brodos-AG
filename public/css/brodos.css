@@ -607,3 +607,12 @@ details.einklappen[open] > summary { margin-bottom: var(--space-2); }
 /* Geöffnetes, aber pausiertes Meeting: hervorgehoben ohne roten Punkt */
 .app-kopf nav a.offen { display: inline-flex; align-items: center; align-self: center; min-height: 2rem; padding: 0.25rem 0.75rem; border: 1px solid var(--accent); border-radius: 999px; background: #fff8d1; color: var(--ink); font-weight: 600; }
 .app-kopf nav a.offen:hover { background: var(--accent); color: var(--ink); }
+
+/* Archiv: KI-Zusammenfassung */
+.ki-text { padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--surface-alt); line-height: 1.6; }
+.ki-text h3 { margin: var(--space-2) 0 0.25rem; font-size: 1.0625rem; color: var(--brand); }
+.ki-text h3:first-child { margin-top: 0; }
+.ki-text h4 { margin: var(--space-1) 0 0.25rem; font-size: 0.9375rem; }
+.ki-text ul { margin: 0.25rem 0 0.5rem; padding-left: 1.25rem; }
+.ki-text ul ul { margin: 0.125rem 0 0.25rem; color: var(--ink-muted); }
+.ki-text p { margin: 0.25rem 0; }

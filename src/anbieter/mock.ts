@@ -120,6 +120,22 @@ export class MockSprachmodell implements Sprachmodell {
   }
 
   /** Fake-Sprechtext: nennt nur den Umfang des Vorwissens. */
+  /** Fake-Zusammenfassung aus dem Protokoll, im Aufbau wie die echte (Themen, Entscheidungen, Nächste Schritte). */
+  async fasseZusammen(_prompt: string, _inhalt: string, tag: { name: string; protokoll: Protokoll }): Promise<string> {
+    await warte(800);
+    const p = tag.protokoll;
+    const teile: string[] = [];
+    for (const a of p.agenda) {
+      const notizen = p.notizen.filter((n) => n.agendapunkt === a.id).map((n) => `- ${n.text}`);
+      const todos = p.todos.filter((t) => t.agendapunkt === a.id).map((t) => `- ${t.text}`);
+      if (notizen.length || todos.length) teile.push(`## ${a.titel}`, ...(notizen.length ? notizen : todos.map((t) => `${t} (Aufgabe)`)), "");
+    }
+    if (!teile.length) teile.push("## Gesprächsinhalt", "- [Mock] Im Mock-Modus wird aus dem Protokoll eine Beispiel-Zusammenfassung gebaut.", "");
+    if (p.entscheidungen.length) teile.push("## Entscheidungen", ...p.entscheidungen.map((e) => `- ${e.text}`), "");
+    teile.push("## Nächste Schritte", ...(p.todos.length ? p.todos.map((t) => `- ${t.text} (${t.owner}, ${t.frist})`) : ["- Keine To-dos."]));
+    return `[Mock] ${tag.name}\n\n${teile.join("\n")}`;
+  }
+
   async merlinBefehl(): Promise<unknown> {
     return { aktion: "unbekannt" }; // im Mock nur die festen Regeln
   }

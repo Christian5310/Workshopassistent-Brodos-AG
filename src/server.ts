@@ -679,6 +679,36 @@ async function entwerfeAnsagen(tag: NonNullable<ReturnType<typeof store.hole>>):
   return ansagen.vorlage(tag, ws ? workshops.hole(ws.id) : null, eingereicht);
 }
 
+/** KI-Zusammenfassung erstellen (Archiv): Prompt aus Admin → Erweitert, dazu Protokoll und Transkript. */
+const zusammenfassungLaeuft = new Set<string>();
+app.post("/api/tage/:id/ki-zusammenfassung", async (req, res) => {
+  const tag = holeTag(req.params.id, res);
+  if (!tag) return;
+  if (!tag.transkript.length && !tag.protokoll.todos.length) return void res.status(400).json({ fehler: "Es gibt noch kein Transkript und keine To-dos, die sich zusammenfassen lassen." });
+  if (zusammenfassungLaeuft.has(tag.id)) return void res.status(409).json({ fehler: "Die Zusammenfassung wird gerade schon erstellt." });
+  zusammenfassungLaeuft.add(tag.id);
+  try {
+    // Sehr lange Transkripte werden gekürzt, damit die Anfrage ins Kontextfenster passt
+    const inhalt = archiv.fuerBroki(tag, "").slice(0, 350_000);
+    const text = await anbieter.sprachmodell.fasseZusammen(admin.einstellungen.promptZusammenfassung, inhalt, tag);
+    store.setzeKiZusammenfassung(tag.id, text);
+    res.json({ ok: true, text, erstellt: Date.now() });
+  } catch (fehler) {
+    res.status(502).json({ fehler: `Zusammenfassung fehlgeschlagen: ${(fehler as Error).message}` });
+  } finally {
+    zusammenfassungLaeuft.delete(tag.id);
+  }
+});
+
+/** KI-Zusammenfassung als Markdown-Datei */
+app.get("/api/tage/:id/ki-zusammenfassung.md", (req, res) => {
+  const tag = holeTag(req.params.id, res);
+  if (!tag) return;
+  if (!tag.kiZusammenfassung) return void res.status(404).json({ fehler: "Noch keine KI-Zusammenfassung." });
+  const name = tag.name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 60) || "meeting";
+  res.attachment(`${tag.datum}-${name}-Zusammenfassung.md`).type("text/markdown; charset=utf-8").send(`# ${tag.name}\n\n${tag.kiZusammenfassung.text}\n`);
+});
+
 /** Liefert die Ansagen; gibt es noch keine, werden sie entworfen und gespeichert. Mit ?neu werden sie neu entworfen. */
 app.get("/api/tage/:id/ansagen", async (req, res) => {
   const tag = holeTag(req.params.id, res);
