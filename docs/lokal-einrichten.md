@@ -58,6 +58,8 @@ Lizenz vor dem Einsatz auf der Modellseite bei ollama.com prüfen. Llama- und Ge
 
 ### Wenn Downloads im Brodos-Netz gesperrt sind
 
+- **„CAS Client Error … us.aws.cdn.hf.co"** beim Laden eines Modells: Hugging Face liefert manche Modelle über einen eigenen Speicher („Xet"), den Firmennetze oft blockieren. Das Startskript schaltet ihn ab (`HF_HUB_DISABLE_XET=1`), dann wird über huggingface.co geladen. Hängt ein halb geladenes Modell fest: Ordner `%USERPROFILE%\.cache\huggingface\hub\models--mobiuslabsgmbh--faster-whisper-large-v3-turbo` löschen und neu starten.
+
 - Whisper-Modelle kommen von huggingface.co. Ist das gesperrt: Modellordner (z. B. „faster-whisper-large-v3-turbo") auf einem anderen Rechner herunterladen, nach `lokal\modelle\` kopieren und `WHISPER_MODELL=lokal\modelle\<ordner>` setzen.
 - Ollama-Modelle kommen von ollama.com. Gegebenenfalls die IT um Freigabe bitten.
 

@@ -23,6 +23,11 @@ import tempfile
 import threading
 import time
 
+# Downloads über den normalen Weg statt über den Xet-Speicher von Hugging Face (in Firmennetzen oft blockiert).
+# Muss vor dem ersten Import von huggingface_hub gesetzt sein; start-whisper.cmd setzt es zusätzlich.
+os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+
 import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
