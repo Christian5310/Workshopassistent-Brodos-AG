@@ -338,6 +338,11 @@ async function ladeErweitert() {
   farben = daten.farben;
   const e = daten.einstellungen;
   $("#promptAssistent").value = e.promptAssistent;
+  // Wird der Transkriptionsassistent in Broki gepflegt (LLM_MODEL_PROTOKOLL), gilt dieses Feld nicht
+  const extern = daten.promptExtern;
+  $("#promptAssistent").readOnly = !!extern;
+  $("#prompt-extern").hidden = !extern;
+  if (extern) $("#prompt-extern").textContent = `Wird in Broki gepflegt: Modell „${extern}" (${daten.llmBasis}). Rolle und Regeln dort ändern. Dieses Feld gilt nur ohne Broki-Modell, z. B. mit Mistral.`;
   $("#promptAgenten").value = e.promptAgenten;
   $("#promptZusammenfassung").value = e.promptZusammenfassung;
   $("#maxTodos").value = e.maxTodosProZyklus;

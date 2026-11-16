@@ -17,6 +17,9 @@ const FORMAT_STAND = `Format von STAND (genau diese Felder, IDs bestehender Eint
   "notizen": [{"agendapunkt": "A1", "text": "…"}]
 }`;
 
+/** Technischer Teil des Transkriptionsassistenten: gehört zur App, nicht zur Prompt-Pflege (sonst bricht das Format). */
+const TECHNIK_PROTOKOLL = "Gib den aktualisierten STAND zurück. Nur JSON, kein Text davor oder danach.";
+
 /** Anleitung für Sprachbefehle. Greift nur, wenn im Abschnitt das Aktivierungswort fällt (der Server prüft das zusätzlich). */
 function sprachbefehle(): string {
   const wort = einstellungen.aktivierungswort;
@@ -32,6 +35,27 @@ function sprachbefehle(): string {
 }
 
 const AntwortSchema = z.object({ antworten: z.array(z.object({ rolle: z.string(), text: z.string().min(1) })).min(1) });
+
+/** Je Modell gemerkt, welche Parameter es ablehnt (siehe #frage). */
+const modellAnpassungen: Record<string, { ohneTemperatur: boolean; maxCompletion: boolean; ohneDenktiefe?: boolean; ohneJsonModus?: boolean }> = {};
+
+/**
+ * Liest JSON aus der Antwort, auch wenn ein Modell es in einen Code-Block (```json … ```) packt
+ * oder einen Satz davor schreibt (kommt über Broki/Open WebUI je nach Modell vor).
+ */
+export function leseJson(text: string): unknown {
+  const roh = text.trim();
+  try {
+    return JSON.parse(roh);
+  } catch {
+    const block = roh.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1];
+    if (block) return JSON.parse(block.trim());
+    const von = roh.indexOf("{");
+    const bis = roh.lastIndexOf("}");
+    if (von >= 0 && bis > von) return JSON.parse(roh.slice(von, bis + 1));
+    throw new Error(`Antwort ist kein JSON: ${roh.slice(0, 120)}`);
+  }
+}
 
 /**
  * Ollama schneidet zu lange Eingaben stillschweigend vorne ab. Deshalb wird die Kontextlänge je Anfrage passend gesetzt:
@@ -50,15 +74,34 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
   async #frage(nachrichten: Nachricht[], maxTokens: number, modell = config.llm.modell, zeitlimitMs = 60_000): Promise<unknown> {
     // Lokal dauert alles länger: kurze Aufgaben (Merlin) bekommen 30 s, alle anderen das eingestellte Zeitlimit
     if (config.llm.anbieter === "ollama") return this.#frageOllama(nachrichten, maxTokens, modell, zeitlimitMs < 10_000 ? 30_000 : Math.max(zeitlimitMs, config.llm.zeitlimitMs));
-    const antwort = await fetch(config.llm.basisUrl + config.llm.pfad, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${config.llm.schluessel}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: modell, messages: nachrichten, temperature: 0.2, max_tokens: maxTokens, response_format: { type: "json_object" } }),
-      signal: AbortSignal.timeout(zeitlimitMs),
-    });
-    if (!antwort.ok) throw new Error(`Sprachmodell: HTTP ${antwort.status} ${(await antwort.text()).slice(0, 300)}`);
-    const daten = (await antwort.json()) as { choices?: { message?: { content?: string } }[] };
-    return JSON.parse(daten.choices?.[0]?.message?.content ?? "");
+    // Neuere Modelle (z. B. gpt-6-luna über Broki) lehnen eigene temperature-Werte oder max_tokens ab.
+    // Dann wird die Anfrage einmal angepasst wiederholt und die Anpassung je Modell gemerkt.
+    const anpassung = (modellAnpassungen[modell] ??= { ohneTemperatur: false, maxCompletion: false });
+    let antwort: Response | null = null;
+    for (let versuch = 0; versuch < 5; versuch++) {
+      const body: Record<string, unknown> = { model: modell, messages: nachrichten };
+      if (!anpassung.ohneJsonModus) body.response_format = { type: "json_object" };
+      if (!anpassung.ohneTemperatur) body.temperature = 0.2;
+      if (config.llm.denktiefe && !anpassung.ohneDenktiefe) body.reasoning_effort = config.llm.denktiefe;
+      body[anpassung.maxCompletion ? "max_completion_tokens" : "max_tokens"] = maxTokens;
+      antwort = await fetch(config.llm.basisUrl + config.llm.pfad, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${config.llm.schluessel}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(zeitlimitMs),
+      });
+      if (antwort.status !== 400) break;
+      const fehler = await antwort.clone().text();
+      if (!anpassung.ohneTemperatur && /temperature/i.test(fehler)) anpassung.ohneTemperatur = true;
+      else if (!anpassung.maxCompletion && /max_tokens|max_completion_tokens/i.test(fehler)) anpassung.maxCompletion = true;
+      else if (!anpassung.ohneDenktiefe && /reasoning_effort/i.test(fehler)) anpassung.ohneDenktiefe = true;
+      else if (!anpassung.ohneJsonModus && /response_format/i.test(fehler)) anpassung.ohneJsonModus = true; // z. B. Claude über Broki
+      else break;
+      console.log(`Sprachmodell ${modell}: Parameter angepasst (${JSON.stringify(anpassung)}).`);
+    }
+    if (!antwort!.ok) throw new Error(`Sprachmodell: HTTP ${antwort!.status} ${(await antwort!.text()).slice(0, 300)}`);
+    const daten = (await antwort!.json()) as { choices?: { message?: { content?: string } }[] };
+    return leseJson(daten.choices?.[0]?.message?.content ?? "");
   }
 
   /**
@@ -74,21 +117,26 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
     });
     if (!antwort.ok) throw new Error(`Lokales Sprachmodell (Ollama): HTTP ${antwort.status} ${(await antwort.text()).slice(0, 300)}`);
     const daten = (await antwort.json()) as { message?: { content?: string } };
-    return JSON.parse(daten.message?.content ?? "");
+    return leseJson(daten.message?.content ?? "");
   }
 
   async chronist(stand: Protokoll, abschnitt: string): Promise<unknown> {
     // Der vorherige Abschnitt geht als Kontext mit, damit Zusagen an der Schnittkante nicht verloren gehen.
     const davor = store.daten.transkript.at(-2)?.text ?? "";
+    const technik = `${TECHNIK_PROTOKOLL}\n\n${FORMAT_STAND}\n\n${sprachbefehle()}`;
+    const daten = `STAND:\n${JSON.stringify(stand)}\n\nAKTUELLER AGENDAPUNKT: ${stand.agenda.find((a) => a.status === "läuft")?.titel ?? "(keiner ausgewählt)"}\n\nVORHERIGER ABSCHNITT (nur zum Verständnis, bereits verarbeitet):\n${davor || "(keiner)"}\n\nABSCHNITT:\n${abschnitt}`;
     return this.#frage(
-      [
-        { role: "system", content: `${einstellungen.promptAssistent}\n\n${FORMAT_STAND}\n\n${sprachbefehle()}` },
-        {
-          role: "user",
-          content: `STAND:\n${JSON.stringify(stand)}\n\nAKTUELLER AGENDAPUNKT: ${stand.agenda.find((a) => a.status === "läuft")?.titel ?? "(keiner ausgewählt)"}\n\nVORHERIGER ABSCHNITT (nur zum Verständnis, bereits verarbeitet):\n${davor || "(keiner)"}\n\nABSCHNITT:\n${abschnitt}`,
-        },
-      ],
+      config.llm.modellProtokoll
+        ? // Eigenes Modell (z. B. Broki "broki-protokoll"): Rolle und Regeln kommen aus dessen System-Prompt.
+          // Keine eigene System-Nachricht schicken – Open WebUI wendet den Modell-Prompt sonst nicht zuverlässig an.
+          // Der technische Teil (Format, Sprachbefehle) steht deshalb vor den Daten in der Nutzer-Nachricht.
+          [{ role: "user", content: `TECHNISCHE VORGABEN DER APP:\n${technik}\n\n${daten}` }]
+        : [
+            { role: "system", content: `${einstellungen.promptAssistent}\n\n${technik}` },
+            { role: "user", content: daten },
+          ],
       8000,
+      config.llm.modellProtokoll || config.llm.modell,
     );
   }
 

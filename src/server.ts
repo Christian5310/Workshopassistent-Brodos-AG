@@ -564,7 +564,7 @@ app.post("/api/regie/reset", (_req, res) => {
 
 // ── Admin: Prompts, Hintergrundwissen, Agenda und Agenten einstellen ──
 app.get("/api/admin/einstellungen", (_req, res) => {
-  res.json({ einstellungen: admin.einstellungen, standard: admin.standard(), mock: config.mock, figuren: admin.FIGUREN, farben: admin.FARBEN });
+  res.json({ einstellungen: admin.einstellungen, standard: admin.standard(), mock: config.mock, figuren: admin.FIGUREN, farben: admin.FARBEN, promptExtern: config.mock ? "" : config.llm.modellProtokoll, llmBasis: config.llm.basisUrl });
 });
 
 /** Speichert Prompts und Obergrenze ("Erweitert"). Agenten und Meetings haben eigene Endpunkte. */

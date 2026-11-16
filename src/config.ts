@@ -40,6 +40,14 @@ export const config = {
     modell: process.env.LLM_MODEL || (llmAnbieter === "ollama" ? "mistral-small3.2" : "mistral-medium-latest"),
     /** Merlin-Befehle brauchen nur ein kleines, schnelles Modell. Bei Mistral standardmäßig mistral-small, sonst wie LLM_MODEL. */
     modellMerlin: process.env.LLM_MODEL_MERLIN || (llmAnbieter === "openai" && (process.env.LLM_BASE_URL || "https://api.mistral.ai").includes("mistral.ai") ? "mistral-small-latest" : process.env.LLM_MODEL || (llmAnbieter === "ollama" ? "mistral-small3.2" : "mistral-medium-latest")),
+    /**
+     * Eigenes Modell für den Transkriptionsassistenten, z. B. ein Broki-Modell ("broki-protokoll").
+     * Ist es gesetzt, werden Rolle und Regeln dort gepflegt; die App schickt nur noch den technischen Teil
+     * (Datenformat, Sprachbefehle, Stand, Abschnitt). Leer = LLM_MODEL mit dem Prompt aus dem Admin.
+     */
+    modellProtokoll: process.env.LLM_MODEL_PROTOKOLL || "",
+    /** Optional für Denk-Modelle (z. B. gpt-6-luna): low | medium | high. Leer = Vorgabe des Modells. */
+    denktiefe: process.env.LLM_REASONING_EFFORT || "",
     /** Ollama: Kontextlänge in Tokens (Standard von Ollama ist zu klein für Protokoll + Transkript) */
     kontext: Number(process.env.LLM_KONTEXT ?? 16384),
     /** Ollama: Obergrenze für lange Aufgaben (KI-Zusammenfassung eines ganzen Tages). Mehr Kontext braucht mehr Arbeitsspeicher. */

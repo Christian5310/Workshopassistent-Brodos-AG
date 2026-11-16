@@ -62,6 +62,15 @@ Die Oberfläche folgt der Web-App-Designvorlage Brodos (Version 0.1): Farben, Sc
 
 Das ist eine technische Absicherung, keine rechtliche Prüfung. Rechtsgrundlage, Informationspflichten, Auftragsverarbeitung und die Beteiligung des Betriebsrats sind mit dem Datenschutz der Brodos AG zu klären.
 
+## Logik über Broki (Open WebUI)
+
+Die App spricht Broki über die OpenAI-kompatible Schnittstelle an (`LLM_BASE_URL`, `LLM_CHAT_PATH=/api/chat/completions`, `LLM_API_KEY`, `LLM_MODEL`).
+
+- **Transkriptionsassistent als Broki-Modell:** Mit `LLM_MODEL_PROTOKOLL=broki-protokoll` kommen Rolle und Regeln aus dem System-Prompt dieses Broki-Modells. Die App schickt dann nur den technischen Teil (Datenformat, Sprachbefehle, Stand, Abschnitt) in der Nutzer-Nachricht, weil Open WebUI den Modell-Prompt bei einer eigenen System-Nachricht nicht zuverlässig anwendet. Im Admin steht dann beim Prompt-Feld ein Hinweis.
+- **Agenten, Merlin, Zusammenfassung** laufen über `LLM_MODEL` mit den Prompts aus der App.
+- **Modell-Eigenheiten werden automatisch ausgeglichen:** Lehnt ein Modell `temperature`, `max_tokens`, `reasoning_effort` oder den JSON-Modus ab, wiederholt die App die Anfrage angepasst und merkt sich das je Modell. JSON in Code-Blöcken wird erkannt.
+- **Getestet (16.11.2026):** gpt-6-luna lieferte in etwa jedem vierten Durchlauf ein leeres Protokoll, Claude Sonnet 5.5 und Claude Haiku 5.5 je 4 von 4 richtig.
+
 ## Komplett lokal (ohne Cloud)
 
 Transkription mit **Whisper** (faster-whisper, `lokal/whisper_server.py`) und Sprachmodell über **Ollama** (z. B. `mistral-small3.2`, Apache 2.0) laufen auf dem eigenen Rechner, ohne Lizenzkosten und ohne Docker. Umschalten in der `.env` mit `STT_ANBIETER=whisper` und `LLM_ANBIETER=ollama`. Einrichtung, Hardware und Modellwahl: [docs/lokal-einrichten.md](docs/lokal-einrichten.md). Ob alles läuft, zeigt **Regie → KI-Dienste**.
