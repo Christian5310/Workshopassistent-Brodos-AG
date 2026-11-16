@@ -34,11 +34,22 @@ function sprachbefehle(): string {
 const AntwortSchema = z.object({ antworten: z.array(z.object({ rolle: z.string(), text: z.string().min(1) })).min(1) });
 
 /**
+ * Ollama schneidet zu lange Eingaben stillschweigend vorne ab. Deshalb wird die Kontextlänge je Anfrage passend gesetzt:
+ * grob 1 Token je 3 Zeichen plus Platz für die Antwort, mindestens LLM_KONTEXT, höchstens LLM_KONTEXT_MAX.
+ */
+function kontextFuer(nachrichten: Nachricht[], maxTokens: number): number {
+  const geschaetzt = Math.ceil(nachrichten.reduce((summe, n) => summe + n.content.length, 0) / 3) + maxTokens + 1000;
+  return Math.min(Math.max(config.llm.kontext, Math.ceil(geschaetzt / 4096) * 4096), config.llm.kontextMax);
+}
+
+/**
  * Sprachmodell über eine OpenAI-kompatible Chat-Schnittstelle.
  * Passt für Mistral (/v1/chat/completions) und Broki/Open WebUI (/api/chat/completions) – nur die .env unterscheidet sich.
  */
 export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
   async #frage(nachrichten: Nachricht[], maxTokens: number, modell = config.llm.modell, zeitlimitMs = 60_000): Promise<unknown> {
+    // Lokal dauert alles länger: kurze Aufgaben (Merlin) bekommen 30 s, alle anderen das eingestellte Zeitlimit
+    if (config.llm.anbieter === "ollama") return this.#frageOllama(nachrichten, maxTokens, modell, zeitlimitMs < 10_000 ? 30_000 : Math.max(zeitlimitMs, config.llm.zeitlimitMs));
     const antwort = await fetch(config.llm.basisUrl + config.llm.pfad, {
       method: "POST",
       headers: { Authorization: `Bearer ${config.llm.schluessel}`, "Content-Type": "application/json" },
@@ -48,6 +59,22 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
     if (!antwort.ok) throw new Error(`Sprachmodell: HTTP ${antwort.status} ${(await antwort.text()).slice(0, 300)}`);
     const daten = (await antwort.json()) as { choices?: { message?: { content?: string } }[] };
     return JSON.parse(daten.choices?.[0]?.message?.content ?? "");
+  }
+
+  /**
+   * Lokales Modell über Ollama (native Schnittstelle /api/chat). Nur hier lassen sich Kontextlänge (num_ctx)
+   * und JSON-Modus zuverlässig setzen; die OpenAI-kompatible Schnittstelle von Ollama ignoriert num_ctx.
+   */
+  async #frageOllama(nachrichten: Nachricht[], maxTokens: number, modell: string, zeitlimitMs: number): Promise<unknown> {
+    const antwort = await fetch(config.llm.basisUrl + config.llm.pfad, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: modell, messages: nachrichten, stream: false, format: "json", keep_alive: "30m", options: { temperature: 0.2, num_ctx: kontextFuer(nachrichten, maxTokens), num_predict: maxTokens } }),
+      signal: AbortSignal.timeout(zeitlimitMs),
+    });
+    if (!antwort.ok) throw new Error(`Lokales Sprachmodell (Ollama): HTTP ${antwort.status} ${(await antwort.text()).slice(0, 300)}`);
+    const daten = (await antwort.json()) as { message?: { content?: string } };
+    return JSON.parse(daten.message?.content ?? "");
   }
 
   async chronist(stand: Protokoll, abschnitt: string): Promise<unknown> {

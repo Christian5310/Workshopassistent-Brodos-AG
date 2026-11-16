@@ -62,6 +62,10 @@ Die Oberfläche folgt der Web-App-Designvorlage Brodos (Version 0.1): Farben, Sc
 
 Das ist eine technische Absicherung, keine rechtliche Prüfung. Rechtsgrundlage, Informationspflichten, Auftragsverarbeitung und die Beteiligung des Betriebsrats sind mit dem Datenschutz der Brodos AG zu klären.
 
+## Komplett lokal (ohne Cloud)
+
+Transkription mit **Whisper** (faster-whisper, `lokal/whisper_server.py`) und Sprachmodell über **Ollama** (z. B. `mistral-small3.2`, Apache 2.0) laufen auf dem eigenen Rechner, ohne Lizenzkosten und ohne Docker. Umschalten in der `.env` mit `STT_ANBIETER=whisper` und `LLM_ANBIETER=ollama`. Einrichtung, Hardware und Modellwahl: [docs/lokal-einrichten.md](docs/lokal-einrichten.md). Ob alles läuft, zeigt **Regie → KI-Dienste**.
+
 ## Merlin als Navigator
 
 Merlin schwebt rechts unten neben dem Fenster (auf der Startseite in der Mitte) und ist in allen Bereichen da (`public/js/merlin.js`).
@@ -99,6 +103,8 @@ src/store.ts                Speicher: ein Meeting = eine Datei in data/tage/ (Ag
 src/einstellungen.ts        Admin-Einstellungen (data/einstellungen.json), Prompt-Platzhalter, Sicherheitsnetz für To-dos
 src/workshops.ts            Workshops: Teilnehmer und Material (data/workshops/), je mit eigenem Meeting
 src/archiv.ts               Aufbereitung eines Tages für Ansicht und Download
+src/anbieter/whisper.ts     Transkription über den lokalen Whisper-Dienst (mit Filter für erfundene Sätze)
+lokal/                      Lokaler Whisper-Dienst (Python, faster-whisper) mit Startskript für Windows
 src/merlin.ts               Merlin als Navigator: Befehle erkennen (Regeln, KI als Rückfall) und auflösen
 src/anbieter/               Schnittstellen + Mock (hier kommen Mistral und Broki dazu)
 src/mock/skript.ts          Fake-Transkript und Fake-Fragen

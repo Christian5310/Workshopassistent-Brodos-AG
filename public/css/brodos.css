@@ -616,3 +616,4 @@ details.einklappen[open] > summary { margin-bottom: var(--space-2); }
 .ki-text ul { margin: 0.25rem 0 0.5rem; padding-left: 1.25rem; }
 .ki-text ul ul { margin: 0.125rem 0 0.25rem; color: var(--ink-muted); }
 .ki-text p { margin: 0.25rem 0; }
+.kasten-inhalt .warnung { color: #b00020; font-weight: 600; }

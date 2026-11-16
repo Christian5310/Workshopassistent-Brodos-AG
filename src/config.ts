@@ -7,6 +7,8 @@ try {
 }
 
 const wurzel = path.resolve(import.meta.dirname, "..");
+const sttAnbieter = (process.env.STT_ANBIETER || "mistral").trim().toLowerCase() === "whisper" ? "whisper" : "mistral";
+const llmAnbieter = (process.env.LLM_ANBIETER || "openai").trim().toLowerCase() === "ollama" ? "ollama" : "openai";
 
 export const config = {
   port: Number(process.env.PORT ?? 3000),
@@ -16,20 +18,28 @@ export const config = {
   mockMikro: (process.env.MOCK_MIKRO ?? "false").toLowerCase() === "true",
   chunkSekunden: Number(process.env.CHUNK_SECONDS ?? 60),
   mockChunkSekunden: Number(process.env.MOCK_CHUNK_SECONDS ?? 8),
-  // Transkription (Mistral Voxtral) – Schlüssel nur serverseitig
+  // Transkription: "mistral" (Voxtral, Cloud) oder "whisper" (lokaler Whisper-Dienst, siehe lokal/whisper_server.py)
   stt: {
-    basisUrl: process.env.STT_BASE_URL || "https://api.mistral.ai",
+    anbieter: sttAnbieter,
+    basisUrl: (process.env.STT_BASE_URL || (sttAnbieter === "whisper" ? "http://127.0.0.1:8001" : "https://api.mistral.ai")).replace(/\/$/, ""),
     schluessel: process.env.MISTRAL_API_KEY ?? "",
-    modell: process.env.STT_MODEL || "voxtral-mini-transcribe-3-0",
+    modell: process.env.STT_MODEL || (sttAnbieter === "whisper" ? "large-v3-turbo" : "voxtral-mini-transcribe-3-0"),
   },
-  // Sprachmodell (OpenAI-kompatibel). Ohne eigene Angaben läuft es über Mistral mit demselben Schlüssel.
+  // Sprachmodell: "ollama" (lokal, ohne Cloud) oder "openai" (OpenAI-kompatibel: Mistral, Broki/Open WebUI)
   llm: {
-    basisUrl: (process.env.LLM_BASE_URL || "https://api.mistral.ai").replace(/\/$/, ""),
-    pfad: process.env.LLM_CHAT_PATH || "/v1/chat/completions",
+    anbieter: llmAnbieter,
+    basisUrl: (process.env.LLM_BASE_URL || (llmAnbieter === "ollama" ? "http://127.0.0.1:11434" : "https://api.mistral.ai")).replace(/\/$/, ""),
+    pfad: process.env.LLM_CHAT_PATH || (llmAnbieter === "ollama" ? "/api/chat" : "/v1/chat/completions"),
     schluessel: process.env.LLM_API_KEY || process.env.MISTRAL_API_KEY || "",
-    modell: process.env.LLM_MODEL || "mistral-medium-latest",
+    modell: process.env.LLM_MODEL || (llmAnbieter === "ollama" ? "mistral-small3.2" : "mistral-medium-latest"),
     /** Merlin-Befehle brauchen nur ein kleines, schnelles Modell. Bei Mistral standardmäßig mistral-small, sonst wie LLM_MODEL. */
-    modellMerlin: process.env.LLM_MODEL_MERLIN || ((process.env.LLM_BASE_URL || "https://api.mistral.ai").includes("mistral.ai") ? "mistral-small-latest" : process.env.LLM_MODEL || "mistral-medium-latest"),
+    modellMerlin: process.env.LLM_MODEL_MERLIN || (llmAnbieter === "openai" && (process.env.LLM_BASE_URL || "https://api.mistral.ai").includes("mistral.ai") ? "mistral-small-latest" : process.env.LLM_MODEL || (llmAnbieter === "ollama" ? "mistral-small3.2" : "mistral-medium-latest")),
+    /** Ollama: Kontextlänge in Tokens (Standard von Ollama ist zu klein für Protokoll + Transkript) */
+    kontext: Number(process.env.LLM_KONTEXT ?? 16384),
+    /** Ollama: Obergrenze für lange Aufgaben (KI-Zusammenfassung eines ganzen Tages). Mehr Kontext braucht mehr Arbeitsspeicher. */
+    kontextMax: Number(process.env.LLM_KONTEXT_MAX ?? 65536),
+    /** Lokale Modelle brauchen länger: Mindest-Wartezeit pro Anfrage */
+    zeitlimitMs: Number(process.env.LLM_ZEITLIMIT_SEKUNDEN ?? (llmAnbieter === "ollama" ? 300 : 60)) * 1000,
   },
   pfade: {
     public: path.join(wurzel, "public"),

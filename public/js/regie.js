@@ -50,6 +50,20 @@ async function ladeDiagnose() {
 }
 ladeDiagnose();
 
+// KI-Dienste: was läuft wo, und sind die lokalen Dienste (Whisper, Ollama) erreichbar?
+async function ladeAnbieter() {
+  const ziel = $("#anbieter");
+  ziel.replaceChildren(el("p", "gedaempft", "Prüfe …"));
+  const { info, lokal, meldungen } = await (await fetch("/api/regie/anbieter")).json();
+  ziel.replaceChildren(
+    el("p", "", info),
+    ...(lokal ? [el("p", "klein-text gedaempft", "Komplett lokal: Audio und Texte verlassen diesen Rechner bzw. das Brodos-Netz nicht.")] : []),
+    ...meldungen.map((m) => { const p = el("p", `klein-text${/NICHT|fehlt/.test(m) ? " warnung" : ""}`); p.append(icon(/NICHT|fehlt/.test(m) ? "info" : "check"), " ", m); return p; }),
+  );
+}
+$("#anbieter-pruefen").addEventListener("click", ladeAnbieter);
+ladeAnbieter();
+
 $("#textformular").addEventListener("submit", async (ereignis) => {
   ereignis.preventDefault();
   try {

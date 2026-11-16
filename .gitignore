@@ -5,3 +5,7 @@ data/*
 
 # Interner Projektkontext – nicht ins öffentliche Repo
 CLAUDE.md
+
+# Lokaler Whisper-Dienst: Python-Umgebung und Modelle nicht ins Repo
+lokal/.venv/
+lokal/modelle/

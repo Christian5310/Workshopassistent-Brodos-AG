@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import express, { type Response } from "express";
 import { z } from "zod";
-import { erstelleAnbieter } from "./anbieter/index.ts";
+import { anbieterInfo, erstelleAnbieter, pruefeLokal } from "./anbieter/index.ts";
 import * as archiv from "./archiv.ts";
 import { config, quelle } from "./config.ts";
 import * as admin from "./einstellungen.ts";
@@ -255,6 +255,11 @@ app.post("/api/audio-chunk", express.raw({ type: "audio/*", limit: "8mb" }), (re
     }
   });
   res.status(202).json({ ok: true, bytes: audio.length });
+});
+
+/** Welche KI-Dienste laufen und ob die lokalen erreichbar sind (Regie → KI-Dienste). */
+app.get("/api/regie/anbieter", async (_req, res) => {
+  res.json({ info: anbieterInfo(), lokal: config.stt.anbieter === "whisper" && config.llm.anbieter === "ollama", meldungen: await pruefeLokal() });
 });
 
 app.get("/api/regie/diagnose", (_req, res) => {
@@ -916,4 +921,6 @@ app.use(express.static(config.pfade.public, { extensions: ["html"], setHeaders: 
 app.listen(config.port, config.host, () => {
   console.log(`BroKI läuft auf http://${config.host}:${config.port}  (${config.mock ? "MOCK-MODUS" : "Live"}, Quelle: ${quelle})`);
   console.log("  /  Einstieg   ·   /app  Assistent, Agenten, Archiv, Admin, Regie");
+  console.log(`  ${anbieterInfo()}`);
+  void pruefeLokal().then((meldungen) => meldungen.forEach((m) => console.log(`  ${m}`)));
 });

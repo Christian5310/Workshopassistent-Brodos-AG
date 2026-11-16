@@ -1,0 +1,7 @@
+# Lokaler Whisper-Dienst für BroKI. Alle Pakete Open Source ohne Lizenzkosten.
+faster-whisper>=1.1.0
+# PyAV ab Version 19 passt nicht zu faster-whisper 1.2 (Fehler beim Dekodieren). Getestet: 15 und 16.
+av>=15,<17
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
