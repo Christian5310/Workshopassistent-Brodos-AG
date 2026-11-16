@@ -113,7 +113,8 @@ verbinde((stand) => {
   quelle = status.quelle;
   $("#mock").hidden = !status.mock;
 
-  const soll = status.aufnahme && quelle === "mikro" && istAufnahmegeraet();
+  // Mikrofon nur mit geöffnetem Meeting (Sicherung, falls der Server-Stand kurz nicht passt)
+  const soll = status.aufnahme && meetingOffen && quelle === "mikro" && istAufnahmegeraet();
   aufnahme.sekunden = status.zyklusSekunden;
   if (soll && !aufnahme.laeuft) aufnahme.start(status.zyklusSekunden).catch((f) => melde(f.message));
   if (!soll && aufnahme.laeuft) aufnahme.stopp();

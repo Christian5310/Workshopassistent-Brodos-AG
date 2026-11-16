@@ -62,7 +62,20 @@ function schnappschuss(): Schnappschuss {
   };
 }
 
+/** Sicherung: Ohne geöffnetes Meeting darf keine Aufnahme laufen (sonst landen Abschnitte im Nichts). */
+function pruefeAufnahme(): void {
+  if (aufnahme && !store.istOffen) {
+    console.warn("Aufnahme lief ohne geöffnetes Meeting und wurde gestoppt.");
+    aufnahme = false;
+    aufnahmeSeit = null;
+    if (zyklusTimer) clearInterval(zyklusTimer);
+    zyklusTimer = null;
+    hinweis = "Die Aufnahme wurde gestoppt, weil kein Meeting geöffnet ist. Bitte erst ein Meeting öffnen.";
+  }
+}
+
 function senden(): void {
+  pruefeAufnahme();
   const daten = `data: ${JSON.stringify(schnappschuss())}\n\n`;
   for (const res of zuhoerer) res.write(daten);
 }
@@ -239,7 +252,10 @@ app.get("/api/events", (req, res) => {
  */
 app.post("/api/audio-chunk", express.raw({ type: "audio/*", limit: "8mb" }), (req, res) => {
   if (quelle !== "mikro") return void res.status(409).json({ fehler: "Im Mock-Modus kommt das Transkript aus dem Skript, nicht vom Mikrofon." });
-  if (!store.istOffen) return void res.status(409).json({ fehler: "Es ist kein Meeting geöffnet." });
+  if (!store.istOffen) {
+    if (aufnahme) senden(); // stoppt die Aufnahme (pruefeAufnahme) und sagt es allen Fenstern
+    return void res.status(409).json({ fehler: "Es ist kein Meeting geöffnet. Die Aufnahme wurde gestoppt." });
+  }
   // Kurz nach dem Ausschalten darf der letzte, angebrochene Schnipsel noch ankommen.
   if (!aufnahme && Date.now() - pausiertUm > 20_000) return void res.status(409).json({ fehler: "Der Assistent ist ausgeschaltet." });
   const audio = req.body as Buffer;
