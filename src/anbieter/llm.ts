@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { repariereJson } from "./json-reparatur.ts";
 import { config } from "../config.ts";
 import { agentenFuer, einstellungen, promptAgentenFertig } from "../einstellungen.ts";
 import { store } from "../store.ts";
@@ -43,17 +44,27 @@ const modellAnpassungen: Record<string, { ohneTemperatur: boolean; maxCompletion
  * Liest JSON aus der Antwort, auch wenn ein Modell es in einen Code-Block (```json … ```) packt
  * oder einen Satz davor schreibt (kommt über Broki/Open WebUI je nach Modell vor).
  */
+/** Das Modell hat geantwortet, aber kein brauchbares JSON geliefert (dann lohnt eine zweite Anfrage). */
+export class UngueltigesJson extends Error {}
+
 export function leseJson(text: string): unknown {
   const roh = text.trim();
   try {
     return JSON.parse(roh);
   } catch {
-    const block = roh.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1];
-    if (block) return JSON.parse(block.trim());
+    const block = roh.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1]?.trim();
     const von = roh.indexOf("{");
-    const bis = roh.lastIndexOf("}");
-    if (von >= 0 && bis > von) return JSON.parse(roh.slice(von, bis + 1));
-    throw new Error(`Antwort ist kein JSON: ${roh.slice(0, 120)}`);
+    const kandidat = block ?? (von >= 0 ? roh.slice(von) : roh);
+    try {
+      return JSON.parse(kandidat.slice(0, kandidat.lastIndexOf("}") + 1) || kandidat);
+    } catch {
+      // Kleine Fehler (unmaskierte Anführungszeichen, Kommas, abgeschnittenes Ende) reparieren
+      try {
+        return JSON.parse(repariereJson(kandidat));
+      } catch {
+        throw new UngueltigesJson(`Antwort ist kein gültiges JSON (${roh.length} Zeichen): ${roh.slice(0, 120)}`);
+      }
+    }
   }
 }
 
@@ -71,7 +82,7 @@ function kontextFuer(nachrichten: Nachricht[], maxTokens: number): number {
  * Passt für Mistral (/v1/chat/completions) und Broki/Open WebUI (/api/chat/completions) – nur die .env unterscheidet sich.
  */
 export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
-  async #frage(nachrichten: Nachricht[], maxTokens: number, modell = config.llm.modell, zeitlimitMs = 60_000): Promise<unknown> {
+  async #frage(nachrichten: Nachricht[], maxTokens: number, modell = config.llm.modell, zeitlimitMs = 60_000, nochmal = true): Promise<unknown> {
     // Lokal dauert alles länger: kurze Aufgaben (Merlin) bekommen 30 s, alle anderen das eingestellte Zeitlimit
     if (config.llm.anbieter === "ollama") return this.#frageOllama(nachrichten, maxTokens, modell, zeitlimitMs < 10_000 ? 30_000 : Math.max(zeitlimitMs, config.llm.zeitlimitMs));
     // Neuere Modelle (z. B. gpt-6-luna über Broki) lehnen eigene temperature-Werte oder max_tokens ab.
@@ -101,7 +112,13 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
     }
     if (!antwort!.ok) throw new Error(`Sprachmodell: HTTP ${antwort!.status} ${(await antwort!.text()).slice(0, 300)}`);
     const daten = (await antwort!.json()) as { choices?: { message?: { content?: string } }[] };
-    return leseJson(daten.choices?.[0]?.message?.content ?? "");
+    try {
+      return leseJson(daten.choices?.[0]?.message?.content ?? "");
+    } catch (fehler) {
+      if (!(fehler instanceof UngueltigesJson) || !nochmal) throw fehler;
+      console.warn(`Sprachmodell ${modell}: unbrauchbares JSON, frage ein zweites Mal.`);
+      return this.#frage(nachrichten, maxTokens, modell, zeitlimitMs, false);
+    }
   }
 
   /**
