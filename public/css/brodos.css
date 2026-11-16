@@ -617,3 +617,12 @@ details.einklappen[open] > summary { margin-bottom: var(--space-2); }
 .ki-text ul ul { margin: 0.125rem 0 0.25rem; color: var(--ink-muted); }
 .ki-text p { margin: 0.25rem 0; }
 .kasten-inhalt .warnung { color: #b00020; font-weight: 600; }
+
+/* Admin: Transkription umschalten */
+.stt-wahl { display: grid; gap: var(--space-1); }
+.stt-option { display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: var(--radius-md); cursor: pointer; }
+.stt-option span { display: flex; flex-direction: column; gap: 0.125rem; }
+.stt-option.ist-aktiv { border-color: var(--brand); background: var(--brand-soft); }
+.stt-option input { margin-top: 0.25rem; }
+#stt-status .warnung, .stt-dauer.warnung { color: #b00020; font-weight: 600; }
+.stt-dauer { font-size: 0.8125rem; color: var(--ink-muted); }

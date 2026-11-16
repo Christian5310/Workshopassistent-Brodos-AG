@@ -33,11 +33,14 @@ export function ohneErfundenes(text: string): string {
  * Keine Sprecher-Erkennung (Datenschutz, CLAUDE.md Abschnitt 8).
  */
 export class WhisperTranskriptQuelle implements TranskriptQuelle {
+  /** @param modell large-v3, large-v3-turbo oder ein anderes faster-whisper-Modell (Name oder Hugging-Face-ID) */
+  constructor(private readonly modell: string) {}
+
   async transkribiere(audio: Buffer | null, _zweck: "protokoll" | "chat" | "befehl", mime = "audio/webm", extra: string[] = []): Promise<string | null> {
     if (!audio) return "";
     const typ = mime.split(";")[0]!.trim();
     const formular = new FormData();
-    formular.set("model", config.stt.modell);
+    formular.set("model", this.modell);
     formular.set("language", "de");
     formular.set("response_format", "json");
     // Whisper kennt kein context_bias: Fachbegriffe gehen als kurzer Hinweistext mit (begrenzt, sonst ignoriert Whisper ihn)
@@ -47,10 +50,10 @@ export class WhisperTranskriptQuelle implements TranskriptQuelle {
     if (hinweis) formular.set("prompt", `Besprechung bei Brodos. Begriffe: ${hinweis}.`);
     formular.set("file", new Blob([new Uint8Array(audio)], { type: typ }), `abschnitt.${ENDUNG[typ] ?? "webm"}`);
 
-    const antwort = await fetch(`${config.stt.basisUrl}/v1/audio/transcriptions`, {
+    const antwort = await fetch(`${config.stt.whisperUrl}/v1/audio/transcriptions`, {
       method: "POST",
       body: formular,
-      signal: AbortSignal.timeout(120_000), // lokal auf dem Prozessor kann ein Abschnitt dauern
+      signal: AbortSignal.timeout(300_000), // Whisper large auf dem Prozessor kann für 30 s Audio über eine Minute brauchen
     });
     if (!antwort.ok) throw new Error(`Lokale Transkription (Whisper): HTTP ${antwort.status} ${(await antwort.text()).slice(0, 300)}`);
     const daten = (await antwort.json()) as { text?: string };

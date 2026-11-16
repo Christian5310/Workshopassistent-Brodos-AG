@@ -20,10 +20,16 @@ export const config = {
   mockChunkSekunden: Number(process.env.MOCK_CHUNK_SECONDS ?? 8),
   // Transkription: "mistral" (Voxtral, Cloud) oder "whisper" (lokaler Whisper-Dienst, siehe lokal/whisper_server.py)
   stt: {
+    /** Start-Vorgabe; umschalten lässt es sich im Admin unter Erweitert → Transkription */
     anbieter: sttAnbieter,
-    basisUrl: (process.env.STT_BASE_URL || (sttAnbieter === "whisper" ? "http://127.0.0.1:8001" : "https://api.mistral.ai")).replace(/\/$/, ""),
+    /** Mistral Voxtral (Cloud) */
+    mistralUrl: "https://api.mistral.ai",
     schluessel: process.env.MISTRAL_API_KEY ?? "",
-    modell: process.env.STT_MODEL || (sttAnbieter === "whisper" ? "large-v3-turbo" : "voxtral-mini-transcribe-3-0"),
+    modell: process.env.STT_MODEL || "voxtral-mini-transcribe-3-0",
+    /** Lokaler Whisper-Dienst (lokal/whisper_server.py) und die beiden Modelle zum Umschalten */
+    whisperUrl: (process.env.WHISPER_URL || "http://127.0.0.1:8001").replace(/\/$/, ""),
+    whisperLarge: process.env.WHISPER_LARGE || "large-v3",
+    whisperTurbo: process.env.WHISPER_TURBO || "large-v3-turbo",
   },
   // Sprachmodell: "ollama" (lokal, ohne Cloud) oder "openai" (OpenAI-kompatibel: Mistral, Broki/Open WebUI)
   llm: {

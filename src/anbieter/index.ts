@@ -4,39 +4,71 @@ import { MistralTranskriptQuelle } from "./mistral.ts";
 import { WhisperTranskriptQuelle } from "./whisper.ts";
 import { MockSprachmodell, MockTranskriptQuelle } from "./mock.ts";
 import type { Sprachmodell, TranskriptQuelle } from "./schnittstellen.ts";
+import { einstellungen } from "../einstellungen.ts";
+
+export type Transkription = "mistral" | "whisper-large" | "whisper-turbo";
+export const TRANSKRIPTION_NAME: Record<Transkription, string> = {
+  mistral: "Mistral Voxtral (Cloud)",
+  "whisper-large": "Whisper large-v3 (lokal)",
+  "whisper-turbo": "Whisper Turbo (lokal)",
+};
+
+/**
+ * Wählt bei jedem Abschnitt die Transkription, die im Admin eingestellt ist (Erweitert → Transkription).
+ * So lassen sich Mistral und die lokalen Whisper-Modelle ohne Neustart vergleichen.
+ */
+class UmschaltbareTranskription implements TranskriptQuelle {
+  readonly #quellen = {
+    mistral: new MistralTranskriptQuelle(),
+    "whisper-large": new WhisperTranskriptQuelle(config.stt.whisperLarge),
+    "whisper-turbo": new WhisperTranskriptQuelle(config.stt.whisperTurbo),
+  };
+  /** Zuletzt benutzt und wie lange es gedauert hat (für die Diagnose in der Regie) */
+  letzte: { art: Transkription; sekunden: number } | null = null;
+
+  async transkribiere(audio: Buffer | null, zweck: "protokoll" | "chat" | "befehl", mime?: string, begriffe?: string[]): Promise<string | null> {
+    const art = einstellungen.transkription;
+    if (art === "mistral" && !config.stt.schluessel) throw new Error("Für Mistral fehlt MISTRAL_API_KEY in der .env. Im Admin auf Whisper umstellen oder den Schlüssel eintragen.");
+    const beginn = Date.now();
+    try {
+      return await this.#quellen[art].transkribiere(audio, zweck, mime, begriffe);
+    } finally {
+      if (audio) this.letzte = { art, sekunden: (Date.now() - beginn) / 1000 };
+    }
+  }
+}
 
 /** Einzige Stelle, an der entschieden wird, welche Anbieter laufen. */
 export function erstelleAnbieter(): { transkript: TranskriptQuelle; sprachmodell: Sprachmodell } {
   if (config.mock) return { transkript: new MockTranskriptQuelle(), sprachmodell: new MockSprachmodell() };
-  // Schlüssel braucht nur, was in der Cloud läuft. Lokal (Whisper, Ollama) geht ohne.
-  if (config.stt.anbieter === "mistral" && !config.stt.schluessel) throw new Error("MOCK_MODE=false, aber MISTRAL_API_KEY fehlt in der .env (für die Transkription). Für lokal: STT_ANBIETER=whisper.");
+  // Schlüssel braucht nur, was in der Cloud läuft. Die Transkription prüft das je nach Einstellung beim Aufruf.
   if (config.llm.anbieter === "openai" && !config.llm.schluessel) throw new Error("MOCK_MODE=false, aber LLM_API_KEY fehlt in der .env (für das Sprachmodell). Für lokal: LLM_ANBIETER=ollama.");
-  return {
-    transkript: config.stt.anbieter === "whisper" ? new WhisperTranskriptQuelle() : new MistralTranskriptQuelle(),
-    sprachmodell: new OpenAiKompatiblesSprachmodell(),
-  };
+  return { transkript: new UmschaltbareTranskription(), sprachmodell: new OpenAiKompatiblesSprachmodell() };
 }
 
 /** Beschreibung für Start-Ausgabe und Regie: was läuft wo? */
 export function anbieterInfo(): string {
   if (config.mock) return "Mock (ohne KI)";
-  const stt = config.stt.anbieter === "whisper" ? `Whisper lokal (${config.stt.modell}, ${config.stt.basisUrl})` : `Mistral Voxtral (Cloud)`;
+  const art = einstellungen.transkription;
+  const modell = art === "whisper-large" ? config.stt.whisperLarge : art === "whisper-turbo" ? config.stt.whisperTurbo : config.stt.modell;
   const llm = config.llm.anbieter === "ollama" ? `Ollama lokal (${config.llm.modell}, ${config.llm.basisUrl})` : `${config.llm.modell} (${config.llm.basisUrl})`;
-  return `Transkription: ${stt} · Sprachmodell: ${llm}`;
+  return `Transkription: ${TRANSKRIPTION_NAME[art]}, Modell ${modell} · Sprachmodell: ${llm}`;
 }
 
 /** Prüft beim Start, ob die lokalen Dienste laufen und das Modell geladen ist; lädt das Sprachmodell vor. */
 export async function pruefeLokal(): Promise<string[]> {
   const meldungen: string[] = [];
   if (config.mock) return meldungen;
-  if (config.stt.anbieter === "whisper") {
+  if (einstellungen.transkription !== "mistral" || config.stt.anbieter === "whisper") {
     try {
-      const r = await fetch(`${config.stt.basisUrl}/health`, { signal: AbortSignal.timeout(3000) });
-      meldungen.push(r.ok ? "Whisper-Dienst erreichbar." : `Whisper-Dienst antwortet mit HTTP ${r.status}.`);
+      const r = await fetch(`${config.stt.whisperUrl}/health`, { signal: AbortSignal.timeout(3000) });
+      const h = (await r.json()) as { geladen?: string[] };
+      meldungen.push(r.ok ? `Whisper-Dienst erreichbar${h.geladen?.length ? `, geladen: ${h.geladen.join(", ")}` : ""}.` : `Whisper-Dienst antwortet mit HTTP ${r.status}.`);
     } catch {
-      meldungen.push(`Whisper-Dienst NICHT erreichbar unter ${config.stt.basisUrl}. Bitte lokal/start-whisper.cmd starten.`);
+      meldungen.push(`Whisper-Dienst NICHT erreichbar unter ${config.stt.whisperUrl}. Bitte lokal/start-whisper.cmd starten.`);
     }
   }
+  if (einstellungen.transkription === "mistral" && !config.stt.schluessel) meldungen.push("MISTRAL_API_KEY ist in der .env NICHT gesetzt: Mistral-Transkription geht so nicht.");
   if (config.llm.anbieter === "ollama") {
     try {
       const r = await fetch(`${config.llm.basisUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });

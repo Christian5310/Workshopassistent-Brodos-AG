@@ -268,6 +268,43 @@ async function zeigeAgenten() {
 }
 $("#agent-neu").addEventListener("click", () => { offenerAgent = "neu"; zeigeAgenten(); });
 
+// ── Transkription: Mistral (Cloud) oder lokales Whisper, sofort umschaltbar ──
+const STT = [
+  ["mistral", "Mistral Voxtral", "Cloud (EU). Sehr schnell und genau, braucht Internet und den Mistral-Schlüssel."],
+  ["whisper-large", "Whisper large-v3", "Lokal auf diesem PC. Genau wie Mistral, ohne Grafikkarte aber langsam: kann mit dem 30-Sekunden-Takt nicht mithalten."],
+  ["whisper-turbo", "Whisper Turbo", "Lokal auf diesem PC. Etwa viermal schneller als large-v3, etwas ungenauer bei Fachbegriffen."],
+];
+async function zeigeTranskription(aktuell) {
+  const ziel = $("#stt-wahl");
+  ziel.replaceChildren(
+    ...STT.map(([id, name, text]) => {
+      const zeile = el("label", `stt-option${id === aktuell ? " ist-aktiv" : ""}`);
+      const r = el("input");
+      r.type = "radio";
+      r.name = "stt";
+      r.value = id;
+      r.checked = id === aktuell;
+      r.addEventListener("change", async () => {
+        try {
+          await sende("/api/admin/einstellungen", { transkription: id }, "PUT");
+          $("#stt-meldung").textContent = `Umgestellt auf ${name}.`;
+          zeigeTranskription(id);
+        } catch (fehler) {
+          $("#stt-meldung").textContent = fehler.message;
+        }
+      });
+      const beschriftung = el("span");
+      beschriftung.append(el("b", "", name), el("span", "klein-text gedaempft", text));
+      zeile.append(r, beschriftung);
+      return zeile;
+    }),
+  );
+  try {
+    const a = await hole("/api/regie/anbieter");
+    $("#stt-status").replaceChildren(...a.meldungen.filter((m) => /Whisper|MISTRAL/.test(m)).map((m) => el("p", /NICHT/.test(m) ? "warnung" : "", m)));
+  } catch {}
+}
+
 // ── Grundeinstellungen (Meetings) und Erweitert (Merlin-Bubble, Prompts) ──
 let standard = null;
 const melde = (text) => ($("#meldung").textContent = text);
@@ -310,6 +347,7 @@ async function ladeErweitert() {
   $("#sprachfragen").checked = e.sprachfragen;
   gewuenschteStimme = e.stimme;
   $("#lesetempo").value = e.lesetempo;
+  zeigeTranskription(e.transkription);
   $("#pauseAn").checked = e.pauseAn;
   $("#pauseMinuten").value = e.pauseMinuten;
   $("#pauseSprechen").checked = e.pauseSprechen;

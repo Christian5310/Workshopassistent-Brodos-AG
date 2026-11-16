@@ -3,78 +3,94 @@ Lokaler Transkriptions-Dienst für BroKI (Whisper über faster-whisper).
 
 - Läuft auf diesem Rechner, das Audio verlässt ihn nicht.
 - Spricht die OpenAI-kompatible Schnittstelle POST /v1/audio/transcriptions,
-  die BroKI mit STT_ANBIETER=whisper nutzt.
+  die BroKI für "Whisper large-v3" und "Whisper Turbo" nutzt (Admin → Erweitert → Transkription).
+- Hält mehrere Modelle bereit; welches genutzt wird, steht in jeder Anfrage (Feld "model").
 - Lizenzen: faster-whisper und Whisper-Modelle MIT, FastAPI MIT, Uvicorn BSD,
   python-multipart Apache 2.0. Keine Lizenzkosten.
 
 Einstellungen über Umgebungsvariablen (siehe start-whisper.cmd):
-  WHISPER_MODELL   Modellname oder Pfad zu einem heruntergeladenen Modellordner
-                   (Standard: large-v3-turbo; schneller, etwas ungenauer: medium, small)
-  WHISPER_GERAET   auto | cpu | cuda   (Standard: auto)
-  WHISPER_PORT     Standard 8001
-  WHISPER_TEST     1 = ohne Modell, liefert einen Testsatz (nur zum Prüfen der Verbindung)
+  WHISPER_VORLADEN  Modelle, die beim Start geladen werden, mit Komma getrennt
+                    (Standard: large-v3,large-v3-turbo). Andere werden bei Bedarf nachgeladen.
+                    Statt eines Namens geht auch eine Hugging-Face-ID oder ein Pfad zu einem Modellordner.
+  WHISPER_GERAET    auto | cpu | cuda   (Standard: auto)
+  WHISPER_THREADS   Anzahl Prozessorkerne (Standard: alle)
+  WHISPER_PORT      Standard 8001
+  WHISPER_TEST      1 = ohne Modell, liefert einen Testsatz (nur zum Prüfen der Verbindung)
 """
 
 import os
 import tempfile
+import threading
 import time
 
 import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
-MODELL = os.environ.get("WHISPER_MODELL", "large-v3-turbo")
+VORLADEN = [m.strip() for m in os.environ.get("WHISPER_VORLADEN", "large-v3,large-v3-turbo").split(",") if m.strip()]
 GERAET = os.environ.get("WHISPER_GERAET", "auto")
+THREADS = int(os.environ.get("WHISPER_THREADS", "0"))  # 0 = alle Kerne
 PORT = int(os.environ.get("WHISPER_PORT", "8001"))
 TEST = os.environ.get("WHISPER_TEST") == "1"
 
 app = FastAPI(title="BroKI Whisper lokal")
-modell = None
+modelle = {}
+sperre = threading.Lock()
+geraet_genutzt = None
 
 
-def lade_modell():
-    """Lädt das Modell einmal beim Start (beim ersten Mal wird es heruntergeladen)."""
-    global modell
-    if TEST:
-        print("Testmodus: kein Modell geladen.")
-        return
-    from faster_whisper import WhisperModel
-
-    geraet = GERAET
-    if geraet == "auto":
+def geraet():
+    global geraet_genutzt
+    if geraet_genutzt:
+        return geraet_genutzt
+    geraet_genutzt = GERAET
+    if geraet_genutzt == "auto":
         try:
             import ctranslate2
 
-            geraet = "cuda" if ctranslate2.get_cuda_device_count() > 0 else "cpu"
+            geraet_genutzt = "cuda" if ctranslate2.get_cuda_device_count() > 0 else "cpu"
         except Exception:
-            geraet = "cpu"
-    # Grafikkarte: float16. Prozessor: int8 (deutlich schneller, kaum ungenauer).
-    rechenart = "float16" if geraet == "cuda" else "int8"
-    beginn = time.time()
-    print(f"Lade Whisper-Modell '{MODELL}' auf {geraet} ({rechenart}) ...")
-    modell = WhisperModel(MODELL, device=geraet, compute_type=rechenart)
-    print(f"Modell geladen in {time.time() - beginn:.0f} s.")
+            geraet_genutzt = "cpu"
+    return geraet_genutzt
+
+
+def modell(name):
+    """Liefert das Modell; lädt es beim ersten Mal (beim allerersten Mal mit Download)."""
+    with sperre:
+        if name not in modelle:
+            from faster_whisper import WhisperModel
+
+            g = geraet()
+            rechenart = "float16" if g == "cuda" else "int8"  # Prozessor: int8 ist deutlich schneller, kaum ungenauer
+            beginn = time.time()
+            print(f"Lade Whisper-Modell '{name}' auf {g} ({rechenart}) ...", flush=True)
+            modelle[name] = WhisperModel(name, device=g, compute_type=rechenart, cpu_threads=THREADS)
+            print(f"'{name}' geladen in {time.time() - beginn:.0f} s.", flush=True)
+        return modelle[name]
 
 
 @app.get("/health")
 def health():
-    return {"ok": True, "modell": "test" if TEST else MODELL, "geladen": TEST or modell is not None}
+    return {"ok": True, "test": TEST, "geraet": geraet_genutzt, "geladen": ["test"] if TEST else list(modelle)}
 
 
 @app.post("/v1/audio/transcriptions")
-async def transkribiere(
+def transkribiere(
     file: UploadFile = File(...),
     model: str = Form(""),
     language: str = Form("de"),
     prompt: str = Form(""),
     response_format: str = Form("json"),
 ):
-    daten = await file.read()
+    daten = file.file.read()
     if len(daten) < 1000:
         return {"text": ""}
+    name = model or (VORLADEN[0] if VORLADEN else "large-v3")
     if TEST:
-        return {"text": "Das ist ein Testsatz vom lokalen Whisper-Dienst."}
-    if modell is None:
-        raise HTTPException(status_code=503, detail="Modell wird noch geladen.")
+        return {"text": f"Das ist ein Testsatz vom lokalen Whisper-Dienst ({name})."}
+    try:
+        m = modell(name)
+    except Exception as fehler:
+        raise HTTPException(status_code=500, detail=f"Modell '{name}' lässt sich nicht laden: {fehler}")
     endung = os.path.splitext(file.filename or "")[1] or ".webm"
     # Audio nur kurz als Datei ablegen (zum Dekodieren) und sofort wieder löschen
     with tempfile.NamedTemporaryFile(suffix=endung, delete=False) as tmp:
@@ -82,7 +98,7 @@ async def transkribiere(
         pfad = tmp.name
     try:
         beginn = time.time()
-        abschnitte, _ = modell.transcribe(
+        abschnitte, info = m.transcribe(
             pfad,
             language=language or "de",
             initial_prompt=prompt or None,
@@ -91,13 +107,19 @@ async def transkribiere(
             condition_on_previous_text=False,
         )
         text = " ".join(a.text.strip() for a in abschnitte).strip()
-        print(f"Abschnitt transkribiert in {time.time() - beginn:.1f} s: {text[:80]}")
+        dauer = time.time() - beginn
+        print(f"[{name}] {info.duration:.0f} s Audio in {dauer:.1f} s ({info.duration / max(dauer, 0.01):.1f}x Echtzeit): {text[:70]}", flush=True)
         return {"text": text}
     finally:
         os.remove(pfad)
 
 
 if __name__ == "__main__":
-    lade_modell()
+    if not TEST:
+        for name in VORLADEN:
+            try:
+                modell(name)
+            except Exception as fehler:
+                print(f"WARNUNG: '{name}' konnte nicht geladen werden: {fehler}", flush=True)
     # Nur auf diesem Rechner erreichbar
     uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning")

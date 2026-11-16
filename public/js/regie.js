@@ -44,7 +44,9 @@ async function ladeDiagnose() {
   if (!eintraege.length) ziel.append(el("p", "", "Noch keine Abschnitte seit dem Start der App."));
   for (const e of eintraege.toReversed()) {
     const zeile = el("div", e.ok ? "" : "problem");
-    zeile.append(el("time", "", new Date(e.zeit).toLocaleTimeString("de-DE")), el("b", "", e.ergebnis), el("div", "gehoert", e.text.length > 220 ? `${e.text.slice(0, 220)} …` : e.text));
+    zeile.append(el("time", "", new Date(e.zeit).toLocaleTimeString("de-DE")), el("b", "", e.ergebnis));
+    if (e.stt) zeile.append(el("span", `stt-dauer${e.wartend > 1 ? " warnung" : ""}`, ` · ${e.stt}${e.wartend > 1 ? ` · ${e.wartend - 1} Abschnitt(e) warteten` : ""}`));
+    zeile.append(el("div", "gehoert", e.text.length > 220 ? `${e.text.slice(0, 220)} …` : e.text));
     ziel.append(zeile);
   }
 }

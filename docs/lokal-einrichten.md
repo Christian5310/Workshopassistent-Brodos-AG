@@ -39,20 +39,21 @@ Lizenz vor dem Einsatz auf der Modellseite bei ollama.com prüfen. Llama- und Ge
    ```
 3. **Python installieren** (3.11 oder neuer) von python.org. Beim Installieren „Add python.exe to PATH" anhaken.
 4. **Whisper-Dienst starten:** Doppelklick auf `lokal\start-whisper.cmd`.
-   Beim ersten Start werden Pakete installiert und das Whisper-Modell heruntergeladen (einige Minuten). Fertig, wenn „Modell geladen" erscheint. Fenster offen lassen.
-5. **`.env` im Projektordner anpassen:**
-   ```
-   MOCK_MODE=false
-   STT_ANBIETER=whisper
-   LLM_ANBIETER=ollama
-   LLM_MODEL=mistral-small3.2
-   ```
-   Einen `MISTRAL_API_KEY` braucht es dann nicht mehr.
+   Beim ersten Start werden Pakete installiert und das Whisper-Modell heruntergeladen (einige Minuten). Fertig, wenn beide Modelle „geladen" melden. Fenster offen lassen.
+5. **Transkription wählen:** in der App unter **Admin → Erweitert → Transkription**. Umschaltbar ohne Neustart:
+   - **Mistral Voxtral** (Cloud, braucht `MISTRAL_API_KEY`)
+   - **Whisper large-v3** (lokal, genau, ohne Grafikkarte zu langsam für live)
+   - **Whisper Turbo** (lokal, schnell)
+
+   Wie lange jeder Abschnitt gedauert hat, steht in der **Regie unter Diagnose**. Warten mehrere Abschnitte, kommt das Modell nicht hinterher.
+   Soll die App ganz ohne Mistral starten, in der `.env` `STT_ANBIETER=whisper` setzen (Start-Vorgabe: Whisper large-v3).
+   Für ein lokales Sprachmodell zusätzlich `LLM_ANBIETER=ollama` und `LLM_MODEL=mistral-small3.2`.
 6. **App starten** wie gewohnt mit `npm.cmd start`. Im Terminal steht, ob Whisper und Ollama erreichbar sind und das Modell vorhanden ist. Dieselbe Prüfung gibt es in der App unter **Regie → KI-Dienste**.
 
 ### Kleinere Modelle für schwächere Rechner
 
-- Whisper: vor dem Start `set WHISPER_MODELL=medium` (oder `small`) im Terminal, dann `lokal\start-whisper.cmd`.
+- Whisper: Der Dienst lädt beim Start `large-v3` und `large-v3-turbo` (zusammen ca. 3 GB, je ca. 1,5–2 GB Arbeitsspeicher). Andere Modelle: vor dem Start `set WHISPER_VORLADEN=medium` und in der `.env` `WHISPER_TURBO=medium`.
+- Deutsch nachtrainiertes Turbo (genauer auf Deutsch): in der `.env` `WHISPER_TURBO=<Hugging-Face-ID eines CTranslate2-Modells>` und dieselbe ID in `WHISPER_VORLADEN`. Vorher Lizenz und Herkunft der Umwandlung prüfen.
 - Sprachmodell: `ollama pull mistral-nemo` und in der `.env` `LLM_MODEL=mistral-nemo`.
 
 ### Wenn Downloads im Brodos-Netz gesperrt sind

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import express, { type Response } from "express";
 import { z } from "zod";
-import { anbieterInfo, erstelleAnbieter, pruefeLokal } from "./anbieter/index.ts";
+import { anbieterInfo, erstelleAnbieter, pruefeLokal, TRANSKRIPTION_NAME, type Transkription } from "./anbieter/index.ts";
 import * as archiv from "./archiv.ts";
 import { config, quelle } from "./config.ts";
 import * as admin from "./einstellungen.ts";
@@ -69,9 +69,18 @@ function senden(): void {
 
 // ── Chronist-Zyklus ──────────────────────────────────────────────────────────
 /** Diagnose: was der Assistent je Abschnitt gehört und daraus gemacht hat (nur im Arbeitsspeicher, letzte 40). */
-const diagnose: { zeit: number; text: string; ergebnis: string; ok: boolean }[] = [];
+const diagnose: { zeit: number; text: string; ergebnis: string; ok: boolean; stt?: string; wartend?: number }[] = [];
+/** Welche Transkription den aktuellen Abschnitt erzeugt hat und wie lange sie brauchte (für den Vergleich in der Regie) */
+let sttInfo: string | undefined;
+/** Abschnitte, die auf Transkription bzw. Verarbeitung warten. Mehr als einer: die Transkription kommt nicht hinterher. */
+let wartend = 0;
+function merkeStt(): void {
+  const l = (anbieter.transkript as { letzte?: { art: Transkription; sekunden: number } | null }).letzte;
+  sttInfo = l ? `${TRANSKRIPTION_NAME[l.art]}: ${l.sekunden.toLocaleString("de-DE", { maximumFractionDigits: 1 })} s` : undefined;
+}
 function protokolliere(text: string, ergebnis: string, ok = true): void {
-  diagnose.push({ zeit: Date.now(), text, ergebnis, ok });
+  diagnose.push({ zeit: Date.now(), text, ergebnis, ok, stt: sttInfo, wartend });
+  sttInfo = undefined;
   if (diagnose.length > 40) diagnose.shift();
   console.log(`[${new Date().toLocaleTimeString("de-DE")}] Abschnitt (${text.length} Zeichen) → ${ergebnis}`);
   arbeit = `Letzter Abschnitt (${new Date().toLocaleTimeString("de-DE")}): ${ergebnis}`;
@@ -238,20 +247,26 @@ app.post("/api/audio-chunk", express.raw({ type: "audio/*", limit: "8mb" }), (re
   const mime = String(req.headers["content-type"] ?? "audio/webm");
 
   console.log(`[${new Date().toLocaleTimeString("de-DE")}] Audio-Abschnitt empfangen (${Math.round(audio.length / 1024)} kB, ${mime})`);
+  wartend++;
+  if (wartend > 1) zeigeArbeit(`Die Transkription kommt nicht hinterher: ${wartend} Abschnitte warten. Im Admin ein schnelleres Modell wählen.`);
   warteschlange = warteschlange.then(async () => {
     try {
-      zeigeArbeit("Abschnitt empfangen, wird transkribiert …");
+      zeigeArbeit(wartend > 1 ? `Wird transkribiert … (${wartend - 1} weitere warten)` : "Abschnitt empfangen, wird transkribiert …");
       const text = await anbieter.transkript.transkribiere(audio, "protokoll", mime);
+      merkeStt();
       if (text === null) return pausieren("Mock-Skript ist zu Ende. Für einen neuen Durchlauf in der Regie die Daten löschen.");
       if (text.trim()) { hinweis = null; return await verarbeiteAbschnitt(text.trim()); }
       protokolliere("(Audio)", "nichts verstanden (Stille oder zu leise)");
       store.daten.letzterZyklus = Date.now(); // Stille: nichts zu protokollieren
       senden();
     } catch (fehler) {
+      merkeStt();
       protokolliere("(Audio)", `Transkription fehlgeschlagen: ${fehler instanceof Error ? fehler.message.slice(0, 160) : fehler}`, false);
       const grund = fehler instanceof Error ? fehler.message : String(fehler);
-      hinweis = `Die Transkription hat nicht geklappt, der letzte Abschnitt fehlt. Grund: ${/HTTP 401/.test(grund) ? "Der Mistral-Key wird abgelehnt (.env prüfen)." : /HTTP 4\d\d/.test(grund) ? grund.slice(0, 140) : "Mistral ist von diesem Rechner aus nicht erreichbar (Netzwerk, Firmen-Proxy oder Firewall)."}`;
+      hinweis = `Die Transkription hat nicht geklappt, der letzte Abschnitt fehlt. Grund: ${/Whisper|127\.0\.0\.1:8001|ECONNREFUSED/.test(grund) ? "Der lokale Whisper-Dienst antwortet nicht (lokal/start-whisper.cmd gestartet?)." : /HTTP 401/.test(grund) ? "Der Mistral-Key wird abgelehnt (.env prüfen)." : /HTTP 4\d\d|MISTRAL_API_KEY/.test(grund) ? grund.slice(0, 160) : "Mistral ist von diesem Rechner aus nicht erreichbar (Netzwerk, Firmen-Proxy oder Firewall)."}`;
       senden();
+    } finally {
+      wartend--;
     }
   });
   res.status(202).json({ ok: true, bytes: audio.length });
@@ -259,7 +274,7 @@ app.post("/api/audio-chunk", express.raw({ type: "audio/*", limit: "8mb" }), (re
 
 /** Welche KI-Dienste laufen und ob die lokalen erreichbar sind (Regie → KI-Dienste). */
 app.get("/api/regie/anbieter", async (_req, res) => {
-  res.json({ info: anbieterInfo(), lokal: config.stt.anbieter === "whisper" && config.llm.anbieter === "ollama", meldungen: await pruefeLokal() });
+  res.json({ info: anbieterInfo(), lokal: admin.einstellungen.transkription !== "mistral" && config.llm.anbieter === "ollama", meldungen: await pruefeLokal(), transkription: admin.einstellungen.transkription, mistralMoeglich: config.mock || !!config.stt.schluessel });
 });
 
 app.get("/api/regie/diagnose", (_req, res) => {

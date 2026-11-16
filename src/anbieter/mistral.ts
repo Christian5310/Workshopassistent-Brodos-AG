@@ -22,7 +22,7 @@ export class MistralTranskriptQuelle implements TranskriptQuelle {
     if (begriffe.length) formular.set("context_bias", begriffe.join(","));
     formular.set("file", new Blob([new Uint8Array(audio)], { type: typ }), `abschnitt.${ENDUNG[typ] ?? "webm"}`);
 
-    const antwort = await fetch(`${config.stt.basisUrl}/v1/audio/transcriptions`, {
+    const antwort = await fetch(`${config.stt.mistralUrl}/v1/audio/transcriptions`, {
       method: "POST",
       headers: { Authorization: `Bearer ${config.stt.schluessel}` },
       body: formular,
