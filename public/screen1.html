@@ -7,8 +7,9 @@
     <p id="meeting-name" class="meeting-name">Noch kein Meeting geöffnet</p>
     <button id="wechseln" type="button" class="textlink klein-text" hidden>Meeting wechseln</button>
     <h2 id="agenda-titel">Agenda</h2>
-    <p class="hilfe" id="agenda-hilfe">Anklicken: Der Punkt läuft. Transkript und neue To-dos werden unter ihm gespeichert.</p>
+    <p class="hilfe" id="agenda-hilfe">Anklicken: Der Punkt läuft. Ordner: abgelegte To-dos ansehen und bearbeiten. To-dos lassen sich auf einen Punkt ziehen.</p>
     <div id="agenda" class="akkordeon"></div>
+    <button id="ohne-punkt" type="button" class="ablage-link" hidden></button>
     <div id="abhalten" class="akkordeon abhalten"></div>
   </aside>
   <main class="inhalt">
@@ -38,7 +39,6 @@
       <div class="spalte">
         <section class="kasten">
           <div class="kasten-kopf"><h2 id="todo-titel">To-dos</h2></div>
-          <div id="gruppen" class="gruppen"></div>
           <ul id="todos" class="liste todos"></ul>
         </section>
         <section id="vorschlag-karte" class="kasten" hidden>
@@ -63,6 +63,16 @@
     </form>
   </dialog>
 
+
+  <dialog id="ablage" class="breit">
+    <form method="dialog">
+      <h2 id="ablage-titel">Ablage</h2>
+      <p class="klein-text gedaempft">Anklicken zum Bearbeiten, dort auch den Agendapunkt ändern. Kästchen: erledigt.</p>
+      <ul id="ablage-liste" class="liste todos"></ul>
+      <details id="ablage-erledigt" class="eintrag" hidden><summary id="ablage-erledigt-titel"></summary><ul id="ablage-erledigt-liste" class="liste todos"></ul></details>
+      <div class="reihe"><button value="zu" class="zweit">Schließen</button></div>
+    </form>
+  </dialog>
 
   <dialog id="schluss">
     <form method="dialog">

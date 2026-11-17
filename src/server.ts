@@ -484,6 +484,9 @@ app.patch("/api/todos/:id", (req, res) => {
   todo.owner = feld(req.body?.owner, 60) ?? todo.owner;
   todo.frist = feld(req.body?.frist, 60) ?? todo.frist;
   if (req.body?.status === "offen" || req.body?.status === "erledigt") todo.status = req.body.status;
+  // Verschieben: in einen Agendapunkt ("" = ohne Agendapunkt) und/oder in die Ablage ("abgelegt") bzw. zurück ("")
+  if (typeof req.body?.agendapunkt === "string" && (req.body.agendapunkt === "" || store.daten.protokoll.agenda.some((a) => a.id === req.body.agendapunkt))) todo.agendapunkt = req.body.agendapunkt;
+  if (req.body?.gruppe === "" || req.body?.gruppe === "abgelegt") todo.gruppe = req.body.gruppe;
   store.speichern();
   senden();
   res.json({ ok: true });

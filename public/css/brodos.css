@@ -626,3 +626,19 @@ details.einklappen[open] > summary { margin-bottom: var(--space-2); }
 .stt-option input { margin-top: 0.25rem; }
 #stt-status .warnung, .stt-dauer.warnung { color: #b00020; font-weight: 600; }
 .stt-dauer { font-size: 0.8125rem; color: var(--ink-muted); }
+
+/* ── Ablage: Agenda mit Ordner und Zähler, Drag & Drop ── */
+.agenda-zeile { display: flex; gap: 0.25rem; align-items: stretch; }
+.agenda-zeile .agenda-item { flex: 1; min-width: 0; }
+.ordner { display: flex; align-items: center; gap: 0.25rem; padding: 0 0.5rem; min-height: 2.5rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--brand); font: 600 0.8125rem var(--font); }
+.ordner:hover { border-color: var(--brand); }
+.ordner .icon { width: 1rem; height: 1rem; }
+.ablage-link { margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.5rem 0.75rem; border: 1px dashed var(--line); border-radius: var(--radius-sm); background: transparent; color: var(--ink-muted); font: 500 0.875rem var(--font); text-align: left; }
+.ablage-link:hover { border-color: var(--brand); color: var(--brand); }
+.ziel-aktiv, .ziel-aktiv:hover { outline: 3px solid var(--accent); outline-offset: 1px; }
+.todos li[draggable="true"] { cursor: grab; }
+.todos li.zieht { opacity: 0.4; }
+#ablage-erledigt { margin-top: 0.75rem; }
+#ablage-erledigt summary { cursor: pointer; padding: 0.5rem 0; font-weight: 600; color: var(--ink-muted); }
+/* Abschnitt ist angekommen und wird ausgewertet: rot, damit man sieht, dass etwas ankommt */
+.seitenkopf .unterzeile.eingang { color: #d6001c; font-weight: 700; }

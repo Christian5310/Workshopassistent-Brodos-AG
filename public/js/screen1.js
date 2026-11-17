@@ -100,47 +100,50 @@ tKnopf.addEventListener("click", () => {
   zeigeTranskript(true);
 });
 
-// ── To-dos gehören zu ihrem Agendapunkt. In der Liste stehen die des laufenden Punkts;
-//    die der anderen Punkte liegen eingeklappt darüber. Wechselt man den Punkt, wechselt die Liste mit. ──
+// ── To-dos: Die Liste zeigt die aktuellen To-dos des laufenden Punkts. Häkchen legt ein To-do ab.
+//    Abgelegtes liegt beim Agendapunkt links (Ordner) bzw. unter „Ohne Agendapunkt" und bleibt dort bearbeitbar. ──
 const laufenderPunkt = () => stand.agenda.find((a) => a.status === "läuft")?.id ?? null;
-/** To-dos des laufenden Agendapunkts. Läuft keiner, zeigt die Liste alle. */
-const aktuelleTodos = () => {
-  const punkt = laufenderPunkt();
-  return punkt ? stand.todos.filter((t) => t.agendapunkt === punkt) : stand.todos;
-};
+const ohnePunkt = (t) => !stand.agenda.some((a) => a.id === t.agendapunkt);
+const zumPunkt = (id) => (t) => (id === "" ? ohnePunkt(t) : t.agendapunkt === id);
+/** Aktuelle (nicht abgelegte) To-dos des laufenden Punkts; läuft keiner, die ohne Agendapunkt. */
+const aktuelleTodos = () => stand.todos.filter((t) => !t.gruppe && zumPunkt(laufenderPunkt() ?? "")(t));
 
-const offeneGruppen = new Set();
-function zeigeGruppen() {
-  const punkt = laufenderPunkt();
-  const gruppen = [];
-  if (punkt) {
-    for (const a of stand.agenda) if (a.id !== punkt) gruppen.push({ name: a.titel, eintraege: stand.todos.filter((t) => t.agendapunkt === a.id) });
-    gruppen.push({ name: "Ohne Agendapunkt", eintraege: stand.todos.filter((t) => !stand.agenda.some((a) => a.id === t.agendapunkt)) });
-  }
-  $("#gruppen").replaceChildren(
-    ...gruppen.filter((g) => g.eintraege.length).map(({ name, eintraege }) => {
-      const offen = eintraege.filter((t) => t.status === "offen").length;
-      const d = el("details", "eintrag");
-      d.open = offeneGruppen.has(name);
-      d.addEventListener("toggle", () => (d.open ? offeneGruppen.add(name) : offeneGruppen.delete(name)));
-      const kopf = el("summary");
-      const pfeil = el("span", "pfeil");
-      pfeil.append(icon("runter"));
-      kopf.append(icon("ablage"), el("span", "titel", name), el("span", "info", `${eintraege.length} To-do${eintraege.length === 1 ? "" : "s"} · ${offen} offen`), pfeil);
-      const liste = el("ul", "liste");
-      for (const t of eintraege) {
-        const li = el("li", t.status);
-        const box = el("span", "box");
-        box.append(icon("check"));
-        li.append(box, el("span", "text", `${t.text} · ${t.owner} · ${t.frist}`));
-        liste.append(li);
-      }
-      const inhalt = el("div", "eintrag-inhalt");
-      inhalt.append(liste, el("p", "hilfe", "Zum Bearbeiten links den Agendapunkt wieder auswählen."));
-      d.append(kopf, inhalt);
-      return d;
-    }),
-  );
+// Drag & Drop: To-do auf einen Agendapunkt (oder „Ohne Agendapunkt") ziehen
+let gezogen = null;
+function alsZiel(knoten, punktId) {
+  knoten.addEventListener("dragover", (e) => { if (gezogen) { e.preventDefault(); knoten.classList.add("ziel-aktiv"); } });
+  knoten.addEventListener("dragleave", () => knoten.classList.remove("ziel-aktiv"));
+  knoten.addEventListener("drop", (e) => {
+    e.preventDefault();
+    knoten.classList.remove("ziel-aktiv");
+    const id = gezogen;
+    gezogen = null;
+    if (!id) return;
+    // Auf den laufenden Punkt: zurück in die Liste. Sonst: dort ablegen.
+    versuche(() => sende(`/api/todos/${id}`, { agendapunkt: punktId, gruppe: punktId && punktId === laufenderPunkt() ? "" : "abgelegt" }, "PATCH"))();
+  });
+}
+
+// Ablage-Fenster: alle To-dos eines Agendapunkts, bearbeitbar; erledigte eingeklappt
+let ablageOrt = null; // Agendapunkt-ID, "" = ohne Agendapunkt, null = Fenster zu
+function oeffneAblage(id) {
+  ablageOrt = id;
+  bearbeite = null;
+  zeigeAblage();
+  if (!$("#ablage").open) $("#ablage").showModal();
+}
+$("#ablage").addEventListener("close", () => { ablageOrt = null; bearbeite = null; zeigeTodos(); });
+function zeigeAblage() {
+  if (ablageOrt === null || !stand) return;
+  const punkt = stand.agenda.find((a) => a.id === ablageOrt);
+  $("#ablage-titel").textContent = punkt ? `Ablage: ${punkt.titel}` : "Ohne Agendapunkt";
+  const alle = stand.todos.filter(zumPunkt(ablageOrt));
+  const offen = alle.filter((t) => t.status !== "erledigt");
+  const fertig = alle.filter((t) => t.status === "erledigt");
+  fuelle("#ablage-liste", offen.map((t) => todoZeile(t, "ablage")), alle.length ? "Alle To-dos hier sind erledigt." : "Hier liegen noch keine To-dos.");
+  $("#ablage-erledigt").hidden = !fertig.length;
+  $("#ablage-erledigt-titel").textContent = `Erledigt (${fertig.length})`;
+  fuelle("#ablage-erledigt-liste", fertig.map((t) => todoZeile(t, "ablage")), "");
 }
 
 // "Alle anzeigen": großes Fenster mit allen Entscheidungen bzw. Fragen, nach Agendapunkt; bearbeiten, löschen, Fragen beantworten
@@ -218,32 +221,41 @@ $("#uebersicht").addEventListener("close", () => { alleArt = null; inBearbeitung
 // ── To-dos: anklicken zum Bearbeiten, Kästchen zum Abhaken ──
 let bearbeite = null; // ID des To-dos, das gerade bearbeitet wird; solange wird die Liste nicht neu aufgebaut
 
-function todoZeile(t) {
+function todoZeile(t, ort = "liste") {
   if (t.id === bearbeite) return todoEditor(t);
   const text = el("button", "todo-text");
   text.type = "button";
   text.title = "Anklicken zum Bearbeiten";
   const meta = el("span", "meta");
   meta.append("Wer: ", el("b", "", t.owner), "  ·  Bis: ", el("b", "", t.frist));
+  if (ort === "ablage" && !t.gruppe) meta.append("  ·  in der aktuellen Liste");
   text.append(el("span", "text", t.text), meta);
   text.addEventListener("click", () => {
     bearbeite = t.id;
-    zeigeTodos();
-    document.querySelector("#todos .editor input")?.focus();
+    neuZeichnen();
+    document.querySelector(".editor input")?.focus();
   });
   const box = el("span", "box");
   box.append(icon("check"));
   box.setAttribute("role", "checkbox");
-  box.setAttribute("aria-checked", String(t.status === "erledigt"));
-  box.setAttribute("aria-label", `Erledigt: ${t.text}`);
   box.tabIndex = 0;
-  const haken = versuche(() => sende(`/api/todos/${t.id}`, { status: t.status === "erledigt" ? "offen" : "erledigt" }, "PATCH"));
+  // In der Liste legt das Häkchen ab; in der Ablage hakt es ab.
+  const inListe = ort === "liste";
+  box.setAttribute("aria-checked", String(!inListe && t.status === "erledigt"));
+  box.setAttribute("aria-label", inListe ? `Ablegen: ${t.text}` : `Erledigt: ${t.text}`);
+  box.title = inListe ? "Ablegen (beim Agendapunkt links)" : "Erledigt";
+  const haken = versuche(() => sende(`/api/todos/${t.id}`, inListe ? { gruppe: "abgelegt" } : { status: t.status === "erledigt" ? "offen" : "erledigt" }, "PATCH"));
   box.addEventListener("click", haken);
   box.addEventListener("keydown", (e) => (e.key === " " || e.key === "Enter") && (e.preventDefault(), haken()));
   const rahmen = document.createDocumentFragment();
   rahmen.append(box, text);
-  return zeile(t.id, t.status, rahmen);
+  const li = zeile(`${ort}:${t.id}`, inListe ? "offen" : t.status, rahmen);
+  li.draggable = true;
+  li.addEventListener("dragstart", (e) => { gezogen = t.id; e.dataTransfer.setData("text/plain", t.id); e.dataTransfer.effectAllowed = "move"; li.classList.add("zieht"); });
+  li.addEventListener("dragend", () => { gezogen = null; li.classList.remove("zieht"); });
+  return li;
 }
+const neuZeichnen = () => { zeigeTodos(); zeigeAblage(); };
 
 function todoEditor(t) {
   const formular = el("form", "editor");
@@ -256,7 +268,7 @@ function todoEditor(t) {
     eingabe.setAttribute("aria-label", platz);
     return eingabe;
   };
-  const ende = () => { bearbeite = null; zeigeTodos(); };
+  const ende = () => { bearbeite = null; neuZeichnen(); };
   const speichern = knopf("Speichern", "check");
   speichern.type = "submit";
   const abbrechen = knopf("Abbrechen", "x", "zweit");
@@ -269,11 +281,24 @@ function todoEditor(t) {
   });
   const knoepfe = el("div", "reihe");
   knoepfe.append(speichern, abbrechen, loeschen);
-  formular.append(feld("text", t.text, "To-do", true), feld("owner", t.owner, "Wer? (leer = offen)"), feld("frist", t.frist, "Bis wann? (leer = offen)"), knoepfe);
+  if (t.gruppe) {
+    const zurueck = knopf("Zurück in die Liste", "undo", "zweit");
+    zurueck.addEventListener("click", async () => {
+      await sende(`/api/todos/${t.id}`, { gruppe: "", agendapunkt: laufenderPunkt() ?? "" }, "PATCH").catch((f) => melde(f.message));
+      ende();
+    });
+    knoepfe.append(zurueck);
+  }
+  const punktWahl = el("select", "breit");
+  punktWahl.name = "agendapunkt";
+  punktWahl.setAttribute("aria-label", "Agendapunkt");
+  for (const [id, titel] of [["", "Ohne Agendapunkt"], ...stand.agenda.map((a) => [a.id, `Agendapunkt: ${a.titel}`])]) { const o = el("option", "", titel); o.value = id; punktWahl.append(o); }
+  punktWahl.value = stand.agenda.some((a) => a.id === t.agendapunkt) ? t.agendapunkt : "";
+  formular.append(feld("text", t.text, "To-do", true), feld("owner", t.owner, "Wer? (leer = offen)"), feld("frist", t.frist, "Bis wann? (leer = offen)"), punktWahl, knoepfe);
   formular.addEventListener("submit", async (e) => {
     e.preventDefault();
     const d = new FormData(formular);
-    await sende(`/api/todos/${t.id}`, { text: d.get("text"), owner: d.get("owner") || "offen", frist: d.get("frist") || "offen" }, "PATCH").catch((f) => melde(f.message));
+    await sende(`/api/todos/${t.id}`, { text: d.get("text"), owner: d.get("owner") || "offen", frist: d.get("frist") || "offen", ...(d.get("agendapunkt") !== (t.agendapunkt ?? "") ? { agendapunkt: d.get("agendapunkt"), gruppe: d.get("agendapunkt") && d.get("agendapunkt") === laufenderPunkt() ? "" : "abgelegt" } : {}) }, "PATCH").catch((f) => melde(f.message));
     ende();
   });
   formular.addEventListener("keydown", (e) => e.key === "Escape" && ende());
@@ -284,10 +309,10 @@ function todoEditor(t) {
 
 function zeigeTodos() {
   const aktuell = aktuelleTodos();
-  if (bearbeite && !aktuell.some((t) => t.id === bearbeite)) bearbeite = null;
+  if (bearbeite && !stand.todos.some((t) => t.id === bearbeite)) bearbeite = null;
   const punkt = stand.agenda.find((a) => a.status === "läuft");
   $("#todo-titel").textContent = punkt ? `To-dos: ${punkt.titel}` : "To-dos";
-  fuelle("#todos", aktuell.map(todoZeile), stand.todos.length ? "Zu diesem Agendapunkt gibt es noch keine To-dos." : "Noch keine To-dos.");
+  fuelle("#todos", aktuell.map((t) => todoZeile(t, "liste")), stand.todos.length ? "Keine aktuellen To-dos. Abgelegtes findest du links beim Agendapunkt (Ordner)." : "Noch keine To-dos.");
 }
 
 // ── Alles anzeigen ──
@@ -349,6 +374,7 @@ function zeige(daten) {
     ? "Hört im Meeting mit, schreibt das Transkript und führt die To-do-Liste."
     : status.arbeit ?? (an ? `Aufnahme läuft. Der erste Abschnitt wird nach 20 Sekunden gesendet, danach alle ${status.zyklusSekunden} Sekunden.` : status.letzterZyklus ? "Pausiert. Alles bleibt erhalten, bis du das Meeting schließt." : "Bereit. Wähle einen Agendapunkt und starte die Aufnahme.");
 
+  $("#arbeit").classList.toggle("eingang", offen && (status.arbeit ?? "").startsWith("Transkript ist da"));
   $("#arbeit").title = $("#arbeit").textContent; // falls der Text gekürzt angezeigt wird
 
   // Kennzahlen
@@ -358,7 +384,6 @@ function zeige(daten) {
   $("#k-fragen").textContent = protokoll.offene_fragen.filter((f) => f.status === "offen").length;
 
   zeigeTranskript();
-  zeigeGruppen();
 
   // Agenda als Auswahlfelder: Anklicken wählt den Punkt aus, er läuft dann.
   $("#agenda").replaceChildren(
@@ -369,12 +394,30 @@ function zeige(daten) {
       k.title = a.status === "läuft" ? "Läuft gerade" : a.status === "erledigt" ? "Erledigt – anklicken, um ihn wieder aufzunehmen" : "Anklicken, um diesen Punkt zu starten";
       k.append(icon(a.status === "läuft" ? "laeuft" : a.status === "erledigt" ? "erledigt" : "kreis"), el("span", "", a.titel));
       k.addEventListener("click", versuche(() => sende(`/api/agenda/${a.id}/aktiv`)));
-      return k;
+      alsZiel(k, a.id);
+      const reihe = el("div", "agenda-zeile");
+      reihe.append(k);
+      const zahl = protokoll.todos.filter((t) => t.agendapunkt === a.id && t.status !== "erledigt").length;
+      const alle = protokoll.todos.filter((t) => t.agendapunkt === a.id).length;
+      if (alle) {
+        const o = el("button", "ordner");
+        o.type = "button";
+        o.title = `Ablage öffnen: ${zahl} offen, ${alle} insgesamt`;
+        o.setAttribute("aria-label", `Ablage ${a.titel}: ${zahl} offene To-dos`);
+        o.append(icon("ablage"), String(zahl));
+        o.addEventListener("click", () => oeffneAblage(a.id));
+        alsZiel(o, a.id);
+        reihe.append(o);
+      }
+      return reihe;
     }),
   );
+  const ohne = protokoll.todos.filter((t) => !protokoll.agenda.some((a) => a.id === t.agendapunkt));
+  $("#ohne-punkt").hidden = !offen;
+  $("#ohne-punkt").replaceChildren(icon("ablage"), `Ohne Agendapunkt (${ohne.filter((t) => t.status !== "erledigt").length})`);
   if (offen && !protokoll.agenda.length) $("#agenda").append(el("p", "hilfe", "Keine Agenda hinterlegt. Im Admin beim Meeting eintragen."));
 
-  if (!bearbeite) zeigeTodos();
+  if (!bearbeite) { zeigeTodos(); zeigeAblage(); }
 
   // Vorschläge: unsichere To-dos, die ein Mensch übernimmt oder verwirft
   $("#vorschlag-karte").hidden = !protokoll.vorschlaege.length;
@@ -409,3 +452,5 @@ function zeige(daten) {
 }
 
 verbinde(zeige);
+$("#ohne-punkt").addEventListener("click", () => oeffneAblage(""));
+alsZiel($("#ohne-punkt"), "");
