@@ -113,6 +113,7 @@ export function kurzinfo(tag: Tag, aktivId: string, workshopId: string | null = 
     agenda: tag.protokoll.agenda.map((a) => a.titel),
     briefing: tag.briefing,
     begriffe: tag.begriffe,
+    zyklusSekunden: tag.zyklusSekunden ?? null,
     todos: tag.protokoll.todos.length,
     entscheidungen: tag.protokoll.entscheidungen.length,
     abschnitte: tag.transkript.length,

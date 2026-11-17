@@ -30,6 +30,8 @@ export interface Tag {
   briefing: string;
   /** Fachbegriffe und Namen, die die Transkription richtig schreiben soll (mit Komma getrennt) */
   begriffe: string;
+  /** Takt der Transkription in Sekunden. Fehlt er: Meeting 30 s, Workshop 45 s. */
+  zyklusSekunden?: number;
   protokoll: Protokoll;
   chat: ChatNachricht[];
   transkript: TranskriptAbschnitt[];
@@ -72,9 +74,10 @@ export interface TagEingabe {
   agenda: string[];
   briefing?: string;
   begriffe?: string;
+  zyklusSekunden?: number;
 }
 
-function neuerTag({ name, datum, agenda, briefing = "", begriffe = STANDARD_BEGRIFFE }: TagEingabe): Tag {
+function neuerTag({ name, datum, agenda, briefing = "", begriffe = STANDARD_BEGRIFFE, zyklusSekunden }: TagEingabe): Tag {
   const kurz = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "tag";
   return {
     id: `${datum}-${kurz}-${randomUUID().slice(0, 4)}`,
@@ -83,6 +86,7 @@ function neuerTag({ name, datum, agenda, briefing = "", begriffe = STANDARD_BEGR
     erstellt: Date.now(),
     briefing,
     begriffe,
+    ...(zyklusSekunden ? { zyklusSekunden } : {}),
     protokoll: leeresProtokoll(agenda),
     chat: [],
     transkript: [],
@@ -200,6 +204,7 @@ class Store {
     tag.datum = e.datum;
     tag.briefing = e.briefing ?? tag.briefing;
     tag.begriffe = e.begriffe ?? tag.begriffe;
+    if (e.zyklusSekunden) tag.zyklusSekunden = e.zyklusSekunden;
     agendaAnwenden(tag.protokoll, e.agenda);
     schreibe(tag);
     return tag;

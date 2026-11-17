@@ -83,10 +83,13 @@ async function zeigeMeetings() {
     const agenda = eingabe("textarea", m.agenda.join("\n"), { rows: 6 });
     const briefing = eingabe("textarea", m.briefing, { rows: 6, placeholder: "Noch kein Hintergrundwissen hinterlegt." });
     const begriffe = eingabe("textarea", m.begriffe, { rows: 2 });
+    const takt = el("select");
+    for (const s of [30, 45, 60]) { const o = el("option", "", `alle ${s} Sekunden${s === 30 ? " (empfohlen)" : ""}`); o.value = s; takt.append(o); }
+    takt.value = m.zyklusSekunden ?? 30;
     const kopfzeile = el("div", "zweispaltig");
     kopfzeile.append(feld("Name", name), feld("Datum", datum));
 
-    const daten = () => ({ name: name.value, datum: datum.value, agenda: agenda.value.split("\n").map((z) => z.trim()).filter(Boolean), briefing: briefing.value, begriffe: begriffe.value });
+    const daten = () => ({ name: name.value, datum: datum.value, agenda: agenda.value.split("\n").map((z) => z.trim()).filter(Boolean), briefing: briefing.value, begriffe: begriffe.value, zyklusSekunden: Number(takt.value) });
     const speichern = async () => {
       const id = m.neu ? (await sende("/api/tage", daten())).id : (await sende(`/api/tage/${m.id}`, daten(), "PUT"), m.id);
       offenesMeeting = gespeichert = id;
@@ -108,6 +111,7 @@ async function zeigeMeetings() {
       feld("Agenda", agenda, "Ein Punkt pro Zeile. Punkte mit unverändertem Titel behalten ihren Status."),
       feld("Hintergrundwissen", briefing, "Kontext zu Brodos, Kunden, Produkten, Zielen. Die Spezial-Agenten bekommen diesen Text bei jeder Frage mit."),
       feld("Fachbegriffe und Namen", begriffe, `Mit Komma getrennt. Die Transkription schreibt diese Wörter dann richtig, z. B. „DaaS+" statt „das Plus". Auch Namen der Teilnehmenden eintragen.`),
+      feld("Takt der Transkription", takt, "Kürzer: To-dos erscheinen schneller, dafür werden häufiger Sätze zerschnitten. Workshops nutzen 45 Sekunden."),
       leiste,
     );
     liste.append(d);
@@ -346,8 +350,6 @@ async function ladeErweitert() {
   $("#promptAgenten").value = e.promptAgenten;
   $("#promptZusammenfassung").value = e.promptZusammenfassung;
   $("#maxTodos").value = e.maxTodosProZyklus;
-  if (![...$("#takt").options].some((o) => Number(o.value) === e.zyklusSekunden)) { const o = el("option", "", `alle ${e.zyklusSekunden} Sekunden`); o.value = e.zyklusSekunden; $("#takt").append(o); }
-  $("#takt").value = e.zyklusSekunden;
   $("#wort").value = e.aktivierungswort;
   $("#sprachfragen").checked = e.sprachfragen;
   gewuenschteStimme = e.stimme;
@@ -371,7 +373,7 @@ $("#grund-formular").addEventListener("input", () => meldeGrund("Ungespeicherte 
 $("#grund-formular").addEventListener("submit", async (ereignis) => {
   ereignis.preventDefault();
   try {
-    await sende("/api/admin/einstellungen", { maxTodosProZyklus: Number($("#maxTodos").value), zyklusSekunden: Number($("#takt").value), aktivierungswort: $("#wort").value, sprachfragen: $("#sprachfragen").checked }, "PUT");
+    await sende("/api/admin/einstellungen", { maxTodosProZyklus: Number($("#maxTodos").value), aktivierungswort: $("#wort").value, sprachfragen: $("#sprachfragen").checked }, "PUT");
     meldeGrund(`Gespeichert um ${new Date().toLocaleTimeString("de-DE")}.`);
   } catch (fehler) {
     meldeGrund(fehler.message);

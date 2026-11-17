@@ -1,3 +1,4 @@
+import { arbeitsstand } from "../delta.ts";
 import { z } from "zod";
 import { repariereJson } from "./json-reparatur.ts";
 import { config } from "../config.ts";
@@ -8,31 +9,41 @@ import type { ChatKontext, Sprachmodell } from "./schnittstellen.ts";
 
 type Nachricht = { role: "system" | "user" | "assistant"; content: string };
 
-const FORMAT_STAND = `Format von STAND (genau diese Felder, IDs bestehender Einträge unverändert lassen; neue Einträge bekommen eine neue ID):
+const FORMAT_STAND = `STAND enthält nur den laufenden Agendapunkt vollständig. "uebrige_offene_todos" sind offene To-dos anderer Punkte (nur für Befehle und zum Abhaken).
+
+Antwortformat (genau diese Felder; leere Listen, wenn nichts Neues):
 {
-  "agenda": [{"id": "A1", "titel": "…", "status": "offen|läuft|erledigt"}],
-  "todos": [{"id": "T1", "text": "…", "owner": "offen", "frist": "offen", "status": "offen|erledigt", "agendapunkt": "A1"}],
-  "vorschlaege": [{"id": "V1", "text": "…", "owner": "offen", "frist": "offen", "agendapunkt": "A1"}],
-  "entscheidungen": [{"id": "E1", "text": "…", "agendapunkt": "A1"}],
-  "offene_fragen": [{"id": "F1", "text": "…", "status": "offen|beantwortet"}],
-  "notizen": [{"agendapunkt": "A1", "text": "…"}]
-}`;
+  "neu": {
+    "todos": [{"text": "…", "owner": "offen", "frist": "offen"}],
+    "vorschlaege": [{"text": "…", "owner": "offen", "frist": "offen"}],
+    "entscheidungen": [{"text": "…"}],
+    "offene_fragen": [{"text": "…"}],
+    "notizen": [{"text": "…"}]
+  },
+  "erledigt": ["T3"],
+  "beantwortet": ["F2"],
+  "befehle": [],
+  "frage": null
+}
+- "neu": nur Einträge, die in diesem ABSCHNITT neu entstehen. Nichts aus STAND wiederholen.
+- "erledigt": IDs von To-dos (aus STAND oder uebrige_offene_todos), die laut ABSCHNITT abgeschlossen sind.
+- "beantwortet": IDs offener Fragen, die im ABSCHNITT beantwortet werden.`;
 
 /** Technischer Teil des Transkriptionsassistenten: gehört zur App, nicht zur Prompt-Pflege (sonst bricht das Format). */
-const TECHNIK_PROTOKOLL = "Gib den aktualisierten STAND zurück. Nur JSON, kein Text davor oder danach.";
+const TECHNIK_PROTOKOLL = "Gib NICHT den ganzen STAND zurück, sondern nur die Änderungen im folgenden Antwortformat. Das gilt auch, wenn deine Rollenbeschreibung etwas anderes sagt. Unklarer Abschnitt oder nichts Neues: alle Listen leer. Nur JSON, kein Text davor oder danach.";
 
 /** Anleitung für Sprachbefehle. Greift nur, wenn im Abschnitt das Aktivierungswort fällt (der Server prüft das zusätzlich). */
 function sprachbefehle(): string {
   const wort = einstellungen.aktivierungswort;
   const agenten = agentenFuer(store.daten.agenten).map((a) => `"${a.id}" (${a.name})`).join(", ");
-  return `Zusätzlich zu den Feldern von STAND gibst du zwei weitere Felder zurück. Fülle sie NUR, wenn im ABSCHNITT jemand ausdrücklich "${wort}" anspricht; sonst "befehle": [] und "frage": null.
+  return `Zu den Feldern "befehle" und "frage": Fülle sie NUR, wenn im ABSCHNITT jemand ausdrücklich "${wort}" anspricht; sonst "befehle": [] und "frage": null.
 - "befehle": Änderungen an bestehenden Einträgen, die "${wort}" ausdrücklich aufgetragen werden.
   Löschen ("${wort}, lösche das To-do …"): {"aktion": "loeschen", "id": "T3"}
   Ändern ("${wort}, ändere beim To-do … die Frist auf Montag"): {"aktion": "aendern", "id": "T3", "text": "…", "owner": "…", "frist": "…"} – nur die Felder angeben, die sich ändern.
-  Nimm die ID des gemeinten Eintrags aus STAND. Ist nicht eindeutig, welcher Eintrag gemeint ist: kein Befehl.
+  Nimm die ID des gemeinten Eintrags aus STAND oder uebrige_offene_todos. Ist nicht eindeutig, welcher Eintrag gemeint ist: kein Befehl.
 - "frage": wenn "${wort}" eine Frage an die Spezial-Agenten weitergeben soll ("${wort}, Frage an …: …", "${wort}, was sagen die Experten zu …").
   Format: {"an": "alle", "text": "die Frage als ganzer Satz"}. Für "an" ist erlaubt: "alle" oder ${agenten}.
-"${wort}, To-do für …", "${wort}, notiere …" und "${wort}, hake … ab" sind keine Befehle in diesem Sinn: Sie ändern wie bisher direkt den STAND.`;
+"${wort}, To-do für …", "${wort}, notiere …" und "${wort}, hake … ab" sind keine Befehle in diesem Sinn: Sie kommen unter "neu" bzw. "erledigt".`;
 }
 
 const AntwortSchema = z.object({ antworten: z.array(z.object({ rolle: z.string(), text: z.string().min(1) })).min(1) });
@@ -138,10 +149,11 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
   }
 
   async chronist(stand: Protokoll, abschnitt: string): Promise<unknown> {
+    const punkt = stand.agenda.find((a) => a.status === "läuft")?.id ?? "";
     // Der vorherige Abschnitt geht als Kontext mit, damit Zusagen an der Schnittkante nicht verloren gehen.
     const davor = store.daten.transkript.at(-2)?.text ?? "";
     const technik = `${TECHNIK_PROTOKOLL}\n\n${FORMAT_STAND}\n\n${sprachbefehle()}`;
-    const daten = `STAND:\n${JSON.stringify(stand)}\n\nAKTUELLER AGENDAPUNKT: ${stand.agenda.find((a) => a.status === "läuft")?.titel ?? "(keiner ausgewählt)"}\n\nVORHERIGER ABSCHNITT (nur zum Verständnis, bereits verarbeitet):\n${davor || "(keiner)"}\n\nABSCHNITT:\n${abschnitt}`;
+    const daten = `STAND:\n${JSON.stringify(arbeitsstand(stand, punkt))}\n\nAKTUELLER AGENDAPUNKT: ${stand.agenda.find((a) => a.status === "läuft")?.titel ?? "(keiner ausgewählt)"}\n\nVORHERIGER ABSCHNITT (nur zum Verständnis, bereits verarbeitet):\n${davor || "(keiner)"}\n\nABSCHNITT:\n${abschnitt}`;
     return this.#frage(
       config.llm.modellProtokoll
         ? // Eigenes Modell (z. B. Broki "broki-protokoll"): Rolle und Regeln kommen aus dessen System-Prompt.

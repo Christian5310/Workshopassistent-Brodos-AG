@@ -1,3 +1,4 @@
+import { wendeAenderungenAn } from "./delta.ts";
 import { randomUUID } from "node:crypto";
 import express, { type Response } from "express";
 import { z } from "zod";
@@ -28,7 +29,9 @@ let pausiertUm = 0;
 let warteschlange: Promise<void> = Promise.resolve();
 
 /** Takt der Abschnitte: im Mock aus der .env (für Tests), sonst aus der Admin-Ansicht. */
-const takt = () => (config.mock ? config.mockChunkSekunden : admin.einstellungen.zyklusSekunden);
+/** Takt je Meeting: gespeichert am Meeting, sonst Workshop 45 s, normales Meeting 30 s. */
+const taktFuer = (tag: { id: string; zyklusSekunden?: number }) => tag.zyklusSekunden ?? (workshopVon(tag.id) ? 45 : 30);
+const takt = () => (config.mock ? config.mockChunkSekunden : store.istOffen ? taktFuer(store.daten) : 30);
 
 // ── Rückgängig: Protokollstände vor den letzten Änderungen (nur im Arbeitsspeicher, je geöffnetem Meeting) ──
 const schritte: { was: string; protokoll: Schnappschuss["protokoll"] }[] = [];
@@ -149,7 +152,8 @@ async function verarbeiteAbschnitt(text: string): Promise<void> {
   store.daten.transkript.push({ zeit: Date.now(), text, agendapunkt: punkt });
   zeigeArbeit("Transkript ist da, To-dos werden ausgewertet …"); // Transkript erscheint sofort, die Auswertung folgt
   try {
-    const antwort = await anbieter.sprachmodell.chronist(store.daten.protokoll, text);
+    // Die KI liefert nur Änderungen; daraus wird hier der vollständige neue Stand.
+    const antwort = wendeAenderungenAn(store.daten.protokoll, await anbieter.sprachmodell.chronist(store.daten.protokoll, text));
     const geprueft = ProtokollSchema.safeParse(antwort);
     if (geprueft.success) {
       const alt = store.daten.protokoll;
@@ -642,6 +646,7 @@ const TagSchema = z.object({
   agenda: z.array(z.string().trim().min(1).max(120)).max(30),
   briefing: z.string().max(50_000).optional(),
   begriffe: z.string().max(4000).optional(),
+  zyklusSekunden: z.number().int().min(15).max(120).optional(),
 });
 const tagAusBody = (body: unknown, res: Response) => {
   const geprueft = TagSchema.safeParse(body);

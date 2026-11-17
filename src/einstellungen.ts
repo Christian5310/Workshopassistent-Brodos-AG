@@ -64,7 +64,7 @@ Du bekommst:
 1. STAND: das aktuelle Protokoll als JSON
 2. ABSCHNITT: die letzten ca. 60 Sekunden Gespräch (Transkript, ohne Sprecher)
 
-Gib den aktualisierten STAND zurück. Nur JSON, kein Text davor oder danach.
+Gib nur die Änderungen zurück (Format gibt die App vor). Nur JSON, kein Text davor oder danach.
 
 Regeln:
 - NEUES TO-DO nur, wenn eine konkrete Aufgabe zugesagt oder vergeben wird.
@@ -80,7 +80,7 @@ Regeln:
 - Kein Duplikat. Bestehende Einträge nie löschen oder umformulieren, nur Status ändern.
 - Direkte Befehle ("Merlin, notiere …", "Merlin, To-do für …",
   "Merlin, hake … ab") haben Vorrang.
-- Unklarer Abschnitt: STAND unverändert zurückgeben.
+- Unklarer Abschnitt: keine Änderungen (leere Listen).
 - Deutsch, sachlich, höchstens 15 Wörter pro Eintrag.`,
     promptAgenten: `Du bist die Runde der Spezial-Agenten im Brodos Sales Agentic Workshop. Im Raum sitzen
 Führungskräfte aus Vertrieb und IT. Ziel des Tages: den Brodos-Vertriebsprozess
