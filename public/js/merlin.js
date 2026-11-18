@@ -36,7 +36,11 @@ export function starteMerlin(rahmen) {
   const panel = $("#merlin");
   const blase = $("#merlin-blase");
   const info = (text = "") => ($("#merlin-info").textContent = text);
+  /** Beobachter von außen (Merlin in der Mitte der Startseite): bekommen Antworten und Zustand mit */
+  const beobachter = new Set();
+  const melde = (art, wert) => { for (const b of beobachter) try { b[art]?.(wert); } catch { beobachter.delete(b); } };
   const zustand = (name) => {
+    melde("zustand", name);
     for (const k of ["hoert", "denkt", "spricht"]) knopf.classList.toggle(k, k === name);
     $("#merlin-mikro").classList.toggle("hoert", name === "hoert");
     $("#merlin-mikro").setAttribute("aria-pressed", String(name === "hoert"));
@@ -44,6 +48,7 @@ export function starteMerlin(rahmen) {
   const sage = (text) => {
     modus = "navi";
     blase.textContent = text;
+    melde("sage", text);
     zeigeAnsageLeiste();
   };
 
@@ -65,6 +70,7 @@ export function starteMerlin(rahmen) {
     zeigeLeise();
   }
   knopf.addEventListener("click", () => (offen ? schliesse() : oeffne()));
+  zeigeLeise(); // gleich beim Laden, nicht erst mit dem ersten Stand vom Server
   $("#merlin-zu").addEventListener("click", schliesse);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && offen) schliesse(); });
 
@@ -462,6 +468,10 @@ export function starteMerlin(rahmen) {
   const schnittstelle = {
     oeffne,
     hoere: () => { oeffne({ fokus: false }); hoerStart(); },
+    /** Nur zuhören, ohne das Fenster zu öffnen (Mikrofon am Merlin der Startseite) */
+    hoereLeise: () => hoerStart(),
+    hoerAbbrechen: () => hoerAbbrechen(),
+    beobachte: (b) => { beobachter.add(b); return () => beobachter.delete(b); },
   };
 
   return {
@@ -477,6 +487,7 @@ export function starteMerlin(rahmen) {
     },
     /** Bereich gewechselt */
     bereichGewechselt() {
+      if (rahmen.bereich() === "start" && offen) schliesse(); // Start hat seinen eigenen Merlin in der Mitte
       zeigeLeise();
       if (offen) zeigeVorschlaege();
     },

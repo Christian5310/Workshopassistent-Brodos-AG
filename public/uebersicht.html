@@ -12,14 +12,22 @@
     </div>
     <div id="meldung" class="hinweisband" role="alert"></div>
 
-    <!-- Start: Merlin fragt in der Mitte, darunter die zwei Wege -->
+    <!-- Start: nur Merlin in der Mitte. Klick auf Merlin oder die Sprechblase zeigt Meeting/Workshop.
+         Darunter das Mikrofon: grau, beim Zuhören rot, Merlin wechselt dann auf das Zuhör-Bild. -->
     <div id="merlin-mitte" class="merlin-mitte" hidden>
-      <button type="button" id="merlin-figur" class="merlin-figur" title="Mit Merlin chatten"><img src="/img/merlin-avatar.png" alt=""><span class="sr-only">Mit Merlin chatten</span></button>
-      <p class="merlin-frage">Hallo, ich bin Merlin. Möchtest du ein <strong>Meeting</strong> oder einen <strong>Workshop</strong> abhalten?</p>
-      <p class="merlin-hinweis">Klicke auf Merlin, um mit ihm zu chatten.</p>
+      <button type="button" id="merlin-figur" class="merlin-figur" aria-expanded="false" aria-controls="merlin-wahl" title="Merlin: Meeting oder Workshop?"><img id="merlin-bild" src="/img/merlin-avatar.png" alt=""><span class="sr-only">Auswahl öffnen</span></button>
+      <p id="merlin-frage" class="merlin-frage" aria-live="polite">Hallo, ich bin Merlin. Möchtest du ein <strong>Meeting</strong> oder einen <strong>Workshop</strong> abhalten?</p>
+      <div id="merlin-wahl" class="merlin-wahl">
+        <div class="merlin-pillen">
+          <button type="button" class="merlin-pille" data-ziel="meeting"></button>
+          <button type="button" class="merlin-pille" data-ziel="workshop"></button>
+        </div>
+      </div>
+      <div class="merlin-mikro-bereich">
+        <button type="button" id="merlin-mitte-mikro" class="merlin-mikro-rund" aria-pressed="false" aria-label="Mit Merlin sprechen: klicken, sprechen, noch einmal klicken" title="Mit Merlin sprechen: klicken, sprechen, noch einmal klicken"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></button>
+        <span id="merlin-mikro-text" class="merlin-mikro-text">Mit Merlin sprechen</span>
+      </div>
     </div>
-    <hr id="start-trenner" class="trenner" hidden>
-    <div id="b-start" class="kacheln" hidden></div>
 
     <!-- Meeting: neues einrichten oder bestehendes öffnen -->
     <div id="b-meeting" class="zweispaltig" hidden>

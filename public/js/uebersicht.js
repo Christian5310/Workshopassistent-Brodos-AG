@@ -26,34 +26,64 @@ $("#wahl").replaceChildren(
   }),
 );
 
-$("#b-start").hidden = modus !== "start";
 $("#merlin-mitte").hidden = modus !== "start";
-// Merlin in der Mitte öffnet dasselbe Panel wie die Bubble im Rahmen (public/js/merlin.js)
-const navi = () => window.parent?.merlin?.navigator;
-$("#merlin-figur").addEventListener("click", () => navi()?.oeffne());
-// Start: ohne Auswahl links (sie wäre doppelt), Merlin mittig, darunter Trennlinie und die zwei Wege
+// Start: nur Merlin in der Mitte. Klick auf Merlin oder die Sprechblase zeigt die zwei Wege, darunter das Mikrofon.
 document.body.classList.toggle("start-modus", modus === "start");
-$("#start-trenner").hidden = modus !== "start";
 $("#b-meeting").hidden = modus !== "meeting";
+if (modus === "start") starteMerlinMitte();
+
+function starteMerlinMitte() {
+  const mitte = $("#merlin-mitte");
+  const figur = $("#merlin-figur");
+  const frage = $("#merlin-frage");
+  const mikro = $("#merlin-mitte-mikro");
+  const startText = frage.innerHTML;
+  for (const k of document.querySelectorAll(".merlin-pille")) {
+    const id = k.dataset.ziel;
+    k.append(icon(WEGE[id].icon), el("span", "", id === "meeting" ? "Meeting" : "Workshop"));
+    k.title = WEGE[id].text;
+    k.addEventListener("click", () => gehe(id));
+  }
+  const aufgeklappt = (an) => {
+    mitte.classList.toggle("offen", an);
+    figur.setAttribute("aria-expanded", String(an));
+  };
+  const umschalten = () => aufgeklappt(!mitte.classList.contains("offen"));
+  figur.addEventListener("click", umschalten);
+  frage.addEventListener("click", umschalten);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") aufgeklappt(false); });
+
+  // Sprachsteuerung über Merlin im Rahmen (public/js/merlin.js), ohne dessen Fenster zu öffnen; seine Antworten erscheinen hier in der Sprechblase
+  const navi = window.parent?.merlin?.navigator;
+  if (!navi?.hoereLeise) return void ($(".merlin-mikro-bereich").hidden = true);
+  const bild = $("#merlin-bild");
+  const BILD = { ruhig: "/img/merlin-avatar.png", hoert: "/img/merlin-hoert.webp" };
+  new Image().src = BILD.hoert; // vorladen, damit der Wechsel beim Klick sofort sichtbar ist
+  mikro.addEventListener("click", () => navi.hoereLeise());
+  const abmelden = navi.beobachte({
+    sage: (text) => { frage.textContent = text; },
+    zustand: (name) => {
+      mikro.classList.toggle("hoert", name === "hoert");
+      mikro.setAttribute("aria-pressed", String(name === "hoert"));
+      figur.classList.toggle("hoert", name === "hoert");
+      // Solange Merlin zuhört oder nachdenkt, zeigt er das Zuhör-Bild
+      const aktiv = name === "hoert" || name === "denkt";
+      figur.classList.toggle("aktiv", aktiv);
+      bild.src = aktiv ? BILD.hoert : BILD.ruhig;
+      $("#merlin-mikro-text").textContent = name === "hoert" ? "Ich höre zu … zum Beenden noch einmal klicken" : "Mit Merlin sprechen";
+      if (!name && frage.textContent === "Einen Moment …") frage.innerHTML = startText;
+    },
+  });
+  addEventListener("pagehide", () => { abmelden(); navi.hoerAbbrechen(); });
+}
 $("#titel").textContent = modus === "start" ? "Was möchtest du abhalten?" : "Meeting Assistent";
 $("#unterzeile").textContent = modus === "start" ? "" : "Richte ein neues Meeting ein oder öffne ein bestehendes.";
-$("#b-start").replaceChildren(
-  ...Object.entries(WEGE).map(([id, w]) => {
-    const k = el("button", "kachel");
-    k.type = "button";
-    const kreis = el("span", "kreis");
-    kreis.append(icon(w.icon));
-    k.append(kreis, el("span", "kachel-titel", w.name), el("span", "kachel-text", w.text));
-    k.addEventListener("click", () => gehe(id));
-    return k;
-  }),
-);
 
 /** Richtet das erste Auswahlfeld links an der Oberkante des ersten Kastens im Hauptfenster aus. */
 function richteAus() {
   const wahl = $("#wahl");
   wahl.style.marginTop = "";
-  const ziel = modus === "start" ? $("#b-start") : $("#b-meeting");
+  const ziel = $("#b-meeting");
   if (modus === "start" || matchMedia("(max-width: 900px)").matches) return;
   const versatz = ziel.getBoundingClientRect().top - wahl.getBoundingClientRect().top;
   if (versatz > 0) wahl.style.marginTop = `${versatz}px`;
@@ -143,6 +173,8 @@ try {
   }
 } catch {}
 beschrifte("#m-abbrechen", "x", "Abbrechen");
+// Wer "Meeting" wählt, will meist ein neues einrichten: Formular gleich offen
+if (modus === "meeting" && $("#m-felder").hidden) zeigeMeetingFelder(true);
 
 verbinde((daten) => {
   stand = daten;

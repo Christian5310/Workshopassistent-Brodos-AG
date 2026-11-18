@@ -583,16 +583,35 @@ details.einklappen[open] > summary { margin-bottom: var(--space-2); }
 .merlin-chip.ziel .icon { width: 0.875rem; height: 0.875rem; }
 .merlin-chip.ziel:hover { background: var(--brand); color: var(--on-brand); }
 
-/* Startseite: ohne Seitenleiste, Merlin mittig, Trennlinie, darunter die zwei Wege */
+/* Startseite: ohne Seitenleiste und Überschrift, nur Merlin mittig */
 .start-modus .seitenleiste { display: none; }
 .start-modus .inhalt { display: flex; flex-direction: column; align-items: stretch; }
 .start-modus .inhalt > * { width: 100%; max-width: 58rem; margin-left: auto; margin-right: auto; }
-.start-modus .seitenkopf { justify-content: center; text-align: center; }
-.start-modus .unterzeile:empty { display: none; }
-.start-modus .merlin-mitte { margin-top: var(--space-3); margin-bottom: 0; }
-.merlin-mitte .merlin-hinweis { margin: 0; font-size: 0.875rem; color: var(--ink-muted); }
-.trenner { border: 0; border-top: 1px solid var(--line); margin: var(--space-4) auto; }
-.start-modus #b-start { margin-top: var(--space-2); }
+.start-modus .seitenkopf { display: none; }
+.start-modus .inhalt { justify-content: center; }
+.start-modus .merlin-mitte { margin: 0 auto; gap: var(--space-3); }
+.start-modus .merlin-mitte .merlin-figur { width: clamp(12rem, 32vh, 20rem); height: clamp(12rem, 32vh, 20rem); border-radius: 50%; overflow: hidden; }
+.start-modus .merlin-mitte .merlin-figur img { object-fit: cover; transition: transform 0.2s; }
+.start-modus .merlin-mitte .merlin-figur.aktiv img { transform: scale(1.07); } /* Zuhör-Bild hat einen weißen Rand */
+.start-modus .merlin-mitte .merlin-frage { max-width: 40rem; padding: 1.125rem 1.75rem; font-size: 1.375rem; line-height: 2rem; cursor: pointer; }
+
+/* Startseite: Klick auf Merlin oder die Sprechblase klappt Meeting/Workshop auf, das Mikrofon darunter ist immer da. */
+.merlin-wahl { display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden; transition: grid-template-rows 0.25s ease, opacity 0.2s, visibility 0.2s; margin-top: calc(-1 * var(--space-3)); }
+.merlin-wahl > .merlin-pillen { overflow: hidden; }
+.merlin-mitte.offen .merlin-wahl { grid-template-rows: 1fr; opacity: 1; visibility: visible; margin-top: 0; }
+.merlin-pillen { display: flex; justify-content: center; gap: var(--space-3); flex-wrap: wrap; padding: 0.25rem 0.5rem 0.5rem; }
+.merlin-pille { display: inline-flex; align-items: center; justify-content: center; gap: 0.625rem; min-width: 15rem; min-height: 3.75rem; padding: 0.5rem 2rem; border: 2px solid var(--accent); border-radius: 999px; background: #fff8d1; color: var(--ink); font-size: 1.25rem; font-weight: 600; box-shadow: 0 4px 14px rgba(16, 38, 54, 0.08); }
+.merlin-pille:hover, .merlin-pille:focus-visible { background: var(--accent); color: var(--ink); }
+.merlin-pille .icon { width: 1.375rem; height: 1.375rem; }
+.merlin-mikro-bereich { display: flex; flex-direction: column; align-items: center; gap: 0.375rem; }
+.merlin-mikro-rund { display: grid; place-items: center; width: 4rem; height: 4rem; min-height: 0; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: #eef0f2; color: #7a8590; transition: background 0.2s, color 0.2s, border-color 0.2s; }
+.merlin-mikro-rund .icon { width: 1.75rem; height: 1.75rem; }
+.merlin-mikro-rund:hover { background: #e2e5e8; color: var(--ink); }
+.merlin-mikro-rund.hoert, .merlin-mikro-rund.hoert:hover { background: #d6001c; border-color: #d6001c; color: #fff; animation: merlinhoert 1.2s ease-out infinite; }
+.merlin-mikro-text { font-size: 0.875rem; color: var(--ink-muted); }
+.merlin-mitte .merlin-figur.hoert { animation: merlinhoert 1.2s ease-out infinite; }
+@media (max-width: 600px) { .merlin-pille { min-width: 0; flex: 1; } }
+@media (prefers-reduced-motion: reduce) { .merlin-wahl { transition: none; } .merlin-mikro-rund.hoert, .merlin-mitte .merlin-figur.hoert { animation: none; } }
 
 /* Merlin zeigt im Admin, wo eine Einstellung steht */
 .merlin-markiert { outline: 3px solid var(--accent); outline-offset: 6px; border-radius: var(--radius-sm); background: #fff8d1; transition: outline-color 0.4s, background 0.4s; }
