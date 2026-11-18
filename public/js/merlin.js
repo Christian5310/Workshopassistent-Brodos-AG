@@ -39,8 +39,13 @@ export function starteMerlin(rahmen) {
   /** Beobachter von außen (Merlin in der Mitte der Startseite): bekommen Antworten und Zustand mit */
   const beobachter = new Set();
   const melde = (art, wert) => { for (const b of beobachter) try { b[art]?.(wert); } catch { beobachter.delete(b); } };
+  const BILD = { ruhig: "/img/merlin-avatar.png", hoert: "/img/merlin-hoert.webp" };
+  new Image().src = BILD.hoert; // vorladen
   const zustand = (name) => {
     melde("zustand", name);
+    const aktiv = name === "hoert" || name === "denkt";
+    knopf.classList.toggle("aktiv", aktiv);
+    knopf.querySelector("img").src = aktiv ? BILD.hoert : BILD.ruhig;
     for (const k of ["hoert", "denkt", "spricht"]) knopf.classList.toggle(k, k === name);
     $("#merlin-mikro").classList.toggle("hoert", name === "hoert");
     $("#merlin-mikro").setAttribute("aria-pressed", String(name === "hoert"));
@@ -52,7 +57,7 @@ export function starteMerlin(rahmen) {
     zeigeAnsageLeiste();
   };
 
-  function oeffne({ fokus = true } = {}) {
+  function oeffne({ fokus = false } = {}) {
     offen = true;
     panel.hidden = false;
     knopf.setAttribute("aria-expanded", "true");
@@ -69,7 +74,10 @@ export function starteMerlin(rahmen) {
     knopf.setAttribute("aria-expanded", "false");
     zeigeLeise();
   }
-  knopf.addEventListener("click", () => (offen ? schliesse() : oeffne()));
+  // Die Bubble ist reine Sprachsteuerung: Klick = zuhören, noch ein Klick = fertig. Ein Fenster gibt es nur für Antworten.
+  knopf.addEventListener("click", () => hoerStart());
+  /** Antwort sichtbar machen: im Fenster, auf der Startseite in Merlins Sprechblase in der Mitte */
+  const zeigeAntwort = () => { if (!offen && rahmen.bereich() !== "start") oeffne({ fokus: false }); };
   zeigeLeise(); // gleich beim Laden, nicht erst mit dem ersten Stand vom Server
   $("#merlin-zu").addEventListener("click", schliesse);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && offen) schliesse(); });
@@ -106,7 +114,9 @@ export function starteMerlin(rahmen) {
   }
   let auswahl = []; // von Merlin angebotene Ziele, z. B. die vorhandenen Meetings
   function zeigeVorschlaege() {
-    const knoepfe = auswahl.length ? auswahl : vorschlaege().map((t) => ({ text: t, befehl: t, einfach: true }));
+    // Nur Sprache: feste Vorschläge entfallen, angezeigt wird nur eine Auswahl, die Merlin anbietet (z. B. mehrere Meetings)
+    $("#merlin-vorschlaege").hidden = !auswahl.length;
+    const knoepfe = auswahl;
     $("#merlin-vorschlaege").replaceChildren(
       ...knoepfe.map((a) => {
         const k = el("button", `merlin-chip${a.einfach ? "" : " ziel"}`);
@@ -154,8 +164,12 @@ export function starteMerlin(rahmen) {
     feld.value = "";
   });
 
+  /** Aktionen, die woandershin führen: dort zeigt sich das Ergebnis, ein Antwortfenster braucht es nicht */
+  const FUEHRT_WEITER = new Set(["gehe", "einstellung", "meeting-neu", "workshop-neu", "meeting-oeffnen", "workshop-oeffnen", "frage"]);
   async function ausfuehren(e, gesprochen) {
     auswahl = e.auswahl ?? [];
+    if (FUEHRT_WEITER.has(e.aktion) && !auswahl.length) { if (offen) schliesse(); }
+    else zeigeAntwort();
     const antworte = (text = e.antwort) => { sage(text); if (gesprochen) sprich(text); };
     switch (e.aktion) {
       case "gehe":
@@ -301,6 +315,7 @@ export function starteMerlin(rahmen) {
       hoerTimer = setTimeout(hoerEnde, MAX_HOEREN_MS);
     } catch (fehler) {
       hoerAbbrechen();
+      zeigeAntwort();
       sage(fehler.name === "NotAllowedError" ? "Ich darf das Mikrofon nicht benutzen. Bitte im Browser erlauben oder tippen." : "Das Mikrofon lässt sich nicht öffnen. Bitte tippen.");
     }
   }
@@ -337,6 +352,7 @@ export function starteMerlin(rahmen) {
       await ausfuehren(e, true);
     } catch (fehler) {
       sage(fehler.message);
+      zeigeAntwort();
     } finally {
       if (!knopf.classList.contains("spricht")) zustand(null);
     }

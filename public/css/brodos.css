@@ -476,6 +476,9 @@ label.agentenwahl input { flex: none; }
 .merlin-knopf:hover { background: transparent; transform: scale(1.05); }
 .merlin-knopf img { width: 100%; height: 100%; display: block; }
 .merlin-knopf.spricht { animation: merlinspricht 1.1s ease-in-out infinite; }
+.merlin-knopf { overflow: hidden; }
+.merlin-knopf img { transition: transform 0.2s; }
+.merlin-knopf.aktiv img { transform: scale(1.07); } /* Zuhör-Bild hat einen weißen Rand */
 @keyframes merlinspricht { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
 .merlin-panel { position: fixed; right: 1.5rem; bottom: 7rem; z-index: 20; width: min(26rem, calc(100vw - 3rem)); display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; border: 2px solid var(--accent); border-radius: var(--radius-lg); background: var(--surface); box-shadow: 0 12px 32px rgba(16, 38, 54, 0.25); }
 .merlin-kopf { display: flex; align-items: baseline; gap: 0.5rem; }

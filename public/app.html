@@ -26,10 +26,11 @@
       <iframe id="inhalt" title="Inhalt des gewählten Bereichs"></iframe>
     </div>
 
-    <!-- Merlin: Navigator, Einstimmung und Pausen-Erinnerung (public/js/merlin.js). Schwebt außerhalb des Fensters. -->
-    <button id="merlin-knopf" type="button" class="merlin-knopf schwebt" aria-expanded="false" aria-controls="merlin" title="Merlin: sag mir, was ich tun soll">
+    <!-- Merlin: Sprachsteuerung, Einstimmung und Pausen-Erinnerung (public/js/merlin.js). Schwebt außerhalb des Fensters.
+         Klick auf die Bubble = zuhören. Das Fenster zeigt nur Antworten, Tippen gibt es nicht. -->
+    <button id="merlin-knopf" type="button" class="merlin-knopf schwebt" aria-expanded="false" aria-controls="merlin" title="Merlin: klicken, sprechen, noch einmal klicken">
       <img src="/img/merlin-avatar.png" alt="">
-      <span class="sr-only">Merlin öffnen</span>
+      <span class="sr-only">Mit Merlin sprechen</span>
     </button>
     <section id="merlin" class="merlin-panel" hidden aria-label="Merlin">
       <div class="merlin-kopf"><b>Merlin</b><button type="button" id="merlin-zurueck" class="textlink klein-text">Start</button><button type="button" id="merlin-zu" class="textlink klein-text">Schließen</button></div>
@@ -44,7 +45,7 @@
       </div>
       <div id="merlin-rueckfrage" class="reihe" hidden></div>
       <div id="merlin-vorschlaege" class="merlin-chips" aria-label="Vorschläge"></div>
-      <form id="merlin-eingabe" class="merlin-eingabe">
+      <form id="merlin-eingabe" class="merlin-eingabe" hidden>
         <input id="merlin-feld" type="text" maxlength="500" autocomplete="off" placeholder="Was soll ich tun?" aria-label="Befehl an Merlin">
         <button type="button" id="merlin-mikro" class="icon-knopf" aria-pressed="false" aria-label="Sprechen: klicken, sprechen, noch einmal klicken" title="Sprechen: klicken, sprechen, noch einmal klicken"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></button>
         <button type="submit" class="icon-knopf" aria-label="Senden" title="Senden"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button>
