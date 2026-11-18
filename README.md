@@ -66,6 +66,7 @@ Das ist eine technische Absicherung, keine rechtliche Prüfung. Rechtsgrundlage,
 
 Die App spricht Broki über die OpenAI-kompatible Schnittstelle an (`LLM_BASE_URL`, `LLM_CHAT_PATH=/api/chat/completions`, `LLM_API_KEY`, `LLM_MODEL`).
 
+- **Transkription über Broki:** Admin → Erweitert → Transkription → „Broki". Nutzt `LLM_BASE_URL` und `LLM_API_KEY`; welches Modell transkribiert, wird in Broki unter Einstellungen → Audio festgelegt. Fachbegriffe werden dabei nicht mitgegeben.
 - **Transkriptionsassistent als Broki-Modell:** Mit `LLM_MODEL_PROTOKOLL=broki-protokoll` kommen Rolle und Regeln aus dem System-Prompt dieses Broki-Modells. Die App schickt dann nur den technischen Teil (Datenformat, Sprachbefehle, Stand, Abschnitt) in der Nutzer-Nachricht, weil Open WebUI den Modell-Prompt bei einer eigenen System-Nachricht nicht zuverlässig anwendet. Im Admin steht dann beim Prompt-Feld ein Hinweis.
 - **Agenten, Merlin, Zusammenfassung** laufen über `LLM_MODEL` mit den Prompts aus der App.
 - **Modell-Eigenheiten werden automatisch ausgeglichen:** Lehnt ein Modell `temperature`, `max_tokens`, `reasoning_effort` oder den JSON-Modus ab, wiederholt die App die Anfrage angepasst und merkt sich das je Modell. JSON in Code-Blöcken wird erkannt.
@@ -112,6 +113,7 @@ src/store.ts                Speicher: ein Meeting = eine Datei in data/tage/ (Ag
 src/einstellungen.ts        Admin-Einstellungen (data/einstellungen.json), Prompt-Platzhalter, Sicherheitsnetz für To-dos
 src/workshops.ts            Workshops: Teilnehmer und Material (data/workshops/), je mit eigenem Meeting
 src/archiv.ts               Aufbereitung eines Tages für Ansicht und Download
+src/anbieter/broki.ts      Transkription über Broki (Open WebUI, /api/v1/audio/transcriptions)
 src/anbieter/whisper.ts     Transkription über den lokalen Whisper-Dienst (mit Filter für erfundene Sätze)
 lokal/                      Lokaler Whisper-Dienst (Python, faster-whisper) mit Startskript für Windows
 src/merlin.ts               Merlin als Navigator: Befehle erkennen (Regeln, KI als Rückfall) und auflösen

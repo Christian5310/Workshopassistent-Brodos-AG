@@ -2,13 +2,15 @@ import { config } from "../config.ts";
 import { OpenAiKompatiblesSprachmodell } from "./llm.ts";
 import { MistralTranskriptQuelle } from "./mistral.ts";
 import { WhisperTranskriptQuelle } from "./whisper.ts";
+import { BrokiTranskriptQuelle } from "./broki.ts";
 import { MockSprachmodell, MockTranskriptQuelle } from "./mock.ts";
 import type { Sprachmodell, TranskriptQuelle } from "./schnittstellen.ts";
 import { einstellungen } from "../einstellungen.ts";
 
-export type Transkription = "mistral" | "whisper-large" | "whisper-turbo";
+export type Transkription = "mistral" | "broki" | "whisper-large" | "whisper-turbo";
 export const TRANSKRIPTION_NAME: Record<Transkription, string> = {
   mistral: "Mistral Voxtral (Cloud)",
+  broki: "Broki (Cloud)",
   "whisper-large": "Whisper large-v3 (lokal)",
   "whisper-turbo": "Whisper Turbo (lokal)",
 };
@@ -20,6 +22,7 @@ export const TRANSKRIPTION_NAME: Record<Transkription, string> = {
 class UmschaltbareTranskription implements TranskriptQuelle {
   readonly #quellen = {
     mistral: new MistralTranskriptQuelle(),
+    broki: new BrokiTranskriptQuelle(),
     "whisper-large": new WhisperTranskriptQuelle(config.stt.whisperLarge),
     "whisper-turbo": new WhisperTranskriptQuelle(config.stt.whisperTurbo),
   };
@@ -29,6 +32,7 @@ class UmschaltbareTranskription implements TranskriptQuelle {
   async transkribiere(audio: Buffer | null, zweck: "protokoll" | "chat" | "befehl", mime?: string, begriffe?: string[]): Promise<string | null> {
     const art = einstellungen.transkription;
     if (art === "mistral" && !config.stt.schluessel) throw new Error("Für Mistral fehlt MISTRAL_API_KEY in der .env. Im Admin auf Whisper umstellen oder den Schlüssel eintragen.");
+    if (art === "broki" && (!config.stt.brokiUrl || !config.llm.schluessel)) throw new Error("Für Broki fehlen LLM_BASE_URL oder LLM_API_KEY in der .env. Im Admin auf Mistral umstellen oder beides eintragen.");
     const beginn = Date.now();
     try {
       return await this.#quellen[art].transkribiere(audio, zweck, mime, begriffe);
@@ -50,7 +54,7 @@ export function erstelleAnbieter(): { transkript: TranskriptQuelle; sprachmodell
 export function anbieterInfo(): string {
   if (config.mock) return "Mock (ohne KI)";
   const art = einstellungen.transkription;
-  const modell = art === "whisper-large" ? config.stt.whisperLarge : art === "whisper-turbo" ? config.stt.whisperTurbo : config.stt.modell;
+  const modell = art === "whisper-large" ? config.stt.whisperLarge : art === "whisper-turbo" ? config.stt.whisperTurbo : art === "broki" ? `wie in Broki eingestellt (${config.stt.brokiUrl})` : config.stt.modell;
   const llm = config.llm.anbieter === "ollama" ? `Ollama lokal (${config.llm.modell}, ${config.llm.basisUrl})` : `${config.llm.modell} (${config.llm.basisUrl})`;
   return `Transkription: ${TRANSKRIPTION_NAME[art]}, Modell ${modell} · Sprachmodell: ${llm}`;
 }
@@ -59,7 +63,7 @@ export function anbieterInfo(): string {
 export async function pruefeLokal(): Promise<string[]> {
   const meldungen: string[] = [];
   if (config.mock) return meldungen;
-  if (einstellungen.transkription !== "mistral" || config.stt.anbieter === "whisper") {
+  if (einstellungen.transkription.startsWith("whisper") || config.stt.anbieter === "whisper") {
     try {
       const r = await fetch(`${config.stt.whisperUrl}/health`, { signal: AbortSignal.timeout(3000) });
       const h = (await r.json()) as { geladen?: string[] };
@@ -68,6 +72,7 @@ export async function pruefeLokal(): Promise<string[]> {
       meldungen.push(`Whisper-Dienst NICHT erreichbar unter ${config.stt.whisperUrl}. Bitte lokal/start-whisper.cmd starten.`);
     }
   }
+  if (einstellungen.transkription === "broki" && (!config.stt.brokiUrl || !config.llm.schluessel)) meldungen.push("Für die Broki-Transkription fehlen LLM_BASE_URL oder LLM_API_KEY in der .env.");
   if (einstellungen.transkription === "mistral" && !config.stt.schluessel) meldungen.push("MISTRAL_API_KEY ist in der .env NICHT gesetzt: Mistral-Transkription geht so nicht.");
   if (config.llm.anbieter === "ollama") {
     try {

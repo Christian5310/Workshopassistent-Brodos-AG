@@ -42,7 +42,7 @@ export const ErweitertSchema = z.object({
   /** Merlin-Bubble: Lesegeschwindigkeit (1 = normal) */
   lesetempo: z.number().min(0.6).max(1.5).default(0.98),
   /** Transkription: Mistral Voxtral (Cloud) oder lokales Whisper (large-v3 oder Turbo). Zum Vergleichen umschaltbar. */
-  transkription: z.enum(["mistral", "whisper-large", "whisper-turbo"]).default(config.stt.anbieter === "whisper" ? "whisper-large" : "mistral"),
+  transkription: z.enum(["mistral", "broki", "whisper-large", "whisper-turbo"]).default(config.stt.anbieter === "whisper" ? "whisper-large" : config.stt.anbieter),
   /** Merlin erinnert an eine Pause, wenn die Aufnahme so lange ohne Unterbrechung läuft */
   pauseAn: z.boolean().default(false),
   pauseMinuten: z.number().int().min(10).max(240).default(45),
@@ -156,7 +156,7 @@ Regeln:
     sprachfragen: true,
     stimme: "",
     lesetempo: 0.98,
-    transkription: config.stt.anbieter === "whisper" ? "whisper-large" : "mistral",
+    transkription: config.stt.anbieter === "whisper" ? "whisper-large" : config.stt.anbieter,
     pauseAn: false,
     pauseMinuten: 45,
     pauseSprechen: true,

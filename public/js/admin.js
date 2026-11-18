@@ -272,9 +272,10 @@ async function zeigeAgenten() {
 }
 $("#agent-neu").addEventListener("click", () => { offenerAgent = "neu"; zeigeAgenten(); });
 
-// ── Transkription: Mistral (Cloud) oder lokales Whisper, sofort umschaltbar ──
+// ── Transkription: Mistral oder Broki (Cloud) oder lokales Whisper, sofort umschaltbar ──
 const STT = [
   ["mistral", "Mistral Voxtral", "Cloud (EU). Sehr schnell und genau, braucht Internet und den Mistral-Schlüssel."],
+  ["broki", "Broki", "Cloud über Broki. Das Modell dahinter (z. B. gpt-transcribe) wird in Broki eingestellt. Fachbegriffe werden nicht mitgegeben."],
   ["whisper-large", "Whisper large-v3", "Lokal auf diesem PC. Genau wie Mistral, ohne Grafikkarte aber langsam: kann mit dem 30-Sekunden-Takt nicht mithalten."],
   ["whisper-turbo", "Whisper Turbo", "Lokal auf diesem PC. Etwa viermal schneller als large-v3, etwas ungenauer bei Fachbegriffen."],
 ];

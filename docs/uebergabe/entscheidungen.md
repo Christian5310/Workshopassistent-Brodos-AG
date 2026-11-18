@@ -3,6 +3,7 @@
 | Thema | Entscheidung | Warum |
 |---|---|---|
 | Transkription | Mistral Voxtral (`voxtral-mini-transcribe-3-0`) als Standard, Whisper lokal umschaltbar | Whisper Turbo braucht ohne Grafikkarte 24–27 s je 30-s-Abschnitt bei schwacher Qualität; Mistral < 1 s |
+| Transkription über Broki | als vierte Option eingebaut (18.11.), Test mit echtem Audio steht aus | Wunsch: alle KI-Dienste über Broki |
 | Logik | Broki, Basismodell `claude-haiku-5-5`, Protokoll über Broki-Modell `broki-protokoll` | Test: 36/36 Punkte, ~3 s, ca. 0,06 $/h. GPT-6 luna war unzuverlässig |
 | Fallback Logik | Mistral Medium (36/36, schneller, ca. 0,40 $/h) | `LLM_*` in `.env` auskommentieren |
 | Prompt Transkriptionsassistent | wird in Broki gepflegt; App schickt nur technische Vorgaben in der Nutzer-Nachricht | Open WebUI wendet den Modell-Prompt mit eigener System-Nachricht nicht zuverlässig an |

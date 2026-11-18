@@ -7,7 +7,8 @@ try {
 }
 
 const wurzel = path.resolve(import.meta.dirname, "..");
-const sttAnbieter = (process.env.STT_ANBIETER || "mistral").trim().toLowerCase() === "whisper" ? "whisper" : "mistral";
+const sttWahl = (process.env.STT_ANBIETER || "mistral").trim().toLowerCase();
+const sttAnbieter: "mistral" | "broki" | "whisper" = sttWahl === "whisper" ? "whisper" : sttWahl === "broki" ? "broki" : "mistral";
 const llmAnbieter = (process.env.LLM_ANBIETER || "openai").trim().toLowerCase() === "ollama" ? "ollama" : "openai";
 
 export const config = {
@@ -18,7 +19,7 @@ export const config = {
   mockMikro: (process.env.MOCK_MIKRO ?? "false").toLowerCase() === "true",
   chunkSekunden: Number(process.env.CHUNK_SECONDS ?? 60),
   mockChunkSekunden: Number(process.env.MOCK_CHUNK_SECONDS ?? 8),
-  // Transkription: "mistral" (Voxtral, Cloud) oder "whisper" (lokaler Whisper-Dienst, siehe lokal/whisper_server.py)
+  // Transkription: "mistral" (Voxtral, Cloud), "broki" (Open WebUI, Cloud) oder "whisper" (lokaler Whisper-Dienst, siehe lokal/whisper_server.py)
   stt: {
     /** Start-Vorgabe; umschalten lässt es sich im Admin unter Erweitert → Transkription */
     anbieter: sttAnbieter,
@@ -30,6 +31,9 @@ export const config = {
     whisperUrl: (process.env.WHISPER_URL || "http://127.0.0.1:8001").replace(/\/$/, ""),
     whisperLarge: process.env.WHISPER_LARGE || "large-v3",
     whisperTurbo: process.env.WHISPER_TURBO || "large-v3-turbo",
+    /** Broki (Open WebUI): gleiche Adresse und gleicher Schlüssel wie das Sprachmodell; das Modell stellt Broki im Admin ein */
+    brokiUrl: (process.env.STT_BROKI_URL || process.env.LLM_BASE_URL || "").replace(/\/$/, ""),
+    brokiPfad: process.env.STT_BROKI_PFAD || "/api/v1/audio/transcriptions",
   },
   // Sprachmodell: "ollama" (lokal, ohne Cloud) oder "openai" (OpenAI-kompatibel: Mistral, Broki/Open WebUI)
   llm: {

@@ -294,7 +294,7 @@ app.post("/api/audio-chunk", express.raw({ type: "audio/*", limit: "8mb" }), (re
 
 /** Welche KI-Dienste laufen und ob die lokalen erreichbar sind (Regie → KI-Dienste). */
 app.get("/api/regie/anbieter", async (_req, res) => {
-  res.json({ info: anbieterInfo(), lokal: admin.einstellungen.transkription !== "mistral" && config.llm.anbieter === "ollama", meldungen: await pruefeLokal(), transkription: admin.einstellungen.transkription, mistralMoeglich: config.mock || !!config.stt.schluessel });
+  res.json({ info: anbieterInfo(), lokal: admin.einstellungen.transkription.startsWith("whisper") && config.llm.anbieter === "ollama", meldungen: await pruefeLokal(), transkription: admin.einstellungen.transkription, mistralMoeglich: config.mock || !!config.stt.schluessel });
 });
 
 app.get("/api/regie/diagnose", (_req, res) => {
