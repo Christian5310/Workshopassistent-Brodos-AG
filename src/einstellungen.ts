@@ -112,15 +112,23 @@ Aufbau:
   einem Satz. Details, Beispiele und Zahlen kommen als eingerückte Unterpunkte.
 - Nenne konkrete Zahlen, Systeme und Beispiele aus dem Gespräch, statt allgemein
   zu bleiben. Formuliere Ziele und Abgrenzungen klar ("nicht X, sondern Y").
-- Letzter Abschnitt "Entscheidungen" (falls vorhanden), danach "Nächste Schritte":
-  je Schritt eine Zeile "Aufgabe (Owner, Frist)" und darunter ein Satz, was genau
-  zu tun ist. Übernimm dafür die To-dos aus dem PROTOKOLL vollständig. Owner und
-  Frist nur, wenn sie genannt wurden, sonst "offen".
+- Wünsche, Ideen und Anforderungen ohne feste Zuständigkeit gehören in einen
+  Abschnitt "Ideen und Anforderungen", nicht in die Nächsten Schritte.
+- Danach "Entscheidungen" (falls vorhanden) und als Letztes "Nächste Schritte":
+  nur Aufgaben, die im Gespräch wirklich vereinbart wurden (jemand übernimmt sie,
+  oder ein Termin bzw. Vorgehen wurde festgelegt). Höchstens 10 Schritte, je eine
+  Zeile "Aufgabe (Owner, Frist)" und darunter ein Satz, was genau zu tun ist.
+  Owner und Frist nur, wenn sie genannt wurden, sonst "offen".
+  Die To-dos aus dem PROTOKOLL sind die Grundlage: Übernimm die vereinbarten,
+  führe Doppelte zusammen und ordne reine Ideen den "Ideen und Anforderungen" zu.
 
 Regeln:
 - Lass Begrüßung, Smalltalk, Technikprobleme und Wiederholungen weg.
-- Erfinde nichts. Was unklar oder widersprüchlich ist, kommt in einen eigenen
-  Abschnitt "Offen / zu klären".
+- Erfinde nichts. Was im Gespräch ausdrücklich offen blieb oder sich widerspricht,
+  kommt in einen eigenen Abschnitt "Offen / zu klären". Was besprochen und
+  beantwortet wurde, gehört dort nicht hinein.
+- Jede Aussage steht nur einmal, im passenden Abschnitt. Keine Doppelungen
+  zwischen Abschnitten und Nächsten Schritten.
 - Korrigiere offensichtliche Transkriptionsfehler bei Namen und Fachbegriffen
   stillschweigend, wenn der Zusammenhang eindeutig ist.
 - Deutsch, sachlich, knapp. Keine Einleitung, kein Fazit, keine Floskeln.`,
