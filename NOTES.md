@@ -57,6 +57,19 @@
 - Material des Users in der Workshop-Ansicht unter „Material" oder aus einem Ordner einlesen; Material vorher bereithalten.
 - Start in der neuen Session: „Lies NOTES.md und mach weiter."
 
+## GEPARKT (Stand 19.11.2026): Wissen für die Agenten – Weiterarbeit 20.11. um 9:00
+Analyse ist gemacht, noch nichts an Dateien geändert. Ergebnis in Kürze:
+- **Drei Schichten:** (1) Workshop-Kontext/Briefing je Meeting (ca. 8–12 k Zeichen, geht bei jeder Frage mit; hier gehört das Vorbereitungsmaterial hin: Ist-Prozess, Problemübersicht, Praxisfälle, Kennzahlen), (2) Wissensdatei je Agent (12–20 k Zeichen, nur beim gefragten Agenten), (3) Nachschlagewerk (Recherche-Datei, Tool-Matrix) nicht laden, sondern auf die Agenten verteilen. Gesamtbudget Wissen ca. 60 k Zeichen.
+- **Agenten-Zuschnitt (Vorschlag, noch offen):** Sales Professional, BPM Specialist, dritter Agent = KI-Berater Technik + Wirtschaft inkl. Rolle „Kritischer Prüfer“ (Agenda nennt Prozessbild / KI-Spezialist / Kritischer Prüfer).
+- **Neu zu schreiben:** Wissensdatei Agent 3 (Technik-Katalog mit Aufwand S/M/L, BWL-Raster Nutzen×Aufwand×Datenreife×Risiko, Prüfliste). **Vom User zu liefern:** Seite „Was enthält Dynamics heute wirklich“ (Antonio/Engineering), Eckzahlen (Verkäufer, Opportunities, Abschlussquote, Zyklus, Stundensatz-Spanne), Vorbereitungsmaterial ohne Namen.
+- **Bereinigen:** Verhaltensregeln aus den Wissensdateien in die Agent-Beschreibung (kollidieren mit dem Prompt: dort 1–3/max. 6 Sätze); `Brodos-Abteilungen-und-Leitung.md` nur als Landkarte ohne Namen (Quelle von Paul Weber, Markus Peske); `01_Kontext` + `Systemlandschaft` zusammenführen, Personentabelle raus; Recherche-Abschnitt 5 (alte Agenda 09:00–17:30) raus; Widerspruch Felix CIO vs. CDO klären.
+- **Test statt Schätzen:** ca. 25 Fragen je Agenda-Block durch die Agenten laufen lassen, Lücken ergänzen, Überflüssiges kürzen, Namen-Check.
+- Offene Entscheidung: Zuschnitt der drei Agenten (siehe oben).
+
+## ERLEDIGT (19.11.2026): „Merlin führt durch die App“
+Auf Zuruf („Merlin, erklär uns die App“) oder per Knopf auf dem Startscreen: Merlin spricht 7 Stationen, blendet Bildschirmfotos ein, Navigation leuchtet, Klick auf Merlin/Esc bricht ab. Nur ohne geöffnetes Meeting. Details: `docs/uebergabe/fuehrung.md`. Im Browser-Panel mit Mock-Daten geprüft (Ablauf, Abbruch, Start aus Admin, Ablehnung bei offenem Meeting). **Noch nicht geprüft:** Klang/Tempo mit der echten Merlin-Stimme am Workshop-Laptop und Beamer.
+Offen: Der User sprach von „zwei weiteren Projekten“, genannt wurde nur dieses. Zweites noch nachfragen.
+
 ## Nächster konkreter Schritt
 1. Server neu starten (`npm.cmd start`), Strg+F5, Agenten-Seite mit echtem Mikrofon testen (Klick → sprechen → Klick) und prüfen, dass die Frage nicht im Transkript/Protokoll auftaucht.
 2. Danach: Broki-Prompt-Regel „NEUES TO-DO" generisch einsetzen (Okay des Users) und Testlauf wiederholen.

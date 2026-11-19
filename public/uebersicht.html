@@ -26,8 +26,19 @@
       <div class="merlin-mikro-bereich">
         <button type="button" id="merlin-mitte-mikro" class="merlin-mikro-rund" aria-pressed="false" aria-label="Mit Merlin sprechen: klicken, sprechen, noch einmal klicken" title="Mit Merlin sprechen: klicken, sprechen, noch einmal klicken"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></button>
         <span id="merlin-mikro-text" class="merlin-mikro-text">Mit Merlin sprechen</span>
+        <button type="button" id="fuehrung-start" class="textlink klein-text" title="Merlin zeigt in etwa zwei Minuten, was die App kann">Führung durch die App</button>
+      </div>
+      <!-- Führung durch die App: Fortschritt und Abbruch. Merlins Text steht in seiner Sprechblase. -->
+      <div id="fuehrung-leiste" class="fuehrung-leiste" hidden>
+        <ol id="fuehrung-punkte" class="fuehrung-punkte" aria-label="Fortschritt der Führung"></ol>
+        <button type="button" id="fuehrung-ende" class="zweit klein">Führung beenden</button>
       </div>
     </div>
+    <!-- Führung durch die App: Bildschirmfoto zur jeweiligen Station -->
+    <figure id="fuehrung-bild-feld" class="fuehrung-bild-feld" hidden>
+      <img id="fuehrung-bild" alt="">
+      <figcaption id="fuehrung-titel"></figcaption>
+    </figure>
 
     <!-- Meeting: neues einrichten oder bestehendes öffnen -->
     <div id="b-meeting" class="zweispaltig" hidden>

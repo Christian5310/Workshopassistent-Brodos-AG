@@ -50,6 +50,7 @@ export const BefehlSchema = z.discriminatedUnion("aktion", [
   z.object({ aktion: z.literal("ja") }),
   z.object({ aktion: z.literal("nein") }),
   z.object({ aktion: z.literal("hilfe") }),
+  z.object({ aktion: z.literal("fuehrung") }),
   z.object({ aktion: z.literal("loeschen") }),
   z.object({ aktion: z.literal("unbekannt") }),
 ]);
@@ -118,6 +119,7 @@ export type Ergebnis =
   | { aktion: "ja" | "nein"; antwort: string }
   | { aktion: "todo-neu"; text: string; owner: string; frist: string; agendapunkt: string; antwort: string }
   | { aktion: "todo-verschieben"; id: string; agendapunkt: string; antwort: string }
+  | { aktion: "fuehrung"; antwort: string }
   | { aktion: "hilfe" | "unbekannt" | "hinweis"; antwort: string; auswahl?: Auswahl[] };
 
 const klein = (s: string) =>
@@ -267,12 +269,16 @@ function findeEinstellung(s: string): keyof typeof EINSTELLUNGEN | null {
   return null;
 }
 
+/** "Erklär uns die App", "Führung durch die App", "Rundgang", "Zeig uns die App" */
+const FUEHRUNG = /(f(ü|ue)hrung|rundgang|app ?tour|\btour\b)|((erkl(ä|ae)r|zeig|stell)\w* (uns |mir |euch )?((doch|mal|kurz|bitte) )*(die |diese |unsere |eure |das )?(neue[nr]? )?(broki )?(meeting )?(app|anwendung|programm|tool|oberfl(ä|ae)che))|(wie funktioniert (die|das|unsere|diese) (neue )?(broki )?(meeting )?(app|anwendung|programm|tool))/;
+
 /** Feste Regeln. Reihenfolge zählt: spezielle Formulierungen vor allgemeinen. */
 export function regeln(text: string): Befehl | null {
   const s = bereinige(text);
   if (!s) return null;
   let m: RegExpMatchArray | null;
 
+  if (FUEHRUNG.test(s)) return { aktion: "fuehrung" };
   if (/frage an /.test(s)) {
     const [adressat, ...rest] = text.replace(/^.*?frage an\s*/i, "").split(/[:,]/);
     const frage = rest.join(",").trim();
@@ -366,7 +372,7 @@ const NAMEN: Record<(typeof ZIELE)[number], string> = { start: "zur Auswahl", me
 const STATION_TEXT: Record<(typeof STATIONEN)[number], string> = { begruessung: "Ich begrüße alle.", eingereicht: "Ich fasse das eingereichte Material zusammen.", regeln: "Ich erkläre die Regeln.", agenda: "Ich lese die Agenda vor." };
 
 export const HILFE =
-  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Öffne die Pinnwand“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Wo ändere ich die Lesegeschwindigkeit?“ oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
+  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Öffne die Pinnwand“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Wo ändere ich die Lesegeschwindigkeit?“, „Erklär uns die App“ (nur ohne geöffnetes Meeting) oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
 
 /** Prüft den Befehl gegen den Zustand der App und löst Namen in IDs auf. */
 export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
@@ -481,6 +487,10 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
       if (f.einzeln) return { aktion: "dokument", titel: f.einzeln.titel, link: f.einzeln.link, antwort: f.antwort };
       return { aktion: "hinweis", antwort: f.antwort, auswahl: f.auswahl };
     }
+    case "fuehrung":
+      // Nur auf dem Startscreen, solange nichts läuft: im Meeting würde sie Aufnahme und Bildschirm stören
+      if (store.istOffen || aufnahmeLaeuft) return { aktion: "hinweis", antwort: "Die Führung gibt es nur ohne geöffnetes Meeting. Schließ das Meeting oder den Workshop, dann zeige ich euch die App." };
+      return { aktion: "fuehrung", antwort: "Gern. Ich zeige euch die App." };
     case "hilfe":
       return { aktion: "hilfe", antwort: HILFE };
     case "loeschen":

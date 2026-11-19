@@ -95,7 +95,11 @@ window.merlin = {
 };
 
 // ── Merlin: schwebt außerhalb des Fensters, navigiert, stimmt ein, erinnert an Pausen ──
-merlinNavi = starteMerlin({ gehe: geheZu, bereich: aktuellerBereich, steuerung: window.merlin, istAufnahmegeraet: () => istAufnahmegeraet() });
+/** Führung durch die App: lässt die genannten Punkte der oberen Navigation leuchten (leere Liste = aus). */
+function licht(namen) {
+  for (const a of document.querySelectorAll(".app-kopf nav a")) a.classList.toggle("fuehrung-licht", namen.includes(a.dataset.nav));
+}
+merlinNavi = starteMerlin({ gehe: geheZu, bereich: aktuellerBereich, steuerung: window.merlin, istAufnahmegeraet: () => istAufnahmegeraet(), licht });
 window.merlin.navigator = merlinNavi.schnittstelle;
 
 let meetingOffen = false;

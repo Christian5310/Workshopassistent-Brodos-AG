@@ -64,3 +64,13 @@ test("Pinnwand öffnen", () => {
   assert.deepEqual(regeln("Öffne die Pinnwand"), { aktion: "gehe", ziel: "pinnwand" });
   assert.deepEqual(regeln("Merlin, zeig mir die Pinnwand"), { aktion: "gehe", ziel: "pinnwand" });
 });
+
+test("Führung durch die App", () => {
+  for (const satz of ["Merlin, erklär uns die App", "Zeig uns die App", "Führung durch die App", "Mach einen Rundgang", "Wie funktioniert die neue Broki Meeting App?", "Erkläre uns bitte kurz die Anwendung", "Tour starten"]) {
+    assert.deepEqual(regeln(satz), { aktion: "fuehrung" }, satz);
+  }
+  // Nicht verwechseln mit anderen Befehlen
+  for (const satz of ["Zu den Agenten", "Wie sieht die Agenda aus?", "Zeig die letzten Meetings", "Öffne die Pinnwand", "Was kannst du?"]) {
+    assert.notEqual(aktion(satz), "fuehrung", satz);
+  }
+});

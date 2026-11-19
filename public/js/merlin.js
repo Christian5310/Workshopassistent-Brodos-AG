@@ -5,6 +5,7 @@
 // Was Merlin ausführt, geht dieselben Wege wie ein Klick. Löschen kann er nicht.
 // Ohne Klick gesagt ("Merlin, To-do für …") wirkt nur auf das Protokoll des Meeting Assistenten.
 import { el, icon, sende } from "./common.js";
+import { FUEHRUNG } from "./fuehrung-stationen.js";
 
 const $ = (id) => document.querySelector(id);
 const STATIONEN = [["begruessung", "Begrüßung"], ["eingereicht", "Eingereicht"], ["regeln", "Regeln"], ["agenda", "Agenda"]];
@@ -16,6 +17,7 @@ const MAX_HOEREN_MS = 12_000;
  * @param {() => string} rahmen.bereich
  * @param {object} rahmen.steuerung window.merlin (starten, pausieren, aufnahme)
  * @param {() => boolean} rahmen.istAufnahmegeraet
+ * @param {(namen: string[]) => void} [rahmen.licht] lässt Punkte der Navigation leuchten (Führung durch die App)
  */
 export function starteMerlin(rahmen) {
   let stand = null;
@@ -31,6 +33,8 @@ export function starteMerlin(rahmen) {
   let offeneFrage = null; // { ja, nein }: Merlins Rückfrage, beantwortbar per Klick oder per Sprache ("Ja", "Nein")
   let naechsteErinnerung = null;
   let erinnerungFuer = null;
+  let fuehrung = null; // laufende Führung durch die App: { aus: boolean, weiter: () => void }
+  let fuehrungStand = null; // aktuelle Station, damit eine neu geladene Startseite mittendrin einsteigen kann
 
   // ── Anzeige ──
   const knopf = $("#merlin-knopf");
@@ -81,7 +85,11 @@ export function starteMerlin(rahmen) {
   const zeigeAntwort = () => { if (!offen && rahmen.bereich() !== "start") oeffne({ fokus: false }); };
   zeigeLeise(); // gleich beim Laden, nicht erst mit dem ersten Stand vom Server
   $("#merlin-zu").addEventListener("click", schliesse);
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && offen) schliesse(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (fuehrung) beendeFuehrung();
+    else if (offen) schliesse();
+  });
 
   function begruessungstext() {
     const b = rahmen.bereich();
@@ -166,7 +174,7 @@ export function starteMerlin(rahmen) {
   });
 
   /** Aktionen, die woandershin führen: dort zeigt sich das Ergebnis, ein Antwortfenster braucht es nicht */
-  const FUEHRT_WEITER = new Set(["gehe", "einstellung", "meeting-neu", "workshop-neu", "meeting-oeffnen", "workshop-oeffnen", "frage", "dokument"]);
+  const FUEHRT_WEITER = new Set(["gehe", "einstellung", "meeting-neu", "workshop-neu", "meeting-oeffnen", "workshop-oeffnen", "frage", "dokument", "fuehrung"]);
   async function ausfuehren(e, gesprochen) {
     if (e.aktion === "ja" || e.aktion === "nein") {
       const frage = offeneFrage;
@@ -237,6 +245,9 @@ export function starteMerlin(rahmen) {
         break;
       case "ansage":
         await zeigeAnsage(STATIONEN.findIndex(([id]) => id === e.station), true);
+        break;
+      case "fuehrung":
+        starteFuehrung(); // läuft für sich weiter, hier nicht warten
         break;
       case "agenda-fehlt":
         rueckfrage(e.antwort, gesprochen, "Ja, Agenda anlegen", async () => {
@@ -356,6 +367,7 @@ export function starteMerlin(rahmen) {
 
   // ── Sprechen: Klick aufs Mikrofon = zuhören, nochmal Klick = senden ──
   async function hoerStart() {
+    if (fuehrung) return beendeFuehrung(); // ein Klick auf Merlin oder das Mikrofon unterbricht die Führung
     if (hoert) return hoerEnde();
     verstumme();
     if (!offeneFrage) abbrechen();
@@ -527,6 +539,73 @@ export function starteMerlin(rahmen) {
   });
   $("#merlin-zurueck").addEventListener("click", () => { verstumme(); sage(begruessungstext()); });
 
+  // ── Führung durch die App: Merlin bleibt auf dem Startscreen, spricht und zeigt Bilder (public/js/fuehrung-stationen.js) ──
+  const warte = (ms) => new Promise((fertig) => setTimeout(fertig, ms));
+  /** Liest einen Text satzweise vor und wartet bis zum Ende. Satzweise, weil manche Browser-Stimmen bei langen Texten abbrechen. */
+  async function sprichBis(text, lauf) {
+    const tempo = stand?.vorlesen?.tempo ?? 0.98;
+    for (const satz of text.split(/(?<=[.!?])\s+/).filter(Boolean)) {
+      if (lauf.aus) return;
+      const geschaetzt = Math.max(1200, (satz.length * 65) / tempo);
+      const start = Date.now();
+      await new Promise((fertig) => {
+        lauf.weiter = fertig;
+        if (!("speechSynthesis" in window)) return void setTimeout(fertig, geschaetzt);
+        sprich(satz, () => {
+          // Viel zu schnell fertig: Der Browser hat das Vorlesen wohl nicht erlaubt. Dann bleibt der Text so lange stehen, wie man ihn liest.
+          const dauer = Date.now() - start;
+          setTimeout(fertig, dauer < geschaetzt * 0.35 ? geschaetzt - dauer : 0);
+        });
+      });
+    }
+  }
+  async function starteFuehrung() {
+    if (fuehrung) return;
+    if (stand?.tag || stand?.status?.aufnahme) {
+      zeigeAntwort();
+      return void sage("Die Führung gibt es nur ohne geöffnetes Meeting. Schließ das Meeting oder den Workshop, dann zeige ich euch die App.");
+    }
+    const lauf = { aus: false, weiter: null };
+    fuehrung = lauf;
+    verstumme();
+    hoerAbbrechen();
+    abbrechen();
+    auswahl = [];
+    if (offen) schliesse();
+    // Die Führung läuft auf dem Startscreen. Von woanders (ohne offenes Meeting) gehen wir zuerst dorthin.
+    if (rahmen.bereich() !== "start") rahmen.gehe("start", true);
+    for (let i = 0; i < 40 && !beobachter.size && !lauf.aus; i++) await warte(100);
+    if (lauf.aus) return;
+    for (const s of FUEHRUNG) if (s.bild) new Image().src = `/img/fuehrung/${s.bild}.png`; // vorladen
+    for (const [i, s] of FUEHRUNG.entries()) {
+      if (lauf.aus) return;
+      rahmen.licht?.(s.licht ?? []);
+      fuehrungStand = { index: i, gesamt: FUEHRUNG.length, bild: s.bild ?? null, titel: s.titel ?? "" };
+      melde("fuehrung", fuehrungStand);
+      sage(s.text);
+      await sprichBis(s.text, lauf);
+      if (lauf.aus) return;
+      await warte(i === FUEHRUNG.length - 1 ? 0 : 600);
+    }
+    if (lauf.aus) return;
+    fuehrung = null;
+    fuehrungStand = null;
+    rahmen.licht?.([]);
+    melde("fuehrung", { aus: true, fertig: true }); // Startscreen: Meeting und Workshop stehen wieder zur Wahl
+  }
+  /** Beendet die Führung (Klick auf Merlin, Esc, "Führung beenden"). Sie läuft immer auf dem Startscreen, der dann wie gewohnt dasteht. */
+  function beendeFuehrung() {
+    if (!fuehrung) return;
+    const lauf = fuehrung;
+    fuehrung = null;
+    fuehrungStand = null;
+    lauf.aus = true;
+    verstumme();
+    lauf.weiter?.();
+    rahmen.licht?.([]);
+    melde("fuehrung", { aus: true, fertig: false });
+  }
+
   // ── Pausen-Erinnerung ──
   function pruefePause() {
     const p = stand?.pause;
@@ -557,7 +636,14 @@ export function starteMerlin(rahmen) {
     /** Nur zuhören, ohne das Fenster zu öffnen (Mikrofon am Merlin der Startseite) */
     hoereLeise: () => hoerStart(),
     hoerAbbrechen: () => hoerAbbrechen(),
-    beobachte: (b) => { beobachter.add(b); return () => beobachter.delete(b); },
+    beobachte: (b) => {
+      beobachter.add(b);
+      // Startseite wurde während der Führung (neu) geladen: sofort die aktuelle Station zeigen
+      if (fuehrung && fuehrungStand) { b.fuehrung?.(fuehrungStand); b.sage?.(blase.textContent); }
+      return () => beobachter.delete(b);
+    },
+    starteFuehrung: () => starteFuehrung(),
+    beendeFuehrung: () => beendeFuehrung(),
   };
 
   return {
@@ -566,6 +652,7 @@ export function starteMerlin(rahmen) {
     aktualisiere(neu) {
       const tagVorher = stand?.tag?.id;
       stand = neu;
+      if (fuehrung && (neu.tag || neu.status?.aufnahme)) beendeFuehrung(); // z. B. von einem anderen Gerät aus ein Meeting geöffnet
       if (tagVorher !== stand.tag?.id) { ansagen = null; if (modus === "ansage") sage(begruessungstext()); }
       zeigeLeise();
       if (offen) zeigeVorschlaege();
@@ -573,6 +660,7 @@ export function starteMerlin(rahmen) {
     },
     /** Bereich gewechselt */
     bereichGewechselt() {
+      if (fuehrung && rahmen.bereich() !== "start") beendeFuehrung(); // wer selbst woanders hinklickt, beendet die Führung
       if (rahmen.bereich() === "start" && offen) schliesse(); // Start hat seinen eigenen Merlin in der Mitte
       zeigeLeise();
       if (offen) zeigeVorschlaege();
