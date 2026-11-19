@@ -259,6 +259,8 @@ Erlaubte Aktionen:
 {"aktion": "material", "text": "der Satz"}  (hinterlegte Dokumente/Material eines Workshops finden oder öffnen)
 {"aktion": "wissen", "frage": "die Frage"}  (inhaltliche Frage, die aus dem eingereichten Workshop-Material beantwortet werden kann, z. B. "Wie sieht der Ist-Prozess aus?")
 {"aktion": "uhrzeit"}
+{"aktion": "todo-neu", "text": "kurze Aufgabe ohne Owner und Frist", "owner": "Name oder weglassen", "frist": "z. B. Freitag oder weglassen"}  (neues To-do notieren; Owner und Frist auch mitten im Satz erkennen: "Tom übernimmt bis Ende November die Preisliste" → {"aktion": "todo-neu", "text": "Preisliste übernehmen", "owner": "Tom", "frist": "Ende November"}; Zeitangaben ohne "bis" wie "morgen" oder "nächste Woche" sind ebenfalls die Frist)
+{"aktion": "todo-verschieben", "todo": "Stichwort aus dem To-do", "ziel": "Nummer oder Titel des Agendapunkts"}
 {"aktion": "ja"}  /  {"aktion": "nein"}  (Antwort auf eine Rückfrage)
 {"aktion": "hilfe"}
 {"aktion": "unbekannt"}

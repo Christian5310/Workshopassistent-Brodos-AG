@@ -47,3 +47,15 @@ test("Ja und Nein nur als kurze Antwort", () => {
   assert.equal(aktion("Lieber nicht"), "nein");
   assert.notEqual(aktion("Ja, und dann lies bitte die Agenda vor"), "ja");
 });
+
+test("To-do anlegen: Text, Owner und Frist", () => {
+  assert.deepEqual(regeln("Neues To-do für Anna: CRM-Export bis Freitag"), { aktion: "todo-neu", text: "CRM-Export", owner: "Anna", frist: "Freitag" });
+  assert.deepEqual(regeln("Merlin, neues To-do: Preisliste prüfen für Tom bis nächsten Montag"), { aktion: "todo-neu", text: "Preisliste prüfen", owner: "Tom", frist: "nächsten Montag" });
+  assert.deepEqual(regeln("Notiere ein To-do: Angebot an Müller schicken"), { aktion: "todo-neu", text: "Angebot an Müller schicken", owner: undefined, frist: undefined });
+});
+
+test("To-do verschieben", () => {
+  assert.deepEqual(regeln("Verschiebe das To-do CRM-Export zu Punkt 3"), { aktion: "todo-verschieben", todo: "crm export", ziel: "punkt 3" });
+  assert.equal(aktion("Schieb den CRM-Export nach Preise"), "todo-verschieben");
+  assert.notEqual(aktion("Verschiebe das Meeting auf morgen"), "todo-verschieben");
+});

@@ -45,6 +45,8 @@ export const BefehlSchema = z.discriminatedUnion("aktion", [
   z.object({ aktion: z.literal("material"), text: z.string().max(500) }),
   z.object({ aktion: z.literal("wissen"), frage: z.string().min(1).max(500) }),
   z.object({ aktion: z.literal("uhrzeit") }),
+  z.object({ aktion: z.literal("todo-neu"), text: z.string().max(300), owner: z.string().max(60).optional(), frist: z.string().max(60).optional() }),
+  z.object({ aktion: z.literal("todo-verschieben"), todo: z.string().max(300), ziel: z.string().max(120) }),
   z.object({ aktion: z.literal("ja") }),
   z.object({ aktion: z.literal("nein") }),
   z.object({ aktion: z.literal("hilfe") }),
@@ -114,6 +116,8 @@ export type Ergebnis =
   | { aktion: "dokument"; titel: string; link: string; antwort: string }
   | { aktion: "wissen"; frage: string; antwort: string; quelle?: { titel: string; link: string } | null }
   | { aktion: "ja" | "nein"; antwort: string }
+  | { aktion: "todo-neu"; text: string; owner: string; frist: string; agendapunkt: string; antwort: string }
+  | { aktion: "todo-verschieben"; id: string; agendapunkt: string; antwort: string }
   | { aktion: "hilfe" | "unbekannt" | "hinweis"; antwort: string; auswahl?: Auswahl[] };
 
 const klein = (s: string) =>
@@ -173,6 +177,43 @@ function finde<T extends { name: string }>(liste: T[], satz: string, schwelle = 
 }
 
 const meetings = () => store.liste().filter((t) => !workshops.liste().some((w) => w.meetingId === t.id));
+
+/**
+ * Zerlegt "Neues To-do für Anna: CRM-Export bis Freitag" in Text, Owner und Frist (ohne KI).
+ * Live verfeinert das Sprachmodell das Ergebnis (siehe server.ts), das hier ist der schnelle Weg und der Rückfall.
+ */
+export function zerlegeTodo(satz: string): { text: string; owner?: string; frist?: string } {
+  let rest = satz.trim().replace(/^(hey |ok |okay )?merlin[,.!:]?\s*/i, "").replace(/^bitte\s+/i, "");
+  rest = rest.replace(/^.*?\bto[ -]?dos?\b\s*(anlegen|hinzufügen|notieren|aufnehmen|an|hinzu|auf)?\s*/i, "");
+  let owner: string | undefined;
+  let frist: string | undefined;
+  const vorne = rest.match(/^(?:für|fuer|an)\s+([^:,]+?)\s*[:,]\s*(.*)$/i);
+  if (vorne) [owner, rest] = [vorne[1]!.trim(), vorne[2]!];
+  const bis = rest.match(/^(.*?)[,\s]+bis\s+((?:zum |zur |nächsten |naechsten |ende |anfang |mitte )?\S+(?:\s+\S+)?)[.!?]*$/i);
+  if (bis) [rest, frist] = [bis[1]!, bis[2]!.trim()];
+  if (!owner) {
+    const fuer = rest.match(/^(.*?)\s+(?:für|fuer)\s+([A-ZÄÖÜ][\wäöüß-]*(?:\s+[A-ZÄÖÜ][\wäöüß-]*)?)\s*(.*)$/);
+    if (fuer) [rest, owner] = [`${fuer[1]} ${fuer[3]}`, fuer[2]!];
+  }
+  const text = rest.replace(/^[\s:,–-]+|[\s.!?,]+$/g, "").replace(/\s+/g, " ");
+  return { text, owner, frist };
+}
+
+/** Agendapunkt aus "Punkt 3", "dritten Punkt", "Preise" oder "ohne Agendapunkt" */
+function findeAgendapunkt(ziel: string): { id: string; titel: string } | null {
+  const agenda = store.daten.protokoll.agenda;
+  const z = klein(ziel);
+  if (/ohne (agenda ?punkt|punkt)|keinen? (agenda ?punkt|punkt)/.test(z)) return { id: "", titel: "Ohne Agendapunkt" };
+  const ZAHLEN = ["eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn"];
+  const ORDNUNG = ["ersten", "zweiten", "dritten", "vierten", "fünften", "sechsten", "siebten", "achten", "neunten", "zehnten"];
+  const nr = z.match(/\b(\d{1,2})\b/)?.[1] ?? null;
+  let index = nr ? Number(nr) - 1 : -1;
+  if (index < 0) index = ZAHLEN.findIndex((w) => new RegExp(`\\b(punkt|top|nummer) ${w}\\b`).test(z));
+  if (index < 0) index = ORDNUNG.findIndex((w) => z.includes(w));
+  if (index >= 0 && agenda[index]) return { id: agenda[index]!.id, titel: agenda[index]!.titel };
+  const treffer = finde(agenda.map((a) => ({ name: a.titel, id: a.id })), z.replace(/\b(agenda ?punkt|punkt|top|tagesordnungspunkt)\b/g, ""), 0.5);
+  return treffer ? { id: treffer.id, titel: treffer.name } : null;
+}
 
 /** Workshop des gerade geöffneten Meetings (oder null) */
 const offenerWorkshop = () => (store.istOffen ? (workshops.liste().find((w) => w.meetingId === store.daten.id) ?? null) : null);
@@ -263,6 +304,13 @@ export function regeln(text: string): Befehl | null {
     return { aktion: "aufnahme-start" };
   if (/((aufnahme|transkription|aufzeichnung|mitschrift)\w* (stoppen|stopp|stop|pausieren|pause|beenden|anhalten))|((stoppe|pausiere|beende|halte) (die )?(aufnahme|transkription|aufzeichnung|mitschrift))|^(pause|stopp|stop|pausieren)$|machen (eine |kurz )?pause|kaffeepause/.test(s))
     return { aktion: "aufnahme-pause" };
+  // To-dos über die Bubble: anlegen und verschieben (wirkt sofort; die Aufnahme ist beim Zuhören stumm, also kein Doppel)
+  if (/^(neue[snr]? to ?do|to ?do (für|fuer|an) |notiere (ein |das |als )?to ?do|nimm (ein |das )?to ?do auf|schreib (ein |das )?to ?do|leg (ein |das )?(neues )?to ?do an|füg (ein |das )?to ?do hinzu|fuege (ein )?to ?do hinzu|to ?do:)/.test(s) || /^neue[snr]? to ?do/.test(s)) {
+    const t = zerlegeTodo(text);
+    return { aktion: "todo-neu", text: t.text, owner: t.owner, frist: t.frist };
+  }
+  if ((m = s.match(/^(?:verschiebe?|schieb(?:e)?)\s+(?:das |die )?(?:to ?dos? )?(.+?)\s+(?:zum|zur|zu|nach|in den|ins|in|auf den|auf|unter den|unter)\s+(.+)$/)) && !/aufnahme|meeting|workshop|termin/.test(s))
+    return { aktion: "todo-verschieben", todo: m[1]!, ziel: m[2]! };
   // Fachfrage zum Material des geöffneten Workshops ("Wie sieht der Ist-Prozess aus?")
   if (/^(wie|was|welche[nrs]?|wer|wo|wann|warum|wieso|weshalb|gibt es|haben wir|erklär|erklaer|erzähl|erzaehl|beschreib|fass)/.test(s) && !/(öffne|oeffne|zeig|bring|wechsel|geh |gehe |agenda|material|eingereicht|vorbereitung|regeln|begrü|begru|aufnahme|einstell)/.test(s) && hatWissen())
     return { aktion: "wissen", frage: text.trim() };
@@ -317,7 +365,7 @@ const NAMEN: Record<(typeof ZIELE)[number], string> = { start: "zur Auswahl", me
 const STATION_TEXT: Record<(typeof STATIONEN)[number], string> = { begruessung: "Ich begrüße alle.", eingereicht: "Ich fasse das eingereichte Material zusammen.", regeln: "Ich erkläre die Regeln.", agenda: "Ich lese die Agenda vor." };
 
 export const HILFE =
-  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Wie spät ist es?“, „Schließe den Workshop“, „Wo ändere ich die Lesegeschwindigkeit?“ oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
+  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Wo ändere ich die Lesegeschwindigkeit?“ oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
 
 /** Prüft den Befehl gegen den Zustand der App und löst Namen in IDs auf. */
 export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
@@ -377,6 +425,24 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
         return { aktion: "agenda-fehlt", workshop: !!w, antwort: `Für ${w ? "diesen Workshop" : "dieses Meeting"} gibt es noch keine Agenda. Soll ich dich hinbringen, damit du eine anlegen kannst?` };
       }
       return { aktion: "ansage", station: b.station, antwort: STATION_TEXT[b.station] };
+    case "todo-neu": {
+      if (!store.istOffen) return { aktion: "gehe", ziel: "meeting", antwort: "Für ein To-do brauche ich ein geöffnetes Meeting. Welches soll ich öffnen?", auswahl: auswahlMeetings() };
+      if (!b.text.trim()) return { aktion: "hinweis", antwort: "Was soll ich als To-do notieren? Sag zum Beispiel: Neues To-do für Anna: CRM-Export bis Freitag." };
+      const punkt = store.daten.protokoll.agenda.find((a) => a.status === "läuft");
+      const owner = b.owner?.trim() || "offen";
+      const frist = b.frist?.trim() || "offen";
+      const details = [owner !== "offen" ? `für ${owner}` : "", frist !== "offen" ? `bis ${frist}` : ""].filter(Boolean).join(", ");
+      return { aktion: "todo-neu", text: b.text.trim(), owner, frist, agendapunkt: punkt?.id ?? "", antwort: `Notiert: ${b.text.trim()}${details ? `, ${details}` : ""}.` };
+    }
+    case "todo-verschieben": {
+      if (!store.istOffen) return { aktion: "hinweis", antwort: "Es ist gerade kein Meeting geöffnet." };
+      const todos = store.daten.protokoll.todos.map((t) => ({ name: t.text, id: t.id }));
+      const todo = finde(todos, b.todo, 0.5);
+      if (!todo) return { aktion: "hinweis", antwort: `Ein To-do „${b.todo}“ habe ich nicht gefunden. Sag mir ein Stichwort aus dem To-do.` };
+      const punkt = findeAgendapunkt(b.ziel);
+      if (!punkt) return { aktion: "hinweis", antwort: `Den Agendapunkt „${b.ziel}“ habe ich nicht gefunden. Sag zum Beispiel „zu Punkt 2“ oder nenne den Titel.` };
+      return { aktion: "todo-verschieben", id: todo.id, agendapunkt: punkt.id, antwort: `Ich habe „${todo.name}“ verschoben: ${punkt.id ? `jetzt bei „${punkt.titel}“` : "jetzt ohne Agendapunkt"}.` };
+    }
     case "uhrzeit":
       return { aktion: "hinweis", antwort: `Es ist ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" })} Uhr.` };
     case "ja":

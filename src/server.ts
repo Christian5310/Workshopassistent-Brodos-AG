@@ -401,9 +401,41 @@ async function merlinDeuten(text: string, bereich: string): Promise<merlin.Ergeb
   }
   let ergebnis = merlin.aufloesen(befehl ?? { aktion: "unbekannt" }, aufnahme);
   if (ergebnis.aktion === "wissen") ergebnis = await merlinWissen(ergebnis.frage, false);
+  if (ergebnis.aktion === "todo-neu" && !config.mock) ergebnis = await verfeinereTodo(text, ergebnis);
+  if (ergebnis.aktion === "todo-neu" || ergebnis.aktion === "todo-verschieben") ergebnis = fuehreTodoAus(ergebnis);
   const ms = Date.now() - beginn;
   console.log(`Merlin: „${text.slice(0, 80)}" → ${ergebnis.aktion} (${ki ? "KI" : "Regel"}, ${ms} ms)`);
   return { ...ergebnis, erkannt: text, ki, ms };
+}
+
+/** Live: Das Sprachmodell zerlegt den Satz zuverlässiger in Text, Owner und Frist als die feste Regel. */
+async function verfeinereTodo(satz: string, e: Extract<merlin.Ergebnis, { aktion: "todo-neu" }>): Promise<merlin.Ergebnis> {
+  try {
+    const r = merlin.BefehlSchema.safeParse(await anbieter.sprachmodell.merlinBefehl(satz, merlin.kontextFuerModell("assistent")));
+    if (r.success && r.data.aktion === "todo-neu" && r.data.text.trim()) return merlin.aufloesen(r.data, aufnahme);
+  } catch (fehler) {
+    console.warn("Merlin-To-do: Sprachmodell nicht erreichbar, nehme die feste Regel.", (fehler as Error).message);
+  }
+  return e;
+}
+
+/** To-do aus der Merlin-Bubble anlegen oder verschieben. Rückgängig möglich wie jede andere Änderung. */
+function fuehreTodoAus(e: merlin.Ergebnis): merlin.Ergebnis {
+  const p = store.daten.protokoll;
+  if (e.aktion === "todo-neu") {
+    if (p.todos.some((t) => t.status === "offen" && t.text.toLowerCase() === e.text.toLowerCase())) return { aktion: "hinweis", antwort: `„${e.text}“ steht schon auf der Liste.` };
+    merkeSchritt(`To-do von Merlin: „${e.text}"`);
+    const nummer = Math.max(0, ...p.todos.map((t) => Number(t.id.slice(1)) || 0)) + 1;
+    p.todos.push({ id: `T${nummer}`, text: e.text, owner: e.owner, frist: e.frist, status: "offen", agendapunkt: e.agendapunkt, gruppe: "" });
+  } else if (e.aktion === "todo-verschieben") {
+    const todo = p.todos.find((t) => t.id === e.id);
+    if (!todo) return { aktion: "hinweis", antwort: "Das To-do gibt es nicht mehr." };
+    merkeSchritt(`To-do verschoben: „${todo.text}"`);
+    todo.agendapunkt = e.agendapunkt;
+  } else return e;
+  store.speichern();
+  senden();
+  return e;
 }
 
 /** Merlin beantwortet eine Frage aus dem Material des geöffneten Workshops (kurz oder ausführlich). */
