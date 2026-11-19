@@ -1,0 +1,55 @@
+# NOTES – Stand der Session (19.11.2026)
+
+## Ziel
+- Agenten-Seite kreativer darstellen: drei Agenten als Figuren mit Foto oben, Antworten in Bubbles darunter, unten nur Textfeld + Senden.
+- Zuhören wie bei Merlin: Klick 1 = Agent hört zu (Animation), Klick 2 = wertet aus und antwortet sofort.
+- Davor in der Session: Pinnwand vereinfacht, Archiv-Zusammenfassung repariert, Protokoll-Prompt gegen To-do-Flut geschärft.
+
+## Entscheidungen (mit Begründung)
+- **Zuhören direkt über Mikrofon im Browser** (`/api/chat-audio`), nicht über das Transkript der Aufnahme. Grund: Transkript kommt nur alle 30–45 s, sonst „Nichts gehört".
+- **Aufnahme währenddessen stumm** (`merlin().aufnahme.stumm`), damit die Frage nicht ins Protokoll kommt. Audio wird nach Transkription verworfen (Projektregel).
+- **Ein Agent zugleich** zuhörend; Klick auf anderen Agenten wechselt.
+- **Textfeld-Frage** geht an den zuhörenden Agenten, sonst an alle.
+- **Kontext der Agenten: letzte 60 Min Transkript** (max. ca. 60.000 Zeichen), dazu Protokoll, Agenda, Hintergrundwissen, eigene Wissensdatei, letzte 20 Chat-Nachrichten. **Keine Websuche** (bewusst nicht eingebaut; Datenschutz und Broki-Freigabe unklar).
+- **Max. 3 Agenten** (`MAX_AGENTEN` in `src/server.ts`; Admin blendet „Neuer Agent" bei 3 aus).
+- **Fotos als `figur`-Werte** `frau`, `mann`, `brille` (Standard: Sales→mann, BPM→brille, Consultant→frau).
+- **Navigation bleibt links** (Rückmeldung: rechts war verwirrend).
+- **Abgeschnittene LLM-Antworten:** Haiku 5.5 „denkt", Denk-Token zählen zum Limit. Deshalb Limit hoch und bei `finish_reason: length` automatisch Retry mit 3-fachem Limit (statt JSON still zu reparieren).
+- **Broki-Protokoll-Prompt generisch halten, keine Namen aus dem Material** (Regel). Prompt in Broki wird nur nach Rücksprache geändert.
+
+## Erledigt (alles auf main gepusht)
+- `2fb44c1` Pinnwand: Upload, Pin-Häkchen, einfache Notizen, großes Fenster
+- `c872b77` / `9e24402` Zusammenfassung nicht mehr abgeschnitten, Prompt geschärft
+- `ac73526` Agenten-Bühne (Fotos, Klick-Logik, max. 3, 60-Min-Kontext)
+- `b7600db` Navigation links, größere Figuren in einer Reihe, Zuhören direkt per Mikrofon
+- `3248f87` Agenten-Antworten nicht mehr abgeschnitten (Limit 4000, Retry bei Längenabbruch)
+- `npm.cmd test` 20/20 grün, Typecheck grün
+
+## Offene Punkte / bekannte Bugs
+- **Zuhören mit echtem Mikrofon nicht live getestet** (Einwilligung am Bildschirm nötig). Bitte einmal prüfen: Klick, Frage sprechen, Klick, Antwort; Frage darf nicht im Protokoll/Transkript landen.
+- Offene Frage „Welcher Prozess … 20 Leuten" im Meeting `fddd` stammt aus dem Test vor dem Umbau (18:21). Manuell löschen.
+- Agent-Antwort nennt viele Personennamen (vermutlich aus Wissensdatei/Hintergrundwissen). Prüfen, ob eingereichtes Material enthalten ist; ggf. Namen entfernen oder Rollen-Prompt: „keine Personennamen".
+- **Protokoll-Prompt in Broki:** Regel „NEUES TO-DO" generisch formulieren (kein „Kevin"/„Markus Brendel"). Bitte-mit-Zusage zählt als To-do. Echter Testlauf ergab vorher: 0 To-dos, Kevin-Termin nur als Notiz. Erneuten Test mit angepasster Regel noch nicht gemacht.
+- Navigation rechts/links: Assistent und Pinnwand unverändert links (Rückfrage erledigt: bleibt links).
+- Drittes Agenten-Bild vorhanden (Brille); weitere Agenten gibt es nicht (Limit 3).
+- Zweiter Laptop: `git pull`, `npm.cmd install`, Neustart; `data/einstellungen.json` (nicht in Git) hat dort alte Symbole und den alten Zusammenfassungs-Prompt → in Admin nachziehen.
+- Aufräumen: Test-Workshops `ws-2026-11-19-b05a92` (Meeting `2026-11-19-testlauf-pinnwand-de97`) und `ws-2026-11-19-9149a0` löschen; eigene Daten nicht anfassen.
+- Offen von früher: Schreibweise „Markus Brendel" vs. „Brendemann"; Broki-STT braucht Broki-Admins; `HOST=0.0.0.0` am Workshop-Tag; 30-Min-Testlauf; Idee Whisper-Startknopf (nicht freigegeben).
+- Gespeicherte Archiv-Zusammenfassung ist noch die abgeschnittene → im Archiv neu erzeugen.
+
+## Relevante Dateien
+- `public/screen2.html`, `public/js/screen2.js` – Bühne, Klick-Logik, Mikrofon (`klick`, `auswerten`, `aufraeumen`)
+- `public/js/common.js` – `avatar()` (BILDER-Map), `zeigeChat`, `zeigeAbhalten`
+- `public/css/brodos.css` – Block „Agenten-Bühne" am Dateiende (`.buehne`, `.figur`, `.avatar.gross`)
+- `public/img/agent-frau.png`, `agent-mann.png`, `agent-brille.png`
+- `src/server.ts` – `MAX_AGENTEN`, `stelleFrage`, `/api/chat`, `/api/chat-audio`, `/api/transkription`
+- `src/anbieter/llm.ts` – `#frage` (Retry bei `length`), `expertenrunde` (60-Min-Kontext, Limit 4000), `fasseZusammen`
+- `src/einstellungen.ts` – `FIGUREN`, Standard-Agenten, `promptAgentenFertig`, Zusammenfassungs-Prompt
+- `public/js/admin.js`, `public/admin.html` – Agentenliste, Limit-Hinweis, Foto-Auswahl
+- `public/js/aufnahme.js` – `stumm`-Setter der laufenden Aufnahme
+- `docs/uebergabe/broki-protokoll-prompt.md` – Protokoll-Prompt (Vorschlag) für Broki
+- Scratchpad (nicht im Repo): `protokoll-neu.txt`, `protokoll-broki.mjs`, `aktiv.backup.json`
+
+## Nächster konkreter Schritt
+1. Server neu starten (`npm.cmd start`), Strg+F5, Agenten-Seite mit echtem Mikrofon testen (Klick → sprechen → Klick) und prüfen, dass die Frage nicht im Transkript/Protokoll auftaucht.
+2. Danach: Broki-Prompt-Regel „NEUES TO-DO" generisch einsetzen (Okay des Users) und Testlauf wiederholen.
