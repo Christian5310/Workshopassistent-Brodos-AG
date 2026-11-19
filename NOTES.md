@@ -50,6 +50,13 @@
 - `docs/uebergabe/broki-protokoll-prompt.md` – Protokoll-Prompt (Vorschlag) für Broki
 - Scratchpad (nicht im Repo): `protokoll-neu.txt`, `protokoll-broki.mjs`, `aktiv.backup.json`
 
+## Nächstes Thema (neue Session): Wissen für die Agenten im Sales Agentic Workshop
+- Ziel: gemeinsam prüfen, welches Wissen die Agenten (Sales, BPM, Business Consultant) bekommen sollen.
+- Zu klären: Rolle je Agent (was soll er wissen, was nicht); Ablageort (Wissensdatei je Agent, Hintergrundwissen des Workshops, verdichtetes Material); Größe (alles landet bei jeder Frage im Prompt, Wissensdatei nur beim gefragten Agenten).
+- Regel: Keine Namen aus eingereichtem Material bei den Agenten. Auffällig: Der Vertriebsprofi nannte viele Personennamen (Paul Weber, Markus Peske u. a.) → Quelle prüfen (Wissensdatei oder Hintergrundwissen) und bereinigen.
+- Material des Users in der Workshop-Ansicht unter „Material" oder aus einem Ordner einlesen; Material vorher bereithalten.
+- Start in der neuen Session: „Lies NOTES.md und mach weiter."
+
 ## Nächster konkreter Schritt
 1. Server neu starten (`npm.cmd start`), Strg+F5, Agenten-Seite mit echtem Mikrofon testen (Klick → sprechen → Klick) und prüfen, dass die Frage nicht im Transkript/Protokoll auftaucht.
 2. Danach: Broki-Prompt-Regel „NEUES TO-DO" generisch einsetzen (Okay des Users) und Testlauf wiederholen.
