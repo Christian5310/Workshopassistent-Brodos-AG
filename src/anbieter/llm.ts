@@ -136,6 +136,12 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
       if (!text) throw new Error("Das Sprachmodell hat keine Antwort geliefert.");
       return text;
     }
+    // Abgeschnitten (denkende Modelle verbrauchen das Limit zum Teil mit Nachdenken): nicht stillschweigend reparieren,
+    // sondern mit größerem Limit noch einmal fragen. Sonst fehlt der Rest der Antwort.
+    if (daten.choices?.[0]?.finish_reason === "length" && maxTokens < 32_000) {
+      console.warn(`Sprachmodell ${modell}: Antwort wegen Längenlimit (${maxTokens}) abgeschnitten, frage mit größerem Limit noch einmal.`);
+      return this.#frage(nachrichten, Math.min(maxTokens * 3, 32_000), modell, Math.max(zeitlimitMs, 120_000), nochmal);
+    }
     try {
       return leseJson(daten.choices?.[0]?.message?.content ?? "");
     } catch (fehler) {
@@ -204,7 +210,7 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
       content: `${letzteMinuten ? `Im Raum gesagt, letzte 60 Minuten (Transkript, ohne Sprecher):\n${letzteMinuten}\n\n` : ""}Frage${an === "alle" ? "" : ` an ${name(an)}`}: ${frage}`,
     });
 
-    const geprueft = AntwortSchema.parse(await this.#frage(nachrichten, 1200));
+    const geprueft = AntwortSchema.parse(await this.#frage(nachrichten, 4000));
     return geprueft.antworten.filter((a) => gefragt.some((g) => g.id === a.rolle)).map((a) => ({ von: a.rolle, text: a.text.trim() }));
   }
 
