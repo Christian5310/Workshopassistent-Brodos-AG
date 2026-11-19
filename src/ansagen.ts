@@ -29,10 +29,15 @@ export function vorlage(tag: Tag, workshop: Workshop | null, eingereicht: string
       ` Bin ich unsicher, lege ich einen Vorschlag an, den ihr übernehmt oder verwerft.` +
       ` Wenn ihr mich anklickt, reagiere ich sofort: Ich wechsle die Ansicht, starte oder pausiere die Aufnahme oder lese etwas vor. Was ihr ohne Klick zu mir sagt, landet nur im Protokoll.` +
       ` Die Aufnahme lässt sich jederzeit pausieren. Wer nicht aufgezeichnet werden möchte, sagt das bitte gleich.`,
-    agenda: agenda.length
-      ? `Das ist die Agenda für heute. ${agenda.map((a, i) => `${["Erstens", "Zweitens", "Drittens", "Viertens", "Fünftens", "Sechstens", "Siebtens", "Achtens"][i] ?? "Dann"}: ${a}.`).join(" ")} Dann legen wir los.`
-      : `Für heute ist noch keine Agenda hinterlegt. Dann legen wir los.`,
+    agenda: agendaText(agenda),
   };
+}
+
+/** Vorlesetext der Agenda. Wird bei jedem Abruf neu gebildet, damit spätere Änderungen an der Agenda drin sind. */
+export function agendaText(agenda: string[]): string {
+  if (!agenda.length) return "Für heute ist noch keine Agenda hinterlegt.";
+  const zaehler = ["Erstens", "Zweitens", "Drittens", "Viertens", "Fünftens", "Sechstens", "Siebtens", "Achtens", "Neuntens", "Zehntens"];
+  return `Sehr gerne. Hier sind die Agendapunkte: ${agenda.map((a, i) => `${zaehler[i] ?? "Dann"}: ${a}.`).join(" ")}`;
 }
 
 export const OHNE_MATERIAL = "Zur Vorbereitung wurde noch nichts eingereicht. Wir starten also mit dem, was ihr heute mitbringt.";

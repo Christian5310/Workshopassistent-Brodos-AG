@@ -2,8 +2,8 @@
 
 ## Heute (19.11.)
 
-- [ ] **Merlin: weitere Sätze und Anweisungen.** Sätze sammeln, die im Workshop gesagt werden; nicht verstandene als feste Regeln in `src/merlin.ts` ergänzen.
-- [ ] **Merlin bekommt Fachwissen für den Workshop.** Beispiel: Beim Eröffnen fragen „Wie sieht der Sales-Ist-Prozess aus?“ → Merlin ruft es aus dem Workshop-Wissen ab. Heute leitet die Bubble Fragen nur an die Agenten weiter; Konzept vor dem Bau abstimmen.
+- [x] **Merlin: weitere Sätze und Anweisungen (19.11.).** Sätze sammeln, die im Workshop gesagt werden; nicht verstandene als feste Regeln in `src/merlin.ts` ergänzen.
+- [x] **Merlin bekommt Fachwissen für den Workshop (19.11.: Fragen ans Material, „Mehr vorlesen“, Dokument öffnen).** Beispiel: Beim Eröffnen fragen „Wie sieht der Sales-Ist-Prozess aus?“ → Merlin ruft es aus dem Workshop-Wissen ab. Heute leitet die Bubble Fragen nur an die Agenten weiter; Konzept vor dem Bau abstimmen.
 - [ ] Punkt 3: noch offen (von Christian).
 - [x] **Fehler (behoben 19.11.):** Im Archiv gelöschte Workshop-Meetings bleiben unter „Bestehender Workshop“ sichtbar (Workshop-Datei mit Material bleibt liegen). Lösung abstimmen.
 - [ ] **Idee:** Knopf in der App, der den Whisper-Dienst im Hintergrund startet (statt `lokal\start-whisper.cmd`). Erst nach Okay bauen.

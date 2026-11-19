@@ -399,11 +399,33 @@ async function merlinDeuten(text: string, bereich: string): Promise<merlin.Ergeb
       console.error("Merlin-Befehl:", (fehler as Error).message);
     }
   }
-  const ergebnis = merlin.aufloesen(befehl ?? { aktion: "unbekannt" }, aufnahme);
+  let ergebnis = merlin.aufloesen(befehl ?? { aktion: "unbekannt" }, aufnahme);
+  if (ergebnis.aktion === "wissen") ergebnis = await merlinWissen(ergebnis.frage, false);
   const ms = Date.now() - beginn;
   console.log(`Merlin: „${text.slice(0, 80)}" → ${ergebnis.aktion} (${ki ? "KI" : "Regel"}, ${ms} ms)`);
   return { ...ergebnis, erkannt: text, ki, ms };
 }
+
+/** Merlin beantwortet eine Frage aus dem Material des geöffneten Workshops (kurz oder ausführlich). */
+async function merlinWissen(frage: string, mehr: boolean): Promise<merlin.Ergebnis> {
+  const quellen = merlin.quellenFuerFrage(frage);
+  if (!quellen.length) return { aktion: "hinweis", antwort: "Zu diesem Meeting gibt es noch kein Material, aus dem ich antworten kann." };
+  const dokument = quellen.find((q) => q.link);
+  try {
+    const antwort = await anbieter.sprachmodell.merlinWissen(frage, quellen.map(({ titel, text }) => ({ titel, text })), mehr);
+    return { aktion: "wissen", frage, antwort, quelle: dokument ? { titel: dokument.titel, link: dokument.link! } : null };
+  } catch (fehler) {
+    console.error("Merlin-Wissen:", (fehler as Error).message);
+    return { aktion: "hinweis", antwort: "Ich komme gerade nicht an das Sprachmodell. Das Dokument kann ich dir aber öffnen.", auswahl: dokument ? [{ text: dokument.titel, link: dokument.link! }] : [] };
+  }
+}
+
+/** "Mehr vorlesen": ausführliche Antwort auf dieselbe Frage */
+app.post("/api/merlin/wissen", async (req, res) => {
+  const frage = String(req.body?.frage ?? "").trim().slice(0, 500);
+  if (!frage) return void res.status(400).json({ fehler: "Welche Frage?" });
+  res.json(await merlinWissen(frage, req.body?.mehr === true));
+});
 
 /** Merlins Texte für ein Meeting im Hintergrund vorbereiten, damit "Begrüße alle" sofort antwortet. */
 function bereiteAnsagenVor(id: string): void {
@@ -758,7 +780,9 @@ app.get("/api/tage/:id/ansagen", async (req, res) => {
   const tag = holeTag(req.params.id, res);
   if (!tag) return;
   if (!tag.ansagen || req.query.neu !== undefined) store.setzeAnsagen(tag.id, await entwerfeAnsagen(tag));
-  res.json(store.hole(tag.id)?.ansagen ?? {});
+  const gespeichert = store.hole(tag.id)?.ansagen ?? {};
+  // Die Agenda immer frisch vorlesen: sie kann sich nach dem Entwurf der Texte noch geändert haben
+  res.json({ ...gespeichert, agenda: ansagen.agendaText(tag.protokoll.agenda.map((a) => a.titel)) });
 });
 
 app.put("/api/tage/:id/ansagen", (req, res) => {

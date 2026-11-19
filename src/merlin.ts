@@ -43,6 +43,10 @@ export const BefehlSchema = z.discriminatedUnion("aktion", [
   z.object({ aktion: z.literal("liste"), art: z.enum(["meetings", "workshops", "alle"]) }),
   z.object({ aktion: z.literal("zurueck") }),
   z.object({ aktion: z.literal("material"), text: z.string().max(500) }),
+  z.object({ aktion: z.literal("wissen"), frage: z.string().min(1).max(500) }),
+  z.object({ aktion: z.literal("uhrzeit") }),
+  z.object({ aktion: z.literal("ja") }),
+  z.object({ aktion: z.literal("nein") }),
   z.object({ aktion: z.literal("hilfe") }),
   z.object({ aktion: z.literal("loeschen") }),
   z.object({ aktion: z.literal("unbekannt") }),
@@ -61,7 +65,7 @@ function auswahlLetzteMeetings(anzahl: number): Auswahl[] {
 }
 
 /** Material eines Workshops finden; Suche über Titel und "Von wem". */
-function findeMaterial(text: string): { antwort: string; auswahl: Auswahl[] } {
+function findeMaterial(text: string): { antwort: string; auswahl: Auswahl[]; einzeln?: { titel: string; link: string } } {
   const alle = workshops.liste();
   const offen = store.istOffen ? alle.find((w) => w.meetingId === store.daten.id) : undefined;
   const genannt = finde(alle, text, 0.5);
@@ -73,6 +77,10 @@ function findeMaterial(text: string): { antwort: string; auswahl: Auswahl[] } {
   const treffer = (passend.length ? passend : eintraege).slice(0, 8);
   const wo = liste.length === 1 ? `zum Workshop „${liste[0]!.name}“` : "in den Workshops";
   if (!treffer.length) return { antwort: `Ich habe kein Material ${wo} gefunden.`, auswahl: [] };
+  if (suche.length && passend.length === 1) {
+    const { w, m } = passend[0]!;
+    return { antwort: `Ich öffne „${m.titel}“.`, auswahl: [], einzeln: { titel: m.titel, link: `/api/workshops/${w.id}/material/${m.id}?ansehen` } };
+  }
   return {
     antwort: suche.length && !passend.length ? `Dazu habe ich nichts Passendes gefunden. Hier ist alles Material ${wo}:` : `Hier ist das Material ${wo}. Ein Klick öffnet es.`,
     auswahl: treffer.map(({ w, m }) => ({ text: liste.length > 1 ? `${m.titel} · ${w.name}` : m.titel, link: `/api/workshops/${w.id}/material/${m.id}?ansehen` })),
@@ -102,6 +110,10 @@ export type Ergebnis =
   | { aktion: "ansage"; station: (typeof STATIONEN)[number]; antwort: string }
   | { aktion: "frage"; an: string; text: string; antwort: string }
   | { aktion: "einstellung"; bereich: string; feld: string; antwort: string }
+  | { aktion: "agenda-fehlt"; workshop: boolean; antwort: string }
+  | { aktion: "dokument"; titel: string; link: string; antwort: string }
+  | { aktion: "wissen"; frage: string; antwort: string; quelle?: { titel: string; link: string } | null }
+  | { aktion: "ja" | "nein"; antwort: string }
   | { aktion: "hilfe" | "unbekannt" | "hinweis"; antwort: string; auswahl?: Auswahl[] };
 
 const klein = (s: string) =>
@@ -162,6 +174,40 @@ function finde<T extends { name: string }>(liste: T[], satz: string, schwelle = 
 
 const meetings = () => store.liste().filter((t) => !workshops.liste().some((w) => w.meetingId === t.id));
 
+/** Workshop des gerade geöffneten Meetings (oder null) */
+const offenerWorkshop = () => (store.istOffen ? (workshops.liste().find((w) => w.meetingId === store.daten.id) ?? null) : null);
+/** Gibt es zum geöffneten Meeting etwas, aus dem Merlin Fragen beantworten kann? */
+const hatWissen = () => store.istOffen && (!!store.daten.briefing?.trim() || !!offenerWorkshop()?.material.length);
+
+/**
+ * Quellen für eine Fachfrage: die verdichtete Zusammenfassung (Briefing) und die passendsten Dokumente
+ * des geöffneten Workshops. Bewertet wird, wie oft Wörter der Frage in Titel (dreifach) und Text vorkommen.
+ * Personennamen ("Von wem") gehen bewusst nicht mit.
+ */
+export function quellenFuerFrage(frage: string): { titel: string; text: string; link?: string }[] {
+  if (!store.istOffen) return [];
+  const w = offenerWorkshop();
+  const worte = inhaltsworte(frage).filter((x) => !/^(wie|was|welche[nrs]?|sieht|aus|gibt|haben|wir|ihr|uns|ist|sind|steht|erklär|erklaer|beschreib|erzähl|erzaehl)$/.test(x));
+  const bewertet = (w?.material ?? []).map((m) => {
+    const titel = inhaltsworte(m.titel);
+    const text = klein(m.text);
+    const punkte = worte.reduce((summe, x) => summe + (titel.some((t) => aehnlich(x, t) >= 0.75) ? 3 : 0) + (text.includes(x) ? 1 : 0), 0);
+    return { m, punkte };
+  });
+  const passend = bewertet.filter((b) => b.punkte > 0).sort((a, b) => b.punkte - a.punkte).slice(0, 3);
+  const auswahl = passend.length ? passend : bewertet.slice(0, 3);
+  const quellen: { titel: string; text: string; link?: string }[] = [];
+  if (store.daten.briefing?.trim()) quellen.push({ titel: "Zusammenfassung des eingereichten Materials", text: store.daten.briefing });
+  let platz = 120_000;
+  for (const { m } of auswahl) {
+    const text = m.text.slice(0, platz);
+    if (!text) break;
+    platz -= text.length;
+    quellen.push({ titel: m.titel, text, link: w ? `/api/workshops/${w.id}/material/${m.id}?ansehen` : undefined });
+  }
+  return quellen;
+}
+
 /** Erkennt, ob jemand eine Einstellung sucht ("Ich möchte die Lesegeschwindigkeit ändern"). */
 function findeEinstellung(s: string): keyof typeof EINSTELLUNGEN | null {
   const absicht = /(einstell|änder|aender|anpass|wo kann ich|wo finde|wo stell|konfigur|schneller|langsamer|bearbeit|verwalt|lösch|loesch|hinzufüg|anleg|neue[nr]? agent)/.test(s);
@@ -202,11 +248,24 @@ export function regeln(text: string): Befehl | null {
     return { aktion: "liste", art: /meetings|besprechungen/.test(s) && /workshops/.test(s) ? "alle" : /workshops/.test(s) ? "workshops" : "meetings" };
   }
   if (/^(hilfe|was kannst du|welche befehle|was geht)/.test(s)) return { aktion: "hilfe" };
-  if (/(meeting|sitzung) (schliessen|abschliessen|beenden)|(schliesse|schliess|beende) (das |die )?(meeting|sitzung)/.test(s)) return { aktion: "meeting-schliessen" };
+  // Antwort auf Merlins Rückfrage ("Soll ich …?"): nur kurze Sätze, sonst ist es ein neuer Befehl
+  if (s.split(" ").length <= 4) {
+    if (/^(ja|jawohl|genau|gerne|gern|klar|sicher|richtig)( |$)|^(mach das|mach es|bitte ja|bitte mach das)$/.test(s)) return { aktion: "ja" };
+    if (/^(nein|nee|ne|nö|lieber nicht|nicht|abbrechen|doch nicht|vergiss es)( |$)/.test(s)) return { aktion: "nein" };
+  }
+  if (/wie spät|wie spaet|wie ?viel uhr|uhrzeit|welche zeit haben wir/.test(s)) return { aktion: "uhrzeit" };
+  // Schließen: egal ob Meeting oder Workshop, geschlossen wird das gerade geöffnete
+  const art = "(meeting|sitzung|besprechung|workshop)";
+  if (new RegExp(`${art} (schliessen|abschliessen|beenden|zumachen)|(schliesse|schliess|beende|mach) (das |den |die )?(aktuelle[n]? |laufende[n]? |offene[n]? )?${art}( zu)?$`).test(s) && !/aufnahme|transkription/.test(s)) return { aktion: "meeting-schliessen" };
+  // Pausieren: nur die Aufnahme hält an, Meeting bzw. Workshop bleibt offen
+  if (new RegExp(`(pausiere|unterbrich|unterbreche|halte) (das |den |die )?(aktuelle[n]? |laufende[n]? )?${art}|${art} (pausieren|unterbrechen|anhalten)`).test(s)) return { aktion: "aufnahme-pause" };
   if (/((aufnahme|transkription|aufzeichnung|mitschrift)\w* (starten|start|beginnen|fortsetzen|los))|((starte|beginne|setze) (die |mit der )?(aufnahme|transkription|aufzeichnung|mitschrift))|^(mitschreiben|nimm auf|aufnehmen)/.test(s))
     return { aktion: "aufnahme-start" };
   if (/((aufnahme|transkription|aufzeichnung|mitschrift)\w* (stoppen|stopp|stop|pausieren|pause|beenden|anhalten))|((stoppe|pausiere|beende|halte) (die )?(aufnahme|transkription|aufzeichnung|mitschrift))|^(pause|stopp|stop|pausieren)$|machen (eine |kurz )?pause|kaffeepause/.test(s))
     return { aktion: "aufnahme-pause" };
+  // Fachfrage zum Material des geöffneten Workshops ("Wie sieht der Ist-Prozess aus?")
+  if (/^(wie|was|welche[nrs]?|wer|wo|wann|warum|wieso|weshalb|gibt es|haben wir|erklär|erklaer|erzähl|erzaehl|beschreib|fass)/.test(s) && !/(öffne|oeffne|zeig|bring|wechsel|geh |gehe |agenda|material|eingereicht|vorbereitung|regeln|begrü|begru|aufnahme|einstell)/.test(s) && hatWissen())
+    return { aktion: "wissen", frage: text.trim() };
   if (/neue[ns]? (meeting|besprechung)/.test(s)) {
     const name = text.match(/neue[ns]?\s+(?:meeting|besprechung)\s*(?:anlegen|einrichten|erstellen|starten|öffnen|machen)?\s*(?:namens|mit dem namen|mit namen|zum thema|für|zu)?\s*[:,]?\s*(.*)$/i)?.[1] ?? "";
     return { aktion: "meeting-neu", name: name.replace(/[.!?]+$/, "").replace(/^(anlegen|einrichten|erstellen|bitte)$/i, "").trim() };
@@ -258,7 +317,7 @@ const NAMEN: Record<(typeof ZIELE)[number], string> = { start: "zur Auswahl", me
 const STATION_TEXT: Record<(typeof STATIONEN)[number], string> = { begruessung: "Ich begrüße alle.", eingereicht: "Ich fasse das eingereichte Material zusammen.", regeln: "Ich erkläre die Regeln.", agenda: "Ich lese die Agenda vor." };
 
 export const HILFE =
-  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Zeig das Material zum Workshop …“, „Wo ändere ich die Lesegeschwindigkeit?“ oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
+  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Wie spät ist es?“, „Schließe den Workshop“, „Wo ändere ich die Lesegeschwindigkeit?“ oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
 
 /** Prüft den Befehl gegen den Zustand der App und löst Namen in IDs auf. */
 export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
@@ -306,12 +365,27 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
     case "aufnahme-pause":
       if (!aufnahmeLaeuft) return { aktion: "hinweis", antwort: "Gerade läuft keine Aufnahme." };
       return { aktion: "aufnahme-pause", antwort: "Ich pausiere die Aufnahme." };
-    case "meeting-schliessen":
-      if (!store.istOffen) return { aktion: "hinweis", antwort: "Es ist kein Meeting geöffnet." };
-      return { aktion: "meeting-schliessen", antwort: `Soll ich „${store.daten.name}“ wirklich schließen? Danach liegt alles im Archiv.` };
+    case "meeting-schliessen": {
+      if (!store.istOffen) return { aktion: "hinweis", antwort: "Es ist gerade weder ein Meeting noch ein Workshop geöffnet." };
+      const w = offenerWorkshop();
+      return { aktion: "meeting-schliessen", antwort: `Soll ich ${w ? `den Workshop „${w.name}“` : `das Meeting „${store.daten.name}“`} schließen? Alles wird gespeichert und liegt danach im Archiv.` };
+    }
     case "ansage":
       if (!store.istOffen) return { aktion: "gehe", ziel: "meeting", antwort: "Dafür brauche ich ein geöffnetes Meeting. Welches soll ich öffnen?", auswahl: auswahlMeetings() };
+      if (b.station === "agenda" && !store.daten.protokoll.agenda.length) {
+        const w = offenerWorkshop();
+        return { aktion: "agenda-fehlt", workshop: !!w, antwort: `Für ${w ? "diesen Workshop" : "dieses Meeting"} gibt es noch keine Agenda. Soll ich dich hinbringen, damit du eine anlegen kannst?` };
+      }
       return { aktion: "ansage", station: b.station, antwort: STATION_TEXT[b.station] };
+    case "uhrzeit":
+      return { aktion: "hinweis", antwort: `Es ist ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" })} Uhr.` };
+    case "ja":
+    case "nein":
+      return { aktion: b.aktion, antwort: "" };
+    case "wissen":
+      if (!store.istOffen) return { aktion: "gehe", ziel: "workshop", antwort: "Dafür brauche ich einen geöffneten Workshop. Welchen soll ich öffnen?", auswahl: auswahlWorkshops() };
+      if (!hatWissen()) return { aktion: "hinweis", antwort: "Zu diesem Meeting gibt es noch kein Material, aus dem ich antworten kann." };
+      return { aktion: "wissen", frage: b.frage, antwort: "" }; // die Antwort schreibt der Server mit dem Sprachmodell
     case "frage": {
       if (!store.istOffen) return { aktion: "gehe", ziel: "meeting", antwort: "Für Fragen an die Agenten brauche ich ein geöffnetes Meeting. Welches soll ich öffnen?", auswahl: auswahlMeetings() };
       const dabei = agentenFuer(store.daten.agenten);
@@ -334,8 +408,11 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
       const w = workshops.liste().find((x) => x.meetingId === store.daten.id);
       return { aktion: "gehe", ziel: "assistent", antwort: w ? `Zurück zum Workshop „${w.name}“.` : `Zurück zu „${store.daten.name}“.` };
     }
-    case "material":
-      return { aktion: "hinweis", ...findeMaterial(b.text) };
+    case "material": {
+      const f = findeMaterial(b.text);
+      if (f.einzeln) return { aktion: "dokument", titel: f.einzeln.titel, link: f.einzeln.link, antwort: f.antwort };
+      return { aktion: "hinweis", antwort: f.antwort, auswahl: f.auswahl };
+    }
     case "hilfe":
       return { aktion: "hilfe", antwort: HILFE };
     case "loeschen":

@@ -28,6 +28,7 @@ export function starteMerlin(rahmen) {
   let rekorder = null;
   let hoerTimer = null;
   let abbruch = null; // laufende Aktion mit Abbrechen-Möglichkeit
+  let offeneFrage = null; // { ja, nein }: Merlins Rückfrage, beantwortbar per Klick oder per Sprache ("Ja", "Nein")
   let naechsteErinnerung = null;
   let erinnerungFuer = null;
 
@@ -165,8 +166,16 @@ export function starteMerlin(rahmen) {
   });
 
   /** Aktionen, die woandershin führen: dort zeigt sich das Ergebnis, ein Antwortfenster braucht es nicht */
-  const FUEHRT_WEITER = new Set(["gehe", "einstellung", "meeting-neu", "workshop-neu", "meeting-oeffnen", "workshop-oeffnen", "frage"]);
+  const FUEHRT_WEITER = new Set(["gehe", "einstellung", "meeting-neu", "workshop-neu", "meeting-oeffnen", "workshop-oeffnen", "frage", "dokument"]);
   async function ausfuehren(e, gesprochen) {
+    if (e.aktion === "ja" || e.aktion === "nein") {
+      const frage = offeneFrage;
+      if (!frage) return void (zeigeAntwort(), sage(e.aktion === "ja" ? "Wobei soll ich ja sagen? Ich habe gerade nichts gefragt." : "Gut."));
+      abbrechen();
+      try { await (e.aktion === "ja" ? frage.ja() : frage.nein()); } catch (f) { sage(f.message); }
+      return;
+    }
+    abbrechen();
     auswahl = e.auswahl ?? [];
     if (FUEHRT_WEITER.has(e.aktion) && !auswahl.length) { if (offen) schliesse(); }
     else zeigeAntwort();
@@ -229,6 +238,38 @@ export function starteMerlin(rahmen) {
       case "ansage":
         await zeigeAnsage(STATIONEN.findIndex(([id]) => id === e.station), true);
         break;
+      case "agenda-fehlt":
+        rueckfrage(e.antwort, gesprochen, "Ja, Agenda anlegen", async () => {
+          if (e.workshop) {
+            try { sessionStorage.setItem("broki-ws-bereich", "ueberblick"); } catch {}
+            sage("Hier richtest du den Workshop ein. Die Agenda trägst du im Feld Agenda ein, ein Punkt pro Zeile.");
+            rahmen.gehe("workshop", true);
+          } else {
+            try { sessionStorage.setItem("merlin-admin", "meetings"); } catch {}
+            merkeAuftrag({ aktion: "einstellung", feld: "meeting-liste" });
+            sage("Hier pflegst du die Meetings. Öffne dein Meeting und trag die Agenda ein, ein Punkt pro Zeile.");
+            rahmen.gehe("admin", true);
+          }
+          setTimeout(() => { if (!hoert) schliesse(); }, 2500);
+        });
+        break;
+      case "dokument": {
+        antworte();
+        // Neues Fenster aus einem Sprachbefehl kann der Browser blockieren: dann als Knopf anbieten
+        const fenster = window.open(e.link, "_blank", "noopener");
+        if (!fenster) {
+          auswahl = [{ text: e.titel, link: e.link }];
+          zeigeAntwort();
+          sage(`Der Browser hat das Fenster blockiert. Klick auf „${e.titel}“, dann öffne ich es.`);
+        }
+        break;
+      }
+      case "wissen": {
+        antworte();
+        if (e.quelle) auswahl = [{ text: `Dokument öffnen: ${e.quelle.titel}`, link: e.quelle.link }];
+        frageNachMehr(e.frage, gesprochen);
+        break;
+      }
       case "frage":
         // Nicht auf die Antwort warten: die Agenten antworten im Chat, Merlin wechselt sofort dorthin
         sende("/api/chat", { text: e.text, an: e.an }).catch((f) => sage(f.message));
@@ -276,9 +317,38 @@ export function starteMerlin(rahmen) {
     nein.append(icon("x"), "Nein");
     leiste.replaceChildren(ja, ...(mitNein ? [nein] : []));
     leiste.hidden = false;
-    abbruch = () => { leiste.hidden = true; abbruch = null; };
-    ja.addEventListener("click", async () => { abbrechen(); try { await aktion(); } catch (f) { sage(f.message); } });
-    nein.addEventListener("click", () => { abbrechen(); sage("Gut, ich lasse es."); });
+    const beiJa = async () => { abbrechen(); try { await aktion(); } catch (f) { sage(f.message); } };
+    const beiNein = () => { abbrechen(); sage("Gut, ich lasse es."); };
+    offeneFrage = { ja: beiJa, nein: beiNein };
+    abbruch = () => { leiste.hidden = true; abbruch = null; offeneFrage = null; };
+    ja.addEventListener("click", beiJa);
+    nein.addEventListener("click", beiNein);
+  }
+  /** Nach einer kurzen Antwort aus dem Material: "Mehr vorlesen?" (Ja per Klick oder Sprache) */
+  function frageNachMehr(frage, gesprochen) {
+    const leiste = $("#merlin-rueckfrage");
+    const mehr = el("button", "klein");
+    mehr.type = "button";
+    mehr.append(icon("play"), "Mehr vorlesen");
+    leiste.replaceChildren(mehr);
+    leiste.hidden = false;
+    const beiJa = async () => {
+      abbrechen();
+      zustand("denkt");
+      sage("Einen Moment, ich lese genauer nach …");
+      try {
+        const e = await sende("/api/merlin/wissen", { frage, mehr: true });
+        sage(e.antwort);
+        sprich(e.antwort);
+      } catch (f) {
+        sage(f.message);
+      } finally {
+        if (!knopf.classList.contains("spricht")) zustand(null);
+      }
+    };
+    offeneFrage = { ja: beiJa, nein: () => { abbrechen(); sage("Gut."); } };
+    abbruch = () => { leiste.hidden = true; abbruch = null; offeneFrage = null; };
+    mehr.addEventListener("click", beiJa);
   }
   function abbrechen() {
     abbruch?.();
@@ -288,7 +358,7 @@ export function starteMerlin(rahmen) {
   async function hoerStart() {
     if (hoert) return hoerEnde();
     verstumme();
-    abbrechen();
+    if (!offeneFrage) abbrechen();
     info("");
     hoert = true;
     auswahl = [];

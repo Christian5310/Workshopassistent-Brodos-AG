@@ -32,5 +32,7 @@ export interface Sprachmodell {
   fasseZusammen(prompt: string, inhalt: string, tag: { name: string; protokoll: Protokoll }): Promise<string>;
   /** Merlin: ordnet einen Satz genau einer App-Aktion zu (nur, wenn keine feste Regel greift). Ungeprüftes JSON. */
   merlinBefehl(text: string, kontext: string): Promise<unknown>;
+  /** Merlin beantwortet eine Frage nur aus dem eingereichten Material (zum Vorlesen, ohne Namen). mehr = ausführlicher. */
+  merlinWissen(frage: string, quellen: { titel: string; text: string }[], mehr: boolean): Promise<string>;
   verdichte(material: { titel: string; art: string; text: string }[], kontext: { name: string; agenda: string[] }): Promise<{ wissen: string; begriffe: string }>;
 }

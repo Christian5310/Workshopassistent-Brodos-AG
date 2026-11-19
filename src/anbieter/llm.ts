@@ -256,7 +256,10 @@ Erlaubte Aktionen:
 {"aktion": "einstellung", "ziel": "lesetempo|stimme|pause|prompts|takt|wort|schutz|sprachfragen|agenten|meetings|workshops"}
 {"aktion": "liste", "art": "meetings|workshops|alle"}  (letzte/alle Meetings oder Workshops zeigen)
 {"aktion": "zurueck"}  (zurück ins gerade geöffnete Meeting bzw. den Workshop)
-{"aktion": "material", "text": "der Satz"}  (hinterlegte Dokumente/Material eines Workshops finden)
+{"aktion": "material", "text": "der Satz"}  (hinterlegte Dokumente/Material eines Workshops finden oder öffnen)
+{"aktion": "wissen", "frage": "die Frage"}  (inhaltliche Frage, die aus dem eingereichten Workshop-Material beantwortet werden kann, z. B. "Wie sieht der Ist-Prozess aus?")
+{"aktion": "uhrzeit"}
+{"aktion": "ja"}  /  {"aktion": "nein"}  (Antwort auf eine Rückfrage)
 {"aktion": "hilfe"}
 {"aktion": "unbekannt"}
 
@@ -268,6 +271,25 @@ Regeln: Löschen gibt es nicht (dann "unbekannt"). Im Zweifel "unbekannt". Will 
       config.llm.modellMerlin, // klein und schnell: es geht nur um die Zuordnung zu einer Aktion
       6_000, // länger soll niemand auf Merlin warten; danach fragt er nach
     );
+  }
+
+  async merlinWissen(frage: string, quellen: { titel: string; text: string }[], mehr: boolean): Promise<string> {
+    const material = quellen.map((q) => `### ${q.titel}\n${q.text}`).join("\n\n").slice(0, 150_000);
+    const antwort = await this.#frage(
+      [
+        {
+          role: "system",
+          content: `Du bist Merlin, der Moderations-Assistent in einem Workshop. Du bist kein Fachexperte: Du gibst wieder, was im eingereichten Material steht, und hilfst so, schnell den Stand zu kennen.
+
+Antworte ausschließlich als JSON: {"text": "…"}
+
+Regeln: Beantworte die Frage nur aus dem MATERIAL. ${mehr ? "Ausführlich: 8 bis 12 Sätze, gegliedert in gesprochene Abschnitte (zuerst, dann, außerdem)." : "Kurz: 3 bis 5 Sätze, das Wichtigste zuerst."} Gesprochene Sprache zum Vorlesen, Du-Form in der Mehrzahl ("ihr"). Keine Aufzählungszeichen, kein Markdown, keine Abkürzungen. Nenne keine Personennamen. Erfinde nichts. Steht die Antwort nicht im Material, sag das in einem Satz und nenne, wozu es Material gibt. Beginne nicht mit "Laut Material".`,
+        },
+        { role: "user", content: `FRAGE: ${frage.slice(0, 500)}\n\nMATERIAL:\n${material}` },
+      ],
+      mehr ? 1200 : 500,
+    );
+    return z.object({ text: z.string().min(1) }).parse(antwort).text.trim();
   }
 
   async sprechtext(wissen: string, name: string): Promise<string> {

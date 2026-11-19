@@ -140,6 +140,11 @@ export class MockSprachmodell implements Sprachmodell {
     return { aktion: "unbekannt" }; // im Mock nur die festen Regeln
   }
 
+  async merlinWissen(frage: string, quellen: { titel: string }[], mehr: boolean) {
+    await warte(400);
+    return `[Mock] Zu „${frage}“ habe ich ${quellen.length} Quelle(n) gefunden${quellen[1] ? `, vor allem „${quellen[1].titel}“` : ""}. ${mehr ? "Hier stünde die ausführliche Fassung." : "Im Live-Betrieb antwortet hier das Sprachmodell in wenigen Sätzen."}`;
+  }
+
   async sprechtext(wissen: string) {
     await warte(500);
     return `[Mock] Zur Vorbereitung liegt Vorwissen im Umfang von ${wissen.length.toLocaleString("de-DE")} Zeichen vor. Die Zusammenfassung dazu formuliert das Sprachmodell im Live-Betrieb.`;
