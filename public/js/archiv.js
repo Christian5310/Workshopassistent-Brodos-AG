@@ -193,7 +193,8 @@ async function zeige(id) {
   const aktionen = el("div", "aktionen");
   const weg = knopf("Löschen", "trash", "zweit");
   weg.addEventListener("click", async () => {
-    if (!confirm(`„${m.name}" mit Transkript, To-dos und Fragen wirklich unwiderruflich löschen?`)) return;
+    const auchWorkshop = m.workshop ? "\n\nDer Workshop wird mit Teilnehmenden und eingereichtem Material ebenfalls gelöscht." : "";
+    if (!confirm(`„${m.name}" mit Transkript, To-dos und Fragen wirklich unwiderruflich löschen?${auchWorkshop}`)) return;
     try {
       await sende(`/api/tage/${id}`, {}, "DELETE");
       gewaehlt = null;

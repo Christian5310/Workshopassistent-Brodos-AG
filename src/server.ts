@@ -783,7 +783,7 @@ app.put("/api/tage/:id/agenten", (req, res) => {
 
 app.get("/api/tage/:id", (req, res) => {
   const tag = holeTag(req.params.id, res);
-  if (tag) res.json({ ...tag, aktiv: store.istOffen && tag.id === store.daten.id, zusammenfassung: archiv.zusammenfassung(tag.protokoll) });
+  if (tag) res.json({ ...tag, aktiv: store.istOffen && tag.id === store.daten.id, workshop: workshopVon(tag.id), zusammenfassung: archiv.zusammenfassung(tag.protokoll) });
 });
 
 /** Downloads als Markdown: ?art=alles|transkript|todos|entscheidungen|fragen */
@@ -808,6 +808,9 @@ app.get("/api/tage/:id/broki", (req, res) => {
 app.delete("/api/tage/:id", (req, res) => {
   if (aufnahme && req.params.id === store.daten.id) return void res.status(409).json({ fehler: "Bitte erst pausieren." });
   if (!store.loesche(req.params.id)) return void res.status(404).json({ fehler: "Meeting nicht gefunden." });
+  // Gehört das Meeting zu einem Workshop, verschwindet der Workshop mit Teilnehmenden und Material gleich mit
+  const w = workshopVon(req.params.id);
+  if (w) { workshops.loesche(w.id); workshopIndex = null; }
   senden();
   res.json({ ok: true });
 });
