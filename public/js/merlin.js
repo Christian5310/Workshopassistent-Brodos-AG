@@ -561,9 +561,10 @@ export function starteMerlin(rahmen) {
   }
   async function starteFuehrung() {
     if (fuehrung) return;
-    if (stand?.tag || stand?.status?.aufnahme) {
+    // Nicht mitten im Meeting: bei laufender Aufnahme und in den Bildschirmen des Meetings. Ein offenes, pausiertes Meeting stört nicht.
+    if (stand?.status?.aufnahme || ["assistent", "agenten", "pinnwand"].includes(rahmen.bereich())) {
       zeigeAntwort();
-      return void sage("Die Führung gibt es nur ohne geöffnetes Meeting. Schließ das Meeting oder den Workshop, dann zeige ich euch die App.");
+      return void sage(stand?.status?.aufnahme ? "Gerade läuft eine Aufnahme. Pausiere sie, dann zeige ich euch die App." : "Im Meeting gibt es die Führung nicht. Geh zuerst zum Startscreen, dann zeige ich euch die App.");
     }
     const lauf = { aus: false, weiter: null };
     fuehrung = lauf;
@@ -652,7 +653,7 @@ export function starteMerlin(rahmen) {
     aktualisiere(neu) {
       const tagVorher = stand?.tag?.id;
       stand = neu;
-      if (fuehrung && (neu.tag || neu.status?.aufnahme)) beendeFuehrung(); // z. B. von einem anderen Gerät aus ein Meeting geöffnet
+      if (fuehrung && neu.status?.aufnahme) beendeFuehrung(); // z. B. von einem anderen Gerät aus die Aufnahme gestartet
       if (tagVorher !== stand.tag?.id) { ansagen = null; if (modus === "ansage") sage(begruessungstext()); }
       zeigeLeise();
       if (offen) zeigeVorschlaege();

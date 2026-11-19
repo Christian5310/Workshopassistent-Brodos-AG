@@ -67,7 +67,7 @@ Analyse ist gemacht, noch nichts an Dateien geändert. Ergebnis in Kürze:
 - Offene Entscheidung: Zuschnitt der drei Agenten (siehe oben).
 
 ## ERLEDIGT (19.11.2026): „Merlin führt durch die App“
-Auf Zuruf („Merlin, erklär uns die App“) oder per Knopf auf dem Startscreen: Merlin spricht 7 Stationen, blendet Bildschirmfotos ein, Navigation leuchtet, Klick auf Merlin/Esc bricht ab. Nur ohne geöffnetes Meeting. Details: `docs/uebergabe/fuehrung.md`. Im Browser-Panel mit Mock-Daten geprüft (Ablauf, Abbruch, Start aus Admin, Ablehnung bei offenem Meeting). **Noch nicht geprüft:** Klang/Tempo mit der echten Merlin-Stimme am Workshop-Laptop und Beamer.
+Auf Zuruf („Merlin, erklär uns die App“) oder per Knopf auf dem Startscreen: Merlin spricht 7 Stationen, blendet Bildschirmfotos ein, Navigation leuchtet, Klick auf Merlin/Esc bricht ab. Nicht bei laufender Aufnahme und nicht in Assistent/Agenten/Pinnwand (ein offenes, pausiertes Meeting stört nicht). Details: `docs/uebergabe/fuehrung.md`. Im Browser-Panel mit Mock-Daten geprüft (Ablauf, Abbruch, Start aus Admin, Ablehnung bei offenem Meeting). **Noch nicht geprüft:** Klang/Tempo mit der echten Merlin-Stimme am Workshop-Laptop und Beamer.
 Offen: Der User sprach von „zwei weiteren Projekten“, genannt wurde nur dieses. Zweites noch nachfragen.
 
 ## Nächster konkreter Schritt

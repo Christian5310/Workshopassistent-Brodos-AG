@@ -4,7 +4,7 @@ Merlin erklärt auf Zuruf in etwa zwei Minuten, was die App kann. Er bleibt auf 
 
 ## Bedienung
 - **Starten:** sagen „Merlin, erklär uns die App“ (auch „Führung durch die App“, „Rundgang“, „Zeig uns die App“) oder auf dem Startscreen unten auf „Führung durch die App“ klicken.
-- **Nur ohne geöffnetes Meeting.** Mit offenem Meeting oder laufender Aufnahme lehnt Merlin freundlich ab. Aus einem anderen Bereich (z. B. Admin) geht Merlin zuerst zum Startscreen.
+- **Nicht mitten im Meeting.** Bei laufender Aufnahme und in den Bildschirmen Assistent, Agenten und Pinnwand lehnt Merlin freundlich ab. Ein noch offenes, aber pausiertes Meeting stört nicht. Aus anderen Bereichen (z. B. Admin) geht Merlin zuerst zum Startscreen.
 - **Unterbrechen:** Klick auf Merlin oder seine Sprechblase, „Führung beenden“, Esc oder ein Klick in die obere Navigation. Während Merlin spricht ist das Mikrofon stumm, ein Zuruf wirkt deshalb nicht.
 - **Ende:** Merlin fragt wieder „Meeting oder Workshop?“, die zwei Knöpfe sind offen.
 

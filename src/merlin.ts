@@ -488,8 +488,8 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
       return { aktion: "hinweis", antwort: f.antwort, auswahl: f.auswahl };
     }
     case "fuehrung":
-      // Nur auf dem Startscreen, solange nichts läuft: im Meeting würde sie Aufnahme und Bildschirm stören
-      if (store.istOffen || aufnahmeLaeuft) return { aktion: "hinweis", antwort: "Die Führung gibt es nur ohne geöffnetes Meeting. Schließ das Meeting oder den Workshop, dann zeige ich euch die App." };
+      // Nur ohne laufende Aufnahme. Ein offenes, aber pausiertes Meeting stört nicht: die Führung bleibt auf dem Startscreen.
+      if (aufnahmeLaeuft) return { aktion: "hinweis", antwort: "Gerade läuft eine Aufnahme. Pausiere sie, dann zeige ich euch die App." };
       return { aktion: "fuehrung", antwort: "Gern. Ich zeige euch die App." };
     case "hilfe":
       return { aktion: "hilfe", antwort: HILFE };
