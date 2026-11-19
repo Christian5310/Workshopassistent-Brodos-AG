@@ -58,6 +58,12 @@ const modellAnpassungen: Record<string, { ohneTemperatur: boolean; maxCompletion
 /** Das Modell hat geantwortet, aber kein brauchbares JSON geliefert (dann lohnt eine zweite Anfrage). */
 export class UngueltigesJson extends Error {}
 
+class AbgebrochenWegenLaenge extends Error {
+  constructor() {
+    super("Die Antwort wurde vom Sprachmodell wegen der Längenbegrenzung abgebrochen (zu viel Text oder Nachdenken).");
+  }
+}
+
 export function leseJson(text: string): unknown {
   const roh = text.trim();
   try {
@@ -93,7 +99,7 @@ function kontextFuer(nachrichten: Nachricht[], maxTokens: number): number {
  * Passt für Mistral (/v1/chat/completions) und Broki/Open WebUI (/api/chat/completions) – nur die .env unterscheidet sich.
  */
 export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
-  async #frage(nachrichten: Nachricht[], maxTokens: number, modell = config.llm.modell, zeitlimitMs = 60_000, nochmal = true): Promise<unknown> {
+  async #frage(nachrichten: Nachricht[], maxTokens: number, modell = config.llm.modell, zeitlimitMs = 60_000, nochmal = true, alsText = false): Promise<unknown> {
     // Lokal dauert alles länger: kurze Aufgaben (Merlin) bekommen 30 s, alle anderen das eingestellte Zeitlimit
     if (config.llm.anbieter === "ollama") return this.#frageOllama(nachrichten, maxTokens, modell, zeitlimitMs < 10_000 ? 30_000 : Math.max(zeitlimitMs, config.llm.zeitlimitMs));
     // Neuere Modelle (z. B. gpt-6-luna über Broki) lehnen eigene temperature-Werte oder max_tokens ab.
@@ -102,7 +108,7 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
     let antwort: Response | null = null;
     for (let versuch = 0; versuch < 5; versuch++) {
       const body: Record<string, unknown> = { model: modell, messages: nachrichten };
-      if (!anpassung.ohneJsonModus) body.response_format = { type: "json_object" };
+      if (!anpassung.ohneJsonModus && !alsText) body.response_format = { type: "json_object" };
       if (!anpassung.ohneTemperatur) body.temperature = 0.2;
       if (config.llm.denktiefe && !anpassung.ohneDenktiefe) body.reasoning_effort = config.llm.denktiefe;
       body[anpassung.maxCompletion ? "max_completion_tokens" : "max_tokens"] = maxTokens;
@@ -122,7 +128,14 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
       console.log(`Sprachmodell ${modell}: Parameter angepasst (${JSON.stringify(anpassung)}).`);
     }
     if (!antwort!.ok) throw new Error(`Sprachmodell: HTTP ${antwort!.status} ${(await antwort!.text()).slice(0, 300)}`);
-    const daten = (await antwort!.json()) as { choices?: { message?: { content?: string } }[] };
+    const daten = (await antwort!.json()) as { choices?: { message?: { content?: string }; finish_reason?: string }[] };
+    if (alsText) {
+      // Freier Text (Zusammenfassung): kein JSON, damit Anführungszeichen im Text nichts abschneiden. Abbruch wegen Länge ist ein Fehler.
+      if (daten.choices?.[0]?.finish_reason === "length") throw new AbgebrochenWegenLaenge();
+      const text = (daten.choices?.[0]?.message?.content ?? "").trim().replace(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```$/, "$1").trim();
+      if (!text) throw new Error("Das Sprachmodell hat keine Antwort geliefert.");
+      return text;
+    }
     try {
       return leseJson(daten.choices?.[0]?.message?.content ?? "");
     } catch (fehler) {
@@ -223,16 +236,23 @@ Regeln für "wissen":
   }
 
   async fasseZusammen(prompt: string, inhalt: string): Promise<string> {
-    const antwort = await this.#frage(
-      [
-        { role: "system", content: `${prompt}\n\nFormat: Markdown. Abschnitte als "## Überschrift", Stichpunkte mit "- ", Unterpunkte mit zwei Leerzeichen eingerückt. Antworte ausschließlich als JSON: {"markdown": "…"}` },
-        { role: "user", content: inhalt },
-      ],
-      4000,
-      config.llm.modell,
-      120_000, // ein ganzer Tag Transkript braucht etwas
-    );
-    return z.object({ markdown: z.string().min(1) }).parse(antwort).markdown.trim();
+    // Als reiner Markdown-Text, nicht als JSON: lange Texte mit Anführungszeichen wurden sonst beim Reparieren abgeschnitten.
+    // Denkende Modelle (Claude über Broki) rechnen ihr Nachdenken auf das Limit an: großzügig, bei Abbruch einmal mit mehr Spielraum.
+    const nachrichten: Nachricht[] = [
+      { role: "system", content: `${prompt}
+
+Format: Markdown. Abschnitte als "## Überschrift", Stichpunkte mit "- ", Unterpunkte mit zwei Leerzeichen eingerückt. Antworte direkt mit dem Markdown-Text, ohne Einleitung, ohne JSON und ohne Code-Block.` },
+      { role: "user", content: inhalt },
+    ];
+    for (const limit of [16_000, 32_000]) {
+      try {
+        return (await this.#frage(nachrichten, limit, config.llm.modell, 180_000, false, true)) as string;
+      } catch (fehler) {
+        if (limit === 32_000 || !(fehler instanceof AbgebrochenWegenLaenge)) throw fehler;
+        console.warn("Zusammenfassung: Antwort wegen Längenlimit abgebrochen, frage mit größerem Limit noch einmal.");
+      }
+    }
+    throw new Error("Zusammenfassung nicht erstellt.");
   }
 
   async merlinBefehl(text: string, kontext: string): Promise<unknown> {
