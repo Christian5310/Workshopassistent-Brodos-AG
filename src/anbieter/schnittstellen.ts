@@ -34,5 +34,7 @@ export interface Sprachmodell {
   merlinBefehl(text: string, kontext: string): Promise<unknown>;
   /** Merlin beantwortet eine Frage nur aus dem eingereichten Material (zum Vorlesen, ohne Namen). mehr = ausführlicher. */
   merlinWissen(frage: string, quellen: { titel: string; text: string }[], mehr: boolean): Promise<string>;
+  /** Pinnwand: Kurzfassung (2–3 Sätze) und erweiterte Zusammenfassung mit Zwischenüberschriften (ohne Namen). */
+  karte(titel: string, text: string): Promise<{ kurz: string; lang: string }>;
   verdichte(material: { titel: string; art: string; text: string }[], kontext: { name: string; agenda: string[] }): Promise<{ wissen: string; begriffe: string }>;
 }

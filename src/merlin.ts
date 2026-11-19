@@ -9,7 +9,7 @@ import * as workshops from "./workshops.ts";
  * Ausgeführt wird die Aktion im Browser (App-Rahmen), damit sie dieselben Wege nimmt wie ein Klick.
  * Löschen ist per Merlin bewusst nicht möglich.
  */
-export const ZIELE = ["start", "meeting", "workshop", "assistent", "agenten", "archiv", "admin", "regie"] as const;
+export const ZIELE = ["start", "meeting", "workshop", "assistent", "agenten", "pinnwand", "archiv", "admin", "regie"] as const;
 export const STATIONEN = ["begruessung", "eingereicht", "regeln", "agenda"] as const;
 
 /** Wo welche Einstellung steht (Admin-Bereich und Feld), damit Merlin hinführen kann. */
@@ -324,7 +324,7 @@ export function regeln(text: string): Befehl | null {
   }
   // Name eines Meetings oder Workshops irgendwo im Satz ("Bring mich zu Jour fixe", "Meeting Jour fixe öffnen")
   const absicht = /(öffne|oeffne|bring|führ|fuehr|geh|wechsel|wechsle|zeig|lade|möchte|moechte|will|zurück|zurueck|^zu|^zum|^ins|meeting|workshop|besprechung)/.test(s);
-  if (absicht && !/agenda|begrü|begru|material|regeln|agenten|archiv|admin|regie/.test(s)) {
+  if (absicht && !/agenda|begrü|begru|material|regeln|agenten|pinnwand|archiv|admin|regie/.test(s)) {
     const w = finde(workshops.liste(), s, /workshop/.test(s) ? 0.5 : 0.6);
     const t = finde(meetings(), s, /meeting|besprechung/.test(s) ? 0.5 : 0.6);
     if (w && (!t || /workshop/.test(s))) return { aktion: "workshop-oeffnen", name: w.name };
@@ -337,6 +337,7 @@ export function regeln(text: string): Befehl | null {
   if (/agenda/.test(s) && !/(meeting|workshop) /.test(s)) return { aktion: "ansage", station: "agenda" };
   if (/(material|eingereicht|vorbereitung|zusammenfass)/.test(s)) return { aktion: "ansage", station: "eingereicht" };
   if (/regeln|spielregeln/.test(s)) return { aktion: "ansage", station: "regeln" };
+  if (/pinnwand|pinwand|materialwand|ideenwand/.test(s)) return { aktion: "gehe", ziel: "pinnwand" };
   if (/agenten|experten|spezialisten/.test(s)) return { aktion: "gehe", ziel: "agenten" };
   if (/assistent|protokoll|to ?dos?|mitschrift/.test(s)) return { aktion: "gehe", ziel: "assistent" };
   if (/archiv/.test(s)) return { aktion: "gehe", ziel: "archiv" };
@@ -361,11 +362,11 @@ export function kontextFuerModell(bereich: string): string {
   ].join("\n");
 }
 
-const NAMEN: Record<(typeof ZIELE)[number], string> = { start: "zur Auswahl", meeting: "zu den Meetings", workshop: "zu den Workshops", assistent: "zum Meeting Assistenten", agenten: "zu den Agenten", archiv: "ins Archiv", admin: "in den Admin", regie: "in die Regie" };
+const NAMEN: Record<(typeof ZIELE)[number], string> = { start: "zur Auswahl", meeting: "zu den Meetings", workshop: "zu den Workshops", assistent: "zum Meeting Assistenten", agenten: "zu den Agenten", pinnwand: "zur Pinnwand", archiv: "ins Archiv", admin: "in den Admin", regie: "in die Regie" };
 const STATION_TEXT: Record<(typeof STATIONEN)[number], string> = { begruessung: "Ich begrüße alle.", eingereicht: "Ich fasse das eingereichte Material zusammen.", regeln: "Ich erkläre die Regeln.", agenda: "Ich lese die Agenda vor." };
 
 export const HILFE =
-  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Wo ändere ich die Lesegeschwindigkeit?“ oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
+  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Öffne die Pinnwand“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Wo ändere ich die Lesegeschwindigkeit?“ oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
 
 /** Prüft den Befehl gegen den Zustand der App und löst Namen in IDs auf. */
 export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
@@ -375,6 +376,7 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
         const auswahl = auswahlMeetings();
         return { aktion: "gehe", ziel: "meeting", antwort: auswahl.length ? "Es ist noch kein Meeting geöffnet. Welches soll ich öffnen?" : "Es ist noch kein Meeting geöffnet. Leg hier ein neues an.", auswahl };
       }
+      if (b.ziel === "pinnwand" && !offenerWorkshop()) return { aktion: "gehe", ziel: "workshop", antwort: "Die Pinnwand gehört zu einem Workshop. Welchen soll ich öffnen?", auswahl: auswahlWorkshops() };
       if (b.ziel === "meeting") {
         const auswahl = auswahlMeetings();
         return { aktion: "gehe", ziel: "meeting", antwort: auswahl.length ? "Hier sind die Meetings. Welches soll ich öffnen?" : "Es gibt noch kein Meeting. Leg hier ein neues an.", auswahl };

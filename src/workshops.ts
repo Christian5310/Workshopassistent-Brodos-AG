@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { config } from "./config.ts";
+import type { Endung } from "./dateien.ts";
 
 /**
  * Workshops: der größere Rahmen um ein Meeting. Ein Workshop bündelt Teilnehmer, eingereichtes Material
@@ -29,7 +30,16 @@ export const MaterialEingabeSchema = z.object({
 export interface Material extends z.infer<typeof MaterialEingabeSchema> {
   id: string;
   zeit: number;
+  /** Hochgeladene Originaldatei (PDF, Word, Excel …); der Text oben ist daraus gelesen */
+  datei?: { name: string; endung: Endung; groesse: number };
+  /** Beim Material angehakt ("Pin"): erscheint als Notiz auf der Pinnwand */
+  pin?: boolean;
+  /** Notiz für die Pinnwand, von der KI einmal geschrieben (ohne Namen): Kurzfassung und erweiterte Zusammenfassung */
+  karte?: { kurz: string; lang?: string };
 }
+
+/** Wo sich ein Material ansehen lässt: die Originaldatei oder die Textansicht */
+export const link = (w: { id: string }, m: Material) => (m.datei ? `/api/workshops/${w.id}/material/${m.id}/datei` : `/api/workshops/${w.id}/material/${m.id}?ansehen`);
 export interface Workshop {
   id: string;
   name: string;
@@ -100,5 +110,5 @@ export const kurz = (w: Workshop) => ({
   datum: w.datum,
   meetingId: w.meetingId,
   teilnehmer: w.teilnehmer,
-  material: w.material.map(({ text, ...rest }) => ({ ...rest, zeichen: text.length })),
+  material: w.material.map(({ text, karte: _karte, ...rest }) => ({ ...rest, zeichen: text.length })),
 });

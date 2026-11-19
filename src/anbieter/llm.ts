@@ -243,7 +243,7 @@ Regeln für "wissen":
           content: `Du bist "Merlin", der Navigator einer Meeting-App. Ordne den Satz des Nutzers GENAU EINER Aktion zu. Antworte nur als JSON.
 
 Erlaubte Aktionen:
-{"aktion": "gehe", "ziel": "start|meeting|workshop|assistent|agenten|archiv|admin|regie"}
+{"aktion": "gehe", "ziel": "start|meeting|workshop|assistent|agenten|pinnwand|archiv|admin|regie"}  (pinnwand = eingereichtes Workshop-Material als Karten)
 {"aktion": "meeting-neu", "name": "…" (optional)}
 {"aktion": "workshop-neu"}
 {"aktion": "meeting-oeffnen", "name": "Name des Meetings"}
@@ -275,7 +275,40 @@ Regeln: Löschen gibt es nicht (dann "unbekannt"). Im Zweifel "unbekannt". Will 
     );
   }
 
+  async karte(titel: string, text: string): Promise<{ kurz: string; lang: string }> {
+    const antwort = await this.#frage(
+      [
+        {
+          role: "system",
+          content: `Du schreibst eine Notiz für die Pinnwand im Workshop zu einem eingereichten Material.
+
+Antworte ausschließlich als JSON: {"kurz": "…", "lang": "…"}
+
+"kurz" = 2 bis 3 kurze Sätze, das Wichtigste zuerst, konkret statt allgemein.
+"lang" = erweiterte Zusammenfassung, gegliedert in 3 bis 6 Abschnitte. Jeder Abschnitt beginnt mit einer Zeile "## Zwischenüberschrift" (passend zum Inhalt, z. B. Ablauf, Schmerzpunkte, Zahlen, Ideen, Offene Fragen), danach kurze Absätze oder Stichpunkte mit "- ". Zahlen, Fristen und Beispiele aus dem Material übernehmen. Insgesamt höchstens etwa 350 Wörter.
+Keine Personennamen, keine Firmennamen von Kunden. Erfinde nichts. Deutsch.`,
+        },
+        { role: "user", content: `TITEL: ${titel}\n\nINHALT:\n${text.slice(0, 60_000)}` },
+      ],
+      2200,
+    );
+    const r = z.object({ kurz: z.string().min(1), lang: z.string().catch("") }).parse(antwort);
+    return { kurz: r.kurz.trim(), lang: r.lang.trim() };
+  }
+
   async merlinWissen(frage: string, quellen: { titel: string; text: string }[], mehr: boolean): Promise<string> {
+    // Broki liefert gelegentlich eine leere Antwort: dann einmal in Ruhe neu fragen, bevor Merlin aufgibt
+    for (let versuch = 1; ; versuch++) {
+      try {
+        return await this.#merlinWissenEinmal(frage, quellen, mehr);
+      } catch (fehler) {
+        if (versuch >= 2) throw fehler;
+        console.warn("Merlin-Wissen: keine brauchbare Antwort, frage noch einmal.");
+      }
+    }
+  }
+
+  async #merlinWissenEinmal(frage: string, quellen: { titel: string; text: string }[], mehr: boolean): Promise<string> {
     const material = quellen.map((q) => `### ${q.titel}\n${q.text}`).join("\n\n").slice(0, 150_000);
     const antwort = await this.#frage(
       [
@@ -289,7 +322,7 @@ Regeln: Beantworte die Frage nur aus dem MATERIAL. ${mehr ? "Ausführlich: 8 bis
         },
         { role: "user", content: `FRAGE: ${frage.slice(0, 500)}\n\nMATERIAL:\n${material}` },
       ],
-      mehr ? 1200 : 500,
+      mehr ? 1200 : 700,
     );
     return z.object({ text: z.string().min(1) }).parse(antwort).text.trim();
   }

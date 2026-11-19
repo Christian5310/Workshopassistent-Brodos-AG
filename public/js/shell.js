@@ -11,8 +11,8 @@ const einwilligung = (() => { try { return sessionStorage.getItem("broki-einwill
 if (!einwilligung) location.replace("/einwilligung");
 // Bereiche im Fenster. "assistent" und "agenten" gehören zum Abhalten eines Meetings oder Workshops
 // und haben keinen eigenen Punkt in der Navigation oben.
-const BEREICHE = { start: "/uebersicht", meeting: "/uebersicht?b=meeting", workshop: "/workshops", assistent: "/screen1", agenten: "/screen2", archiv: "/archiv", admin: "/admin", regie: "/regie" };
-const TITEL = { start: "Start", meeting: "Meeting", workshop: "Workshop", assistent: "Meeting Assistent", agenten: "Agenten", archiv: "Archiv", admin: "Admin", regie: "Regie" };
+const BEREICHE = { start: "/uebersicht", meeting: "/uebersicht?b=meeting", workshop: "/workshops", assistent: "/screen1", agenten: "/screen2", pinnwand: "/pinnwand", archiv: "/archiv", admin: "/admin", regie: "/regie" };
+const TITEL = { start: "Start", meeting: "Meeting", workshop: "Workshop", assistent: "Meeting Assistent", agenten: "Agenten", pinnwand: "Pinnwand", archiv: "Archiv", admin: "Admin", regie: "Regie" };
 const ALT = { uebersicht: "start", workshops: "workshop" }; // frühere Namen
 let gehoertZuWorkshop = false;
 
@@ -21,7 +21,7 @@ function zeigeBereich() {
   if (bereich in ALT) return void location.replace(`#${ALT[bereich]}`);
   if (!(bereich in BEREICHE)) bereich = "start";
   // Assistent und Agenten zählen zu dem, was gerade abgehalten wird: Meeting oder Workshop.
-  const navPunkt = bereich === "assistent" || bereich === "agenten" ? (gehoertZuWorkshop ? "workshop" : "meeting") : bereich;
+  const navPunkt = bereich === "pinnwand" ? "workshop" : bereich === "assistent" || bereich === "agenten" ? (gehoertZuWorkshop ? "workshop" : "meeting") : bereich;
   for (const a of document.querySelectorAll(".app-kopf nav a")) {
     if (a.dataset.nav === navPunkt) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");

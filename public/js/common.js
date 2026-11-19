@@ -15,6 +15,7 @@ export function el(tag, klasse = "", text = "") {
 // ── Linien-Icons im Stil von Lucide (lucide.dev, ISC-Lizenz), lokal eingebettet ──
 const ICONS = {
   play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+  pinnwand: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
   pause: '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
@@ -81,11 +82,12 @@ export function gehe(bereich) {
 
 /**
  * Linke Leiste zum Abhalten: zwischen Meeting Assistent und Agenten wechseln, ohne dass die Aufnahme stoppt.
- * Gehört das Meeting zu einem Workshop, stehen darüber "Einrichten" und "Material".
+ * Gehört das Meeting zu einem Workshop, stehen darüber "Einrichten" und "Material" (grau, weniger dominant)
+ * und unter den Agenten die Pinnwand mit dem eingereichten Material.
  */
 export function zeigeAbhalten(ziel, aktiv, stand) {
-  const feld = (text, iconName, istAktiv, beiKlick, zusatz = "") => {
-    const k = el("button", `select-item${istAktiv ? " is-active" : ""}`);
+  const feld = (text, iconName, istAktiv, beiKlick, zusatz = "", leise = false) => {
+    const k = el("button", `select-item${istAktiv ? " is-active" : ""}${leise ? " leise" : ""}`);
     k.type = "button";
     if (istAktiv) k.setAttribute("aria-current", "page");
     const t = el("span");
@@ -101,14 +103,14 @@ export function zeigeAbhalten(ziel, aktiv, stand) {
       try { sessionStorage.setItem("broki-ws", stand.workshop.id); sessionStorage.setItem("broki-ws-bereich", bereich); sessionStorage.setItem("broki-ws-direkt", "1"); } catch {}
       gehe("workshop");
     };
-    teile.push(el("h2", "", "Auswahl"), feld("Einrichten", "kalender", false, zumWorkshop("ueberblick")), feld("Material", "text", false, zumWorkshop("material")));
+    teile.push(el("h2", "", "Auswahl"), feld("Einrichten", "kalender", false, zumWorkshop("ueberblick"), "", true), feld("Material", "text", false, zumWorkshop("material"), "", true));
   }
-  const n = stand.agenten.length;
   teile.push(
     el("h2", "", "Abhalten"),
     feld("Meeting Assistent", "mic", aktiv === "assistent", () => gehe("assistent")),
-    feld("Agenten", "users", aktiv === "agenten", () => gehe("agenten"), n ? `${n} dabei` : "noch keiner hinzugefügt"),
+    feld("Agenten", "users", aktiv === "agenten", () => gehe("agenten")),
   );
+  if (stand.workshop) teile.push(feld("Pinnwand", "pinnwand", aktiv === "pinnwand", () => gehe("pinnwand")));
   ziel.replaceChildren(...teile);
 }
 

@@ -140,6 +140,12 @@ export class MockSprachmodell implements Sprachmodell {
     return { aktion: "unbekannt" }; // im Mock nur die festen Regeln
   }
 
+  async karte(titel: string, text: string) {
+    await warte(300);
+    const auszug = text.slice(0, 600).replace(/\s+/g, " ");
+    return { kurz: `[Mock] ${auszug.slice(0, 140)} …`, lang: `## Worum es geht\n[Mock] „${titel}“ im Überblick.\n\n## Auszug\n${auszug}\n\n## Hinweis\n- Im Live-Betrieb schreibt hier das Sprachmodell die erweiterte Zusammenfassung.` };
+  }
+
   async merlinWissen(frage: string, quellen: { titel: string }[], mehr: boolean) {
     await warte(400);
     return `[Mock] Zu „${frage}“ habe ich ${quellen.length} Quelle(n) gefunden${quellen[1] ? `, vor allem „${quellen[1].titel}“` : ""}. ${mehr ? "Hier stünde die ausführliche Fassung." : "Im Live-Betrieb antwortet hier das Sprachmodell in wenigen Sätzen."}`;

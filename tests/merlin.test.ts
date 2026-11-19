@@ -59,3 +59,8 @@ test("To-do verschieben", () => {
   assert.equal(aktion("Schieb den CRM-Export nach Preise"), "todo-verschieben");
   assert.notEqual(aktion("Verschiebe das Meeting auf morgen"), "todo-verschieben");
 });
+
+test("Pinnwand öffnen", () => {
+  assert.deepEqual(regeln("Öffne die Pinnwand"), { aktion: "gehe", ziel: "pinnwand" });
+  assert.deepEqual(regeln("Merlin, zeig mir die Pinnwand"), { aktion: "gehe", ziel: "pinnwand" });
+});

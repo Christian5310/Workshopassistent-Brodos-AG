@@ -1,5 +1,6 @@
 import { wendeAenderungenAn } from "./delta.ts";
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
 import express, { type Response } from "express";
 import { z } from "zod";
 import { anbieterInfo, erstelleAnbieter, pruefeLokal, TRANSKRIPTION_NAME, type Transkription } from "./anbieter/index.ts";
@@ -9,6 +10,7 @@ import * as admin from "./einstellungen.ts";
 import * as merlin from "./merlin.ts";
 import * as workshops from "./workshops.ts";
 import * as ansagen from "./ansagen.ts";
+import * as dateien from "./dateien.ts";
 import { store } from "./store.ts";
 import { ProtokollSchema, type Adressat, type ChatStatus, type Schnappschuss } from "./types.ts";
 
@@ -866,7 +868,7 @@ app.delete("/api/tage/:id", (req, res) => {
   if (!store.loesche(req.params.id)) return void res.status(404).json({ fehler: "Meeting nicht gefunden." });
   // Gehört das Meeting zu einem Workshop, verschwindet der Workshop mit Teilnehmenden und Material gleich mit
   const w = workshopVon(req.params.id);
-  if (w) { workshops.loesche(w.id); workshopIndex = null; }
+  if (w) { workshops.loesche(w.id); dateien.loescheAlle(w.id); workshopIndex = null; }
   senden();
   res.json({ ok: true });
 });
@@ -949,6 +951,7 @@ app.post("/api/workshops/:id/oeffnen", (req, res) => {
 /** Löscht den Workshop mit seinem Material. Das Meeting bleibt im Archiv und wird dort gelöscht. */
 app.delete("/api/workshops/:id", (req, res) => {
   if (!workshops.loesche(req.params.id)) return void res.status(404).json({ fehler: "Workshop nicht gefunden." });
+  dateien.loescheAlle(req.params.id);
   workshopIndex = null;
   senden();
   res.json({ ok: true });
@@ -959,8 +962,144 @@ app.post("/api/workshops/:id/material", (req, res) => {
   if (!e.success) return void res.status(400).json({ fehler: "Bitte Titel und Text prüfen (höchstens 400.000 Zeichen je Eintrag)." });
   const neu = workshops.neuesMaterial(e.data);
   if (!workshops.aendere(req.params.id, (w) => w.material.push(neu))) return void res.status(404).json({ fehler: "Workshop nicht gefunden." });
+  bereiteKartenVor(req.params.id);
   res.json({ ok: true, id: neu.id });
 });
+
+/**
+ * Datei hochladen (PDF, Word, Excel, Text). Body = Datei, Dateiname und "Von wem" in den Kopfzeilen.
+ * Das Original bleibt zum Öffnen liegen, der Text wird für Pinnwand, Merlin und Agenten herausgelesen.
+ */
+app.post("/api/workshops/:id/datei", express.raw({ type: () => true, limit: dateien.MAX_GROESSE }), async (req, res) => {
+  const w = holeWorkshop(req.params.id, res);
+  if (!w) return;
+  const name = decodeURIComponent(String(req.headers["x-dateiname"] ?? "")).trim().slice(0, 200);
+  const endung = name.split(".").pop()?.toLowerCase() ?? "";
+  if (!dateien.istEndung(endung)) return void res.status(400).json({ fehler: `„${name}“: Dieses Format geht nicht. Möglich sind PDF, Word (.docx), Excel (.xlsx), .md und .txt.` });
+  const inhalt = req.body as Buffer;
+  if (!Buffer.isBuffer(inhalt) || !inhalt.length) return void res.status(400).json({ fehler: `„${name}“ ist leer.` });
+  let text = "";
+  try {
+    text = (await dateien.textAus(inhalt, endung)).slice(0, 400_000);
+  } catch (fehler) {
+    console.warn(`Text aus „${name}“ nicht lesbar:`, (fehler as Error).message);
+  }
+  const person = decodeURIComponent(String(req.headers["x-person"] ?? "")).trim().slice(0, 60);
+  const neu: workshops.Material = { id: randomUUID().slice(0, 8), zeit: Date.now(), titel: name.replace(/\.[^.]+$/, "").slice(0, 120) || "Datei", art: "Dokument", person, text, datei: { name, endung, groesse: inhalt.length } };
+  dateien.speichere(w.id, neu.id, endung, inhalt);
+  workshops.aendere(w.id, (x) => x.material.push(neu));
+  bereiteKartenVor(w.id);
+  res.json({ ok: true, id: neu.id, zeichen: text.length });
+});
+
+/** Originaldatei öffnen: PDF und Text im Browser, Word und Excel als Download (öffnet in Office). */
+app.get("/api/workshops/:id/material/:mid/datei", (req, res) => {
+  const w = holeWorkshop(req.params.id, res);
+  if (!w) return;
+  const m = w.material.find((x) => x.id === req.params.mid);
+  const ziel = m?.datei ? dateien.pfad(w.id, m.id, m.datei.endung) : null;
+  if (!m?.datei || !ziel || !fs.existsSync(ziel)) return void res.status(404).json({ fehler: "Datei nicht gefunden." });
+  const imBrowser = m.datei.endung === "pdf" || dateien.ENDUNGEN[m.datei.endung].art === "Text";
+  res.type(dateien.ENDUNGEN[m.datei.endung].mime);
+  res.setHeader("Content-Disposition", `${imBrowser ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(m.datei.name)}`);
+  res.sendFile(ziel);
+});
+
+/** Pinnwand: je angepinntem Material eine Notiz, ohne Namen ("Von wem" bleibt in der Material-Übersicht). */
+app.get("/api/workshops/:id/pinnwand", (req, res) => {
+  const w = holeWorkshop(req.params.id, res);
+  if (!w) return;
+  bereiteKartenVor(w.id);
+  res.json({
+    workshop: { id: w.id, name: w.name },
+    karten: w.material
+      .filter((m) => m.pin)
+      .map((m) => ({
+        id: m.id,
+        titel: m.titel,
+        format: m.datei ? dateien.ENDUNGEN[m.datei.endung].art : "Text",
+        kurz: m.karte?.kurz ?? "",
+        lang: m.karte?.lang ?? "",
+        wartet: !m.karte?.lang,
+        zeit: m.zeit,
+        link: workshops.link(w, m),
+      })),
+  });
+});
+
+/** Material an die Pinnwand heften oder abnehmen ("Pin" in der Material-Liste). Beim Anheften schreibt Merlin die Notiz. */
+app.patch("/api/workshops/:id/material/:mid/pin", (req, res) => {
+  const pin = req.body?.pin === true;
+  let gefunden = false;
+  const w = workshops.aendere(req.params.id, (x) => {
+    const m = x.material.find((y) => y.id === req.params.mid);
+    if (!m) return;
+    gefunden = true;
+    m.pin = pin;
+  });
+  if (!w || !gefunden) return void res.status(404).json({ fehler: "Material nicht gefunden." });
+  if (pin) bereiteKartenVor(req.params.id);
+  res.json({ ok: true });
+});
+
+/** Merlin zu genau einem Material fragen (kurz, zum Vorlesen, ohne Namen). */
+app.post("/api/workshops/:id/material/:mid/frage", async (req, res) => {
+  const w = holeWorkshop(req.params.id, res);
+  if (!w) return;
+  const m = w.material.find((x) => x.id === req.params.mid);
+  if (!m) return void res.status(404).json({ fehler: "Material nicht gefunden." });
+  const frage = String(req.body?.frage ?? "").trim().slice(0, 500);
+  if (!frage) return void res.status(400).json({ fehler: "Was möchtest du wissen?" });
+  if (!m.text.trim()) return void res.json({ antwort: "Aus dieser Datei konnte ich keinen Text lesen. Öffne das Original, um sie anzusehen." });
+  try {
+    res.json({ antwort: await anbieter.sprachmodell.merlinWissen(frage, [{ titel: m.titel, text: m.text }], false) });
+  } catch (fehler) {
+    console.warn("Frage zum Material:", (fehler as Error).message);
+    res.status(502).json({ fehler: "Merlin hat gerade keine Antwort von Broki bekommen. Bitte frag noch einmal." });
+  }
+});
+
+/** Nur Sprache zu Text (z. B. Frage im Notiz-Fenster). Das Audio wird danach verworfen. */
+app.post("/api/transkription", express.raw({ type: "audio/*", limit: "4mb" }), async (req, res) => {
+  const audio = req.body as Buffer;
+  if (quelle === "mikro" && (!Buffer.isBuffer(audio) || audio.length < 1000)) return void res.status(400).json({ fehler: "Ich habe nichts gehört. Bitte noch einmal." });
+  try {
+    const text = (await anbieter.transkript.transkribiere(quelle === "mikro" ? audio : null, "chat", String(req.headers["content-type"] ?? "audio/webm"))) ?? "";
+    res.json({ text: text.trim() });
+  } catch (fehler) {
+    res.status(502).json({ fehler: `Spracherkennung fehlgeschlagen: ${(fehler as Error).message}` });
+  }
+});
+
+/** Schreibt fehlende Notizen für angepinntes Material im Hintergrund (eine nach der anderen, je Workshop nur ein Lauf). */
+const kartenLaufen = new Set<string>();
+function bereiteKartenVor(workshopId: string): void {
+  if (kartenLaufen.has(workshopId)) return;
+  kartenLaufen.add(workshopId);
+  (async () => {
+    const fehlgeschlagen = new Set<string>();
+    for (;;) {
+      const m = workshops.hole(workshopId)?.material.find((x) => x.pin && !x.karte?.lang && !fehlgeschlagen.has(x.id));
+      if (!m) break;
+      let karte: NonNullable<workshops.Material["karte"]>;
+      if (!m.text.trim()) {
+        const hinweis = "Aus dieser Datei ließ sich kein Text lesen (zum Beispiel ein gescanntes PDF). Öffne das Original, um sie anzusehen.";
+        karte = { kurz: hinweis, lang: hinweis };
+      }
+      else {
+        try {
+          karte = await anbieter.sprachmodell.karte(m.titel, m.text);
+          if (!karte.lang) karte.lang = karte.kurz;
+        } catch (fehler) {
+          console.warn(`Pinnwand-Notiz „${m.titel}“:`, (fehler as Error).message);
+          fehlgeschlagen.add(m.id);
+          continue;
+        }
+      }
+      workshops.aendere(workshopId, (x) => { const ziel = x.material.find((y) => y.id === m.id); if (ziel) ziel.karte = karte; });
+    }
+  })().finally(() => kartenLaufen.delete(workshopId));
+}
 
 /** Ein Material-Eintrag mit vollem Text; mit ?download als Markdown-Datei. */
 app.get("/api/workshops/:id/material/:mid", (req, res) => {
@@ -968,6 +1107,7 @@ app.get("/api/workshops/:id/material/:mid", (req, res) => {
   if (!w) return;
   const m = w.material.find((x) => x.id === req.params.mid);
   if (!m) return void res.status(404).json({ fehler: "Material nicht gefunden." });
+  if (req.query.ansehen !== undefined && m.datei) return void res.redirect(workshops.link(w, m));
   if (req.query.ansehen !== undefined) {
     // Zum Lesen im Browser (Merlin öffnet Material per Klick in einem neuen Tab)
     const esc = (t: string) => t.replace(/[&<>"]/g, (z) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[z]!);
@@ -979,6 +1119,8 @@ app.get("/api/workshops/:id/material/:mid", (req, res) => {
 });
 
 app.delete("/api/workshops/:id/material/:mid", (req, res) => {
+  const alt = workshops.hole(req.params.id)?.material.find((m) => m.id === req.params.mid);
+  if (alt?.datei) dateien.loesche(req.params.id, alt.id, alt.datei.endung);
   const w = workshops.aendere(req.params.id, (x) => (x.material = x.material.filter((m) => m.id !== req.params.mid)));
   if (!w) return void res.status(404).json({ fehler: "Workshop nicht gefunden." });
   res.json({ ok: true });

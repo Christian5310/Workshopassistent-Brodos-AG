@@ -99,7 +99,7 @@ function zeige() {
   $("#start-wahl-block").hidden = !neu;
   $("#bereiche").replaceChildren(
     ...(neu ? [] : BEREICHE).map(([id, name, iconName]) => {
-      const k = el("button", `select-item${id === bereich ? " is-active" : ""}`);
+      const k = el("button", `select-item leise${id === bereich ? " is-active" : ""}`);
       k.type = "button";
       k.setAttribute("aria-pressed", String(id === bereich));
       const text = el("span");
@@ -235,7 +235,8 @@ function zeigeMaterial() {
   } else {
     const t = el("table");
     const kopf = el("tr");
-    kopf.append(...["Titel", "Von", "Umfang", "Eingegangen", ""].map((s) => { const th = el("th", "", s); th.scope = "col"; return th; }));
+    kopf.append(...["Pin", "Titel", "Von", "Umfang", "Eingegangen", ""].map((s) => { const th = el("th", "", s); th.scope = "col"; return th; }));
+    kopf.firstChild.title = "Angehakt = erscheint als Notiz auf der Pinnwand";
     const thead = el("thead");
     thead.append(kopf);
     const tbody = el("tbody");
@@ -260,7 +261,18 @@ function zeigeMaterial() {
         await lade(aktuell.id);
       }));
       aktionen.append(ansehen, laden, weg);
-      for (const zelle of [m.titel, m.person || "–", `${m.zeichen.toLocaleString("de-DE")} Zeichen`, new Date(m.zeit).toLocaleDateString("de-DE"), aktionen]) {
+      // Pin: angehakt erscheint das Material als Notiz auf der Pinnwand (Merlin fasst es dann im Hintergrund zusammen)
+      const pin = el("input", "pin-haken");
+      pin.type = "checkbox";
+      pin.checked = m.pin === true;
+      pin.title = "Auf die Pinnwand";
+      pin.setAttribute("aria-label", `„${m.titel}" auf die Pinnwand`);
+      pin.addEventListener("change", versuche(async () => {
+        await sende(`/api/workshops/${aktuell.id}/material/${m.id}/pin`, { pin: pin.checked }, "PATCH");
+        m.pin = pin.checked;
+        $("#mat-meldung").textContent = (pin.checked ? `„${m.titel}" hängt an der Pinnwand. Merlin fasst es im Hintergrund zusammen.` : `„${m.titel}" ist von der Pinnwand genommen.`);
+      }));
+      for (const zelle of [pin, m.titel, m.person || "–", `${m.zeichen.toLocaleString("de-DE")} Zeichen`, new Date(m.zeit).toLocaleDateString("de-DE"), aktionen]) {
         const td = el("td");
         td.append(zelle);
         tr.append(td);
@@ -285,17 +297,32 @@ $("#mat-laden").addEventListener("click", () => $("#mat-datei").click());
 // Dateien: jede wird ein eigener Eintrag, der Dateiname wird zum Titel.
 async function ladeHoch(dateien) {
   try {
-  const passend = dateien.filter((d) => /\.(md|txt|markdown)$/i.test(d.name) || d.type.startsWith("text/"));
+  const passend = dateien.filter((d) => /\.(pdf|docx|xlsx|md|txt|markdown)$/i.test(d.name) && d.size <= 25 * 1024 * 1024);
   const ausgelassen = dateien.length - passend.length;
-  $("#mat-meldung").textContent = passend.length ? "Speichert …" : "";
+  const hinweise = [];
+  let nr = 0;
   for (const d of passend) {
-    await sende(`/api/workshops/${aktuell.id}/material`, { titel: d.name.replace(/\.(md|txt|markdown)$/i, ""), person: $("#mat-person").value, text: await d.text() });
+    $("#mat-meldung").textContent = `Speichert ${++nr} von ${passend.length}: ${d.name} …`;
+    if (/\.(md|txt|markdown)$/i.test(d.name)) {
+      await sende(`/api/workshops/${aktuell.id}/material`, { titel: d.name.replace(/\.(md|txt|markdown)$/i, ""), person: $("#mat-person").value, text: await d.text() });
+      continue;
+    }
+    // PDF, Word, Excel: Original hochladen, der Server liest den Text heraus
+    const antwort = await fetch(`/api/workshops/${aktuell.id}/datei`, {
+      method: "POST",
+      headers: { "Content-Type": "application/octet-stream", "X-Dateiname": encodeURIComponent(d.name), "X-Person": encodeURIComponent($("#mat-person").value) },
+      body: d,
+    });
+    const e = await antwort.json().catch(() => ({}));
+    if (!antwort.ok) throw new Error(e.fehler ?? `Fehler ${antwort.status} bei ${d.name}`);
+    if (!e.zeichen) hinweise.push(`In „${d.name}“ war kein Text lesbar (z. B. gescannt). Öffnen geht trotzdem.`);
   }
   $("#mat-datei").value = "";
   await lade(aktuell.id);
   $("#mat-meldung").textContent = [
     passend.length ? `${passend.length} Datei${passend.length === 1 ? "" : "en"} gespeichert.` : "",
-    ausgelassen ? `${ausgelassen} Datei${ausgelassen === 1 ? "" : "en"} übersprungen: nur .md und .txt möglich.` : "",
+    ausgelassen ? `${ausgelassen} Datei${ausgelassen === 1 ? "" : "en"} übersprungen: möglich sind PDF, Word (.docx), Excel (.xlsx), .md und .txt bis 25 MB.` : "",
+    ...hinweise,
   ].filter(Boolean).join(" ");
   } catch (fehler) {
     $("#mat-meldung").textContent = fehler.message;
@@ -353,7 +380,7 @@ function zeigeAbhaltenWs() {
     k.addEventListener("click", versuche(() => oeffne(zielBereich)));
     return k;
   };
-  ziel.replaceChildren(el("h2", "", "Abhalten"), feld("Meeting Assistent", "mic", "assistent"), feld("Agenten", "users", "agenten"));
+  ziel.replaceChildren(el("h2", "", "Abhalten"), feld("Meeting Assistent", "mic", "assistent"), feld("Agenten", "users", "agenten"), feld("Pinnwand", "pinnwand", "pinnwand"));
 }
 
 // Dialog zum Ansehen eines Materials

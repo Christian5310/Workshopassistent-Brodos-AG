@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/css/brodos.css"><title>Pin · BroKI</title></head>
+<!-- Eigenes Browserfenster zu einer Pinnwand-Notiz (geöffnet aus public/js/pinnwand.js); lässt sich auf den zweiten Bildschirm schieben -->
+<body class="pin-seite">
+  <header class="pin-kopf">
+    <div class="pin-kopf-text">
+      <span id="pin-format" class="pw-format"></span>
+      <h1 id="pin-titel">Notiz wird geladen …</h1>
+    </div>
+    <div class="pin-kopf-knoepfe">
+      <a id="pin-original" class="btn zweit" target="_blank" rel="noopener" hidden></a>
+      <button type="button" id="pin-zu" class="zweit"></button>
+    </div>
+  </header>
+  <main class="pin-inhalt">
+    <section class="pin-kurz" aria-labelledby="pin-kurz-titel">
+      <h2 id="pin-kurz-titel" class="pin-etikett">Kurzfassung</h2>
+      <p id="pin-kurz"></p>
+    </section>
+    <section aria-labelledby="pin-lang-titel">
+      <h2 id="pin-lang-titel" class="pin-etikett">Erweiterte Zusammenfassung</h2>
+      <div id="pin-lang" class="pin-lang"></div>
+    </section>
+    <section class="pin-frage" aria-labelledby="pin-frage-titel">
+      <h2 id="pin-frage-titel" class="pin-etikett">Mehr aus dem Material herausfinden</h2>
+      <form id="pin-form" class="pin-eingabe">
+        <input id="pin-feld" type="text" maxlength="500" autocomplete="off" placeholder="z. B. Welche Zahlen nennt das Material?" aria-label="Frage an Merlin zu diesem Material">
+        <button type="button" id="pin-mikro" class="icon-knopf" aria-pressed="false" aria-label="Frage sprechen: klicken, sprechen, noch einmal klicken" title="Frage sprechen: klicken, sprechen, noch einmal klicken"></button>
+        <button type="submit" id="pin-senden">Fragen</button>
+      </form>
+      <p class="pin-hinweis">Merlin antwortet nur aus diesem Material, ohne Namen.</p>
+      <ol id="pin-verlauf" class="pin-verlauf" aria-live="polite"></ol>
+    </section>
+  </main>
+  <script type="module" src="/js/pin.js"></script>
+</body>
+</html>
