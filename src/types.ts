@@ -63,6 +63,8 @@ export interface Schnappschuss {
   tag: { id: string; name: string; datum: string } | null;
   protokoll: Protokoll;
   /** Anzeigenamen der Spezial-Agenten (in der Admin-Ansicht einstellbar) */
+  /** Agenten, die gerade zuhören (angeklickt, warten auf den zweiten Klick) */
+  hoerend: string[];
   /** Die Agenten, die am geöffneten Meeting teilnehmen */
   agenten: { id: string; name: string; figur: string; farbe: string }[];
   /** Alle im Admin angelegten Agenten (zum Hinzufügen) */

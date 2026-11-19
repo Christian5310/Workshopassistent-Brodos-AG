@@ -164,7 +164,16 @@ export async function sende(pfad, daten = {}, methode = "POST") {
 const PALETTE = ["#0069b4", "#004080", "#31435e"];
 export const agentFarbe = (agent) => (PALETTE.includes(agent?.farbe) ? agent.farbe : PALETTE[0]);
 
+const BILDER = { frau: "/img/agent-frau.png", mann: "/img/agent-mann.png", brille: "/img/agent-brille.png" };
+
 export function avatar(agent, klasse = "") {
+  if (BILDER[agent?.figur]) {
+    const bild = el("img", `avatar ${klasse}`.trim());
+    bild.src = BILDER[agent.figur];
+    bild.alt = "";
+    bild.setAttribute("aria-hidden", "true");
+    return bild;
+  }
   const kreis = el("span", `avatar ${klasse}`.trim(), (agent?.name ?? "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase());
   kreis.style.setProperty("--agent", agentFarbe(agent));
   kreis.setAttribute("aria-hidden", "true");
@@ -178,7 +187,7 @@ export function zeigeChat(ziel, nachrichten, denkt = false) {
   if (stand === chatStand) return false;
   chatStand = stand;
   ziel.replaceChildren();
-  if (!nachrichten.length) ziel.append(el("p", "leer", "Noch keine Fragen. Die Spezial-Agenten antworten nur, wenn sie gefragt werden."));
+  if (!nachrichten.length) ziel.append(el("p", "leer", "Klicke oben auf einen Agenten, damit er zuhört, und stelle deine Frage. Mit einem zweiten Klick antwortet er."));
 
   const antwortZeile = (id, name, inhalt) => {
     const agent = AGENTEN.get(id) ?? { name, farbe: "#31435e" };

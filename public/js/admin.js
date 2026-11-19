@@ -185,13 +185,13 @@ let offenerAgent = null;
 let agentGespeichert = null;
 let figuren = [];
 let farben = [];
-const FIGURNAMEN = { sales: "Aktentasche (Vertrieb)", bpm: "Ablauf (Prozesse)", consultant: "Trend (Strategie)", kuerzel: "Person (allgemein)" };
+const FIGURNAMEN = { sales: "Aktentasche (Vertrieb)", bpm: "Ablauf (Prozesse)", consultant: "Trend (Strategie)", kuerzel: "Person (allgemein)", frau: "Foto: Frau (blau)", mann: "Foto: Mann (orange)", brille: "Foto: Mann mit Brille (grün)" };
 
 async function zeigeAgenten() {
   const { einstellungen } = await hole("/api/admin/einstellungen");
   const liste = $("#agent-liste");
   liste.replaceChildren();
-  const alle = offenerAgent === "neu" ? [{ id: "neu", name: "", beschreibung: "", wissen: "", figur: "kuerzel", farbe: farben[einstellungen.agenten.length % farben.length], neu: true }, ...einstellungen.agenten] : einstellungen.agenten;
+  const alle = offenerAgent === "neu" ? [{ id: "neu", name: "", beschreibung: "", wissen: "", figur: ["frau", "mann", "brille"].find((f) => !einstellungen.agenten.some((x) => x.figur === f)) ?? "kuerzel", farbe: farben[einstellungen.agenten.length % farben.length], neu: true }, ...einstellungen.agenten] : einstellungen.agenten;
 
   for (const a of alle) {
     const { d, inhalt } = eintrag({
@@ -269,6 +269,9 @@ async function zeigeAgenten() {
     if (a.neu) name.focus();
   }
   agentGespeichert = null;
+  const voll = einstellungen.agenten.length >= 3;
+  $("#agent-neu").hidden = voll;
+  $("#agent-hinweis").hidden = !voll;
 }
 $("#agent-neu").addEventListener("click", () => { offenerAgent = "neu"; zeigeAgenten(); });
 

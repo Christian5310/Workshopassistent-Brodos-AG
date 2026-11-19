@@ -7,7 +7,7 @@ import type { Adressat, Protokoll } from "./types.ts";
 
 // Globale Einstellungen: Spezial-Agenten, Prompts, Obergrenze. Gespeichert in data/einstellungen.json.
 // Hintergrundwissen, Fachbegriffe und Agenda gehören zum jeweiligen Meeting (store.ts).
-export const FIGUREN = ["sales", "bpm", "consultant", "kuerzel"] as const;
+export const FIGUREN = ["frau", "mann", "brille", "sales", "bpm", "consultant", "kuerzel"] as const;
 /** Nur Farben aus der Brodos-Palette (Designvorlage Abschnitt 4). */
 export const FARBEN = ["#0069b4", "#004080", "#31435e"] as const;
 
@@ -138,7 +138,7 @@ Regeln:
         name: "Sales Professional",
         beschreibung: "20 Jahre B2B-Vertrieb, Handel, Distribution. Denkt vom Kunden und vom Abschluss her, pragmatisch, skeptisch gegenüber Papierprozessen.",
         wissen: "",
-        figur: "sales",
+        figur: "mann",
         farbe: "#0069b4",
       },
       {
@@ -146,7 +146,7 @@ Regeln:
         name: "BPM Specialist",
         beschreibung: "Prozessmanagement und Automatisierung. Achtet auf Übergaben, Medienbrüche, fehlende Verantwortliche, Wartezeiten. Unterscheidet klar: feste Regel (klassische Automatisierung) vs. Urteilsvermögen (KI-Agent).",
         wissen: "",
-        figur: "bpm",
+        figur: "brille",
         farbe: "#004080",
       },
       {
@@ -154,7 +154,7 @@ Regeln:
         name: "Business Consultant",
         beschreibung: "Strategie und Umsetzung. Nutzen, Aufwand, Risiko, Reihenfolge, Change Management, erster Pilot mit Wirkung in 4–6 Wochen.",
         wissen: "",
-        figur: "consultant",
+        figur: "frau",
         farbe: "#31435e",
       },
     ],

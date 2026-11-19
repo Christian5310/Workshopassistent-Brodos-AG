@@ -185,7 +185,10 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
   async expertenrunde({ frage, an, verlauf }: ChatKontext): Promise<{ von: string; text: string }[]> {
     const gefragt = agentenFuer(store.daten.agenten).filter((a) => an === "alle" || a.id === an);
     const name = (id: string) => einstellungen.agenten.find((a) => a.id === id)?.name ?? "Agent";
-    const letzteMinuten = store.daten.transkript.slice(-5).map((t) => t.text).join("\n");
+    // Kontext: alles aus den letzten 60 Minuten (höchstens etwa 60.000 Zeichen, das Neueste bleibt erhalten)
+    const seit = Date.now() - 60 * 60_000;
+    let letzteMinuten = store.daten.transkript.filter((t) => t.zeit >= seit).map((t) => t.text).join("\n");
+    if (letzteMinuten.length > 60_000) letzteMinuten = "[… früher …]\n" + letzteMinuten.slice(-60_000);
     const format =
       `Antworte ausschließlich als JSON: {"antworten": [{"rolle": "…", "text": "…"}]}. ` +
       `Erlaubte Werte für "rolle": ${gefragt.map((a) => `"${a.id}" (${a.name})`).join(", ")}. ` +
@@ -198,7 +201,7 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
     }
     nachrichten.push({
       role: "user",
-      content: `${letzteMinuten ? `Zuletzt im Raum gesagt (Transkript, ohne Sprecher):\n${letzteMinuten}\n\n` : ""}Frage${an === "alle" ? "" : ` an ${name(an)}`}: ${frage}`,
+      content: `${letzteMinuten ? `Im Raum gesagt, letzte 60 Minuten (Transkript, ohne Sprecher):\n${letzteMinuten}\n\n` : ""}Frage${an === "alle" ? "" : ` an ${name(an)}`}: ${frage}`,
     });
 
     const geprueft = AntwortSchema.parse(await this.#frage(nachrichten, 1200));
