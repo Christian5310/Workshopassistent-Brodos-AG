@@ -719,19 +719,19 @@ body.pin-seite { min-height: 100vh; margin: 0; background: var(--surface-alt); }
 @media (max-width: 640px) { .pin-kopf, .pin-inhalt { padding-left: var(--space-2); padding-right: var(--space-2); } }
 
 /* ── Agenten-Bühne: drei Figuren oben, darunter die Antworten ── */
-.buehne { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--space-4); }
-.buehne .figur { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; width: 9rem; min-height: 0; padding: 0.5rem; border: 0; background: none; color: var(--ink); cursor: pointer; }
+.buehne { display: flex; justify-content: center; align-items: flex-start; flex-wrap: wrap; gap: 3rem; }
+.buehne .figur { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; width: 12rem; min-height: 0; padding: 0.5rem; border: 0; background: none; color: var(--ink); cursor: pointer; }
 .buehne .figur:hover:not(:disabled) { background: none; }
 .buehne .figur:disabled { cursor: default; opacity: 0.7; }
-.avatar.gross { width: 5rem; height: 5rem; font-size: 1.5rem; }
+.avatar.gross { width: 9rem; height: 9rem; font-size: 2.5rem; }
 img.avatar { object-fit: cover; background: transparent; }
 .buehne .figur .avatar { transition: filter 0.2s, opacity 0.2s; }
 .buehne .figur:not(.hoert) .avatar { filter: grayscale(0.6); opacity: 0.8; }
 .buehne .figur:hover:not(:disabled) .avatar { filter: none; opacity: 1; }
 .buehne .figur.hoert .avatar { animation: merlinhoert 1.2s ease-out infinite; box-shadow: 0 0 0 3px var(--brand); }
-.figur-name { font: 600 0.875rem/1.25rem var(--font); text-align: center; }
+.figur-name { font: 600 1rem/1.4rem var(--font); text-align: center; }
 .figur-zustand { min-height: 1rem; font: 500 0.75rem/1rem var(--font); color: var(--brand); }
 .buehne-status { margin: 0; text-align: center; color: var(--ink-muted); font-size: 0.875rem; }
-.seitenleiste.rechts { border-right: 0; border-left: 1px solid var(--line); width: 16.25rem; }
-@media (max-width: 900px) { .seitenleiste.rechts { border-left: 0; border-top: 1px solid var(--line); width: auto; } }
+.nur-lesegeraet { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.seitenleiste > .abhalten:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 @media (prefers-reduced-motion: reduce) { .buehne .figur.hoert .avatar { animation: none; } }

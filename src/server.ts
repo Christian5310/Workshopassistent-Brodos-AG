@@ -26,9 +26,6 @@ let arbeit: string | null = null;
 const zeigeArbeit = (text: string | null) => { arbeit = text; senden(); };
 /** So viele Spezial-Agenten lassen sich im Admin anlegen (die Bühne zeigt sie nebeneinander). */
 const MAX_AGENTEN = 3;
-/** Agenten, die gerade zuhören: id → Startzeit. Beim zweiten Klick werten sie aus, was seitdem gesagt wurde. */
-const hoerend = new Map<string, number>();
-let hoerendTag = "";
 let zyklusTimer: NodeJS.Timeout | null = null;
 let zyklusLaeuft = false;
 let pausiertUm = 0;
@@ -66,7 +63,6 @@ function schnappschuss(): Schnappschuss {
     agentenAlle: admin.einstellungen.agenten.map(({ id, name, figur, farbe }) => ({ id, name, figur, farbe })),
     workshop: store.istOffen ? workshopVon(store.daten.id) : null,
     chat: store.daten.chat,
-    hoerend: store.istOffen && hoerendTag === store.daten.id ? [...hoerend.keys()] : [],
     vorlesen: { stimme: admin.einstellungen.stimme, tempo: admin.einstellungen.lesetempo },
     pause: { an: admin.einstellungen.pauseAn, minuten: admin.einstellungen.pauseMinuten, sprechen: admin.einstellungen.pauseSprechen },
     status: { aufnahme, aufnahmeSeit, quelle, letzterZyklus: store.daten.letzterZyklus, zyklusSekunden: takt(), mock: config.mock, chat: chatStatus, hinweis, arbeit, rueckgaengig: schritte.at(-1)?.was ?? null },
@@ -341,7 +337,6 @@ async function stelleFrage(holeFrage: () => Promise<string | null>, an: Adressat
   if (!admin.agentenFuer(store.daten.agenten).length) return { ok: false, code: 400, fehler: "Für dieses Meeting ist noch kein Agent hinzugefügt." };
   if (chatStatus !== "bereit") return { ok: false, code: 409, fehler: "Die Spezial-Agenten denken noch nach." };
 
-  if (an === "alle") hoerend.clear(); else hoerend.delete(an);
   chatStatus = "denkt nach";
   senden();
   try {
@@ -376,31 +371,6 @@ async function frageStellen(holeFrage: () => Promise<string | null>, an: Adressa
  * Getippte Frage. Body: { text: string, an?: "alle"|"sales"|"bpm"|"consultant" }
  * Mit { sprache: true } liefert der Mock eine Beispiel-Frage (Push-to-Talk ohne echtes Mikrofon).
  */
-/**
- * Klick auf einen Agenten: Beim ersten Klick hört er zu, beim zweiten wertet er aus, was seitdem im Raum gesagt wurde.
- * Body: { id: "<agent>" }. Der Agent bekommt das Gesagte als Auftrag; den Kontext der letzten 60 Minuten kennt er aus dem Transkript.
- */
-app.post("/api/agenten-hoeren", async (req, res) => {
-  const id = String(req.body?.id ?? "");
-  if (!store.istOffen) return void res.status(409).json({ fehler: "Bitte erst ein Meeting oder einen Workshop öffnen." });
-  if (!admin.agent(id)) return void res.status(404).json({ fehler: "Agent nicht gefunden." });
-  if (hoerendTag !== store.daten.id) { hoerend.clear(); hoerendTag = store.daten.id; }
-  const seit = hoerend.get(id);
-  if (seit === undefined) {
-    if (!aufnahme) return void res.status(409).json({ fehler: "Die Aufnahme läuft nicht. Bitte erst die Aufnahme starten, oder die Frage unten tippen." });
-    hoerend.set(id, Date.now());
-    senden();
-    return void res.json({ hoert: true });
-  }
-  hoerend.delete(id);
-  senden();
-  const gesagt = store.daten.transkript.filter((t) => t.zeit >= seit - 1000).map((t) => t.text).join(" ").trim();
-  if (!gesagt) return void res.json({ hoert: false, leer: true });
-  const r = await stelleFrage(async () => gesagt, id);
-  if (!r.ok) return void res.status(r.code).json({ fehler: r.fehler });
-  res.json({ hoert: false });
-});
-
 app.post("/api/chat", (req, res) =>
   frageStellen(
     () => (req.body?.sprache ? anbieter.transkript.transkribiere(null, "chat") : Promise.resolve(String(req.body?.text ?? ""))),
