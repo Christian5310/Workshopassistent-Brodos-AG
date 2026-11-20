@@ -774,3 +774,9 @@ img.avatar { object-fit: cover; background: transparent; }
 .fuehrung-punkte li.war { background: #fff; }
 .fuehrung-punkte li.ist { background: var(--accent); transform: scale(1.5); }
 @media (prefers-reduced-motion: reduce) { .buehne-merlin, .fuehrung-buehne { transition: none; } .buehne-bubble, .bubble-kreis { animation: none; } }
+
+/* Freihand: Merlin atmet grün, solange er zuhört, auch im Meeting. Während der Aufnahme bleibt er "leise", aber nicht fast unsichtbar. */
+.merlin-knopf.lauscht:not(.hoert):not(.spricht):not(.denkt) { animation: lauschtatmet 2.8s ease-in-out infinite; }
+.merlin-knopf.lauscht.schwebt:not(.hoert):not(.spricht):not(.denkt) { animation: merlinschwebt 3.2s ease-in-out infinite alternate, lauschtatmet 2.8s ease-in-out infinite; }
+.merlin-knopf.leise.lauscht { opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) { .merlin-knopf.lauscht:not(.hoert):not(.spricht):not(.denkt), .merlin-knopf.lauscht.schwebt:not(.hoert):not(.spricht):not(.denkt) { animation: none; } }
