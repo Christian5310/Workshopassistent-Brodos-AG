@@ -22,7 +22,7 @@ export const FUEHRUNG = [
   {
     text: "Hier startet ihr. Wählt zwischen Meeting oder Workshop, legt Teilnehmer und Agenda an und ladet Infomaterial für den Kontext hoch. Fertig!",
     bilder: [{ datei: "1.png", titel: "Startscreen: Meeting oder Workshop", x: 69, y: 47, groesse: 60, von: "rechts", fokus: "50% 48%", zoom: 1.25 },
-      { datei: "7.png", titel: "Einrichten: Teilnehmer, Agenda und Material", x: 86, y: 80, groesse: 30, von: "unten", fokus: "25% 45%", zoom: 1.3, nach: 2400 },
+      { datei: "7.png", titel: "Einrichten: Teilnehmer, Agenda und Material", x: 86, y: 80, groesse: 30, von: "unten", fokus: "25% 45%", zoom: 1.3, nach: 3400 },
     ],
   },
   {
@@ -36,7 +36,7 @@ export const FUEHRUNG = [
     text: "Und ihr habt drei Experten dabei. Ihr könnt sie per Sprache fragen oder eure Frage tippen. Wichtig: Sie greifen auf Wissen zurück, das ihr vorher bei ihnen hinterlegen müsst. Je besser das Wissen, desto besser die Antworten.",
     bilder: [
       { datei: "3.png", titel: "Drei Experten", x: 68, y: 44, groesse: 60, von: "rechts", passt: true, fokus: "50% 42%", zoom: 1.12 },
-      { datei: "3b.png", titel: "Material und Wissen hinterlegen", x: 80, y: 82, groesse: 30, von: "unten", fokus: "0% 30%", nach: 4500 },
+      { datei: "3b.png", titel: "Wissen hochladen", x: 80, y: 82, groesse: 30, von: "unten", nach: 4500 },
     ],
   },
   {
