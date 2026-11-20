@@ -16,7 +16,11 @@ export const FUEHRUNG = [
     text: "Hallo zusammen! Ich bin Merlin und ich zeige euch nun kurz, wie die neue Broki Meeting App funktioniert. Los geht's!",
   },
   {
-    text: "Hier startet ihr. Entweder mit einem Meeting für den Arbeitsalltag oder mit einem Workshop für den großen Rahmen, mit Teilnehmenden und Material. Einfach auswählen, Agenda eintragen, fertig.",
+    text: "Und das Wichtigste: Ihr könnt mich jederzeit mit meinem Namen ansprechen. Sagt einfach „Merlin“ und dann, was ihr braucht, zum Beispiel einen Bereich öffnen, ein To-do anlegen oder abhaken. Ich führe es für euch aus.",
+    bilder: [{ datei: "6.png", titel: "Mit Merlin sprechen: „Hallo Merlin …“", x: 68, y: 47, groesse: 58, von: "rechts", passt: true }],
+  },
+  {
+    text: "Hier startet ihr. Wählt zwischen Meeting oder Workshop, legt Teilnehmer und Agenda an und ladet Infomaterial für den Kontext hoch. Fertig!",
     bilder: [{ datei: "1.png", titel: "Startscreen: Meeting oder Workshop", x: 69, y: 47, groesse: 60, von: "rechts", fokus: "50% 48%", zoom: 1.25 }],
   },
   {
