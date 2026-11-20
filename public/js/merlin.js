@@ -500,10 +500,19 @@ export function starteMerlin(rahmen) {
     speechSynthesis.addEventListener("voiceschanged", los, { once: true });
     setTimeout(los, 1500);
   }
+  // Wächter: Manche Online-Stimmen melden das Ende nie ("onend" fehlt). Dann bliebe Merlin für immer im Zustand "spricht",
+  // das freie Zuhören pausiert und die Aufnahme bliebe stumm. Spricht der Browser nicht mehr, wird nach kurzer Zeit aufgeräumt.
+  let sprechBeginn = 0;
+  setInterval(() => {
+    if (!knopf.classList.contains("spricht") || fuehrung || !("speechSynthesis" in window)) return;
+    const vergangen = Date.now() - sprechBeginn;
+    if ((!speechSynthesis.speaking && !speechSynthesis.pending && vergangen > 4000) || vergangen > 90_000) verstumme();
+  }, 1000);
   function sprich(text, beiEnde = null) {
     if (!("speechSynthesis" in window) || !text) return;
     speechSynthesis.cancel();
     rahmen.steuerung.aufnahme.stumm = true; // Merlin soll sich nicht selbst mitschreiben
+    sprechBeginn = Date.now();
     zustand("spricht");
     if (modus === "ansage") beschrifte($("#merlin-sprechen"), "pause", "Stopp");
     mitStimmen(() => {
