@@ -48,13 +48,14 @@ function starteMerlinMitte() {
     mitte.classList.toggle("offen", an);
     figur.setAttribute("aria-expanded", String(an));
   };
-  // Während der Führung bedeutet jeder Klick auf Merlin oder seine Sprechblase: Führung beenden
-  const beendeFuehrung = () => window.parent?.merlin?.navigator?.beendeFuehrung?.();
-  const umschalten = () => (document.body.classList.contains("fuehrung-an") ? beendeFuehrung() : aufgeklappt(!mitte.classList.contains("offen")));
+  const umschalten = () => aufgeklappt(!mitte.classList.contains("offen"));
   figur.addEventListener("click", umschalten);
   frage.addEventListener("click", umschalten);
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") (document.body.classList.contains("fuehrung-an") ? beendeFuehrung() : aufgeklappt(false)); });
-  $("#fuehrung-ende").addEventListener("click", beendeFuehrung);
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    window.parent?.merlin?.navigator?.beendeFuehrung?.(); // läuft gerade die Führung, beendet Esc sie
+    aufgeklappt(false);
+  });
 
   // Sprachsteuerung über Merlin im Rahmen (public/js/merlin.js), ohne dessen Fenster zu öffnen; seine Antworten erscheinen hier in der Sprechblase
   const navi = window.parent?.merlin?.navigator;
@@ -65,46 +66,15 @@ function starteMerlinMitte() {
   mikro.addEventListener("click", () => navi.hoereLeise());
   $("#fuehrung-start").addEventListener("click", () => navi.starteFuehrung());
 
-  // Führung durch die App: Merlin spricht (Text in der Sprechblase), hier erscheinen Bild, Fortschritt und "Führung beenden"
-  const bildFeld = $("#fuehrung-bild-feld");
-  const zeigeFuehrung = (s) => {
-    const an = !!s && !s.aus;
-    document.body.classList.toggle("fuehrung-an", an);
-    $("#fuehrung-leiste").hidden = !an;
-    $(".merlin-mikro-bereich").hidden = an;
-    if (!an) {
-      document.body.classList.remove("fuehrung-bild-an");
-      bildFeld.hidden = true;
-      frage.innerHTML = startText;
-      aufgeklappt(!!s?.fertig); // nach der Führung: Meeting und Workshop stehen zur Wahl
-      return;
-    }
-    aufgeklappt(false);
-    if (!$("#fuehrung-punkte").children.length || $("#fuehrung-punkte").children.length !== s.gesamt) {
-      $("#fuehrung-punkte").replaceChildren(...Array.from({ length: s.gesamt }, () => el("li")));
-    }
-    [...$("#fuehrung-punkte").children].forEach((punkt, i) => {
-      punkt.className = i < s.index ? "war" : i === s.index ? "ist" : "";
-      if (i === s.index) punkt.setAttribute("aria-current", "step"); else punkt.removeAttribute("aria-current");
-    });
-    document.body.classList.toggle("fuehrung-bild-an", !!s.bild);
-    bildFeld.hidden = !s.bild;
-    if (s.bild) {
-      $("#fuehrung-bild").src = `/img/fuehrung/${s.bild}.png`;
-      $("#fuehrung-bild").alt = `Bildschirmfoto: ${s.titel}`;
-      $("#fuehrung-titel").textContent = s.titel;
-      bildFeld.classList.remove("neu");
-      void bildFeld.offsetWidth; // Einblende-Animation neu starten
-      bildFeld.classList.add("neu");
-    }
-  };
+  // Führung durch die App: die Bühne liegt im App-Rahmen (public/js/fuehrung-buehne.js). Danach stehen Meeting und Workshop zur Wahl.
+  const nachDerFuehrung = (s) => { if (s?.aus && s.fertig) aufgeklappt(true); };
 
   // Freihand-Modus: Merlin hört ohne Klick zu (Admin → Erweitert). Der Hinweis zeigt, wie man ihn anspricht, oder was nicht klappt.
   let lauscht = false;
   const GRUND_TEXT = () => (lauscht ? "Merlin hört zu. Sag „Merlin, …“" : "Mit Merlin sprechen");
   const abmelden = navi.beobachte({
     sage: (text) => { frage.textContent = text; },
-    fuehrung: zeigeFuehrung,
+    fuehrung: nachDerFuehrung,
     lauscht: ({ an, hinweis }) => {
       lauscht = an;
       mikro.classList.toggle("lauscht", an);
@@ -123,7 +93,7 @@ function starteMerlinMitte() {
       if (!name && frage.textContent === "Einen Moment …") frage.innerHTML = startText;
     },
   });
-  addEventListener("pagehide", () => { abmelden(); navi.hoerAbbrechen(); navi.beendeFuehrung?.(); });
+  addEventListener("pagehide", () => { abmelden(); navi.hoerAbbrechen(); });
 }
 $("#titel").textContent = modus === "start" ? "Was möchtest du abhalten?" : "Meeting Assistent";
 $("#unterzeile").textContent = modus === "start" ? "" : "Richte ein neues Meeting ein oder öffne ein bestehendes.";

@@ -23,7 +23,6 @@ const MAX_HOEREN_MS = 12_000;
  * @param {() => string} rahmen.bereich
  * @param {object} rahmen.steuerung window.merlin (starten, pausieren, aufnahme)
  * @param {() => boolean} rahmen.istAufnahmegeraet
- * @param {(namen: string[]) => void} [rahmen.licht] lässt Punkte der Navigation leuchten (Führung durch die App)
  */
 export function starteMerlin(rahmen) {
   let stand = null;
@@ -575,7 +574,7 @@ export function starteMerlin(rahmen) {
   });
   $("#merlin-zurueck").addEventListener("click", () => { verstumme(); sage(begruessungstext()); });
 
-  // ── Führung durch die App: Merlin bleibt auf dem Startscreen, spricht und zeigt Bilder (public/js/fuehrung-stationen.js) ──
+  // ── Führung durch die App: Merlin bleibt auf dem Startscreen, spricht, und die Bühne zeigt Bubbles (fuehrung-stationen.js, fuehrung-buehne.js) ──
   const warte = (ms) => new Promise((fertig) => setTimeout(fertig, ms));
   /** Liest einen Text satzweise vor und wartet bis zum Ende. Satzweise, weil manche Browser-Stimmen bei langen Texten abbrechen. */
   async function sprichBis(text, lauf) {
@@ -613,21 +612,20 @@ export function starteMerlin(rahmen) {
     if (rahmen.bereich() !== "start") rahmen.gehe("start", true);
     for (let i = 0; i < 40 && !beobachter.size && !lauf.aus; i++) await warte(100);
     if (lauf.aus) return;
-    for (const s of FUEHRUNG) if (s.bild) new Image().src = `/img/fuehrung/${s.bild}.png`; // vorladen
+    for (const s of FUEHRUNG) for (const b of s.bilder ?? []) new Image().src = `/img/fuehrung/${b.datei}`; // vorladen
     for (const [i, s] of FUEHRUNG.entries()) {
       if (lauf.aus) return;
-      rahmen.licht?.(s.licht ?? []);
-      fuehrungStand = { index: i, gesamt: FUEHRUNG.length, bild: s.bild ?? null, titel: s.titel ?? "" };
+      // Die Bühne (public/js/fuehrung-buehne.js) zeigt Merlin und die Bubbles. Text gibt es nur als Sprache, hier für Screenreader.
+      fuehrungStand = { index: i, gesamt: FUEHRUNG.length, bilder: s.bilder ?? [], text: s.text };
       melde("fuehrung", fuehrungStand);
-      sage(s.text);
       await sprichBis(s.text, lauf);
       if (lauf.aus) return;
-      await warte(i === FUEHRUNG.length - 1 ? 0 : 600);
+      await warte(i === FUEHRUNG.length - 1 ? 300 : 700);
     }
     if (lauf.aus) return;
     fuehrung = null;
     fuehrungStand = null;
-    rahmen.licht?.([]);
+    letzteSprache = Date.now() + 2500; // Musik blendet noch aus: das freie Zuhören wartet kurz
     melde("fuehrung", { aus: true, fertig: true }); // Startscreen: Meeting und Workshop stehen wieder zur Wahl
   }
   /** Beendet die Führung (Klick auf Merlin, Esc, "Führung beenden"). Sie läuft immer auf dem Startscreen, der dann wie gewohnt dasteht. */
@@ -639,7 +637,7 @@ export function starteMerlin(rahmen) {
     lauf.aus = true;
     verstumme();
     lauf.weiter?.();
-    rahmen.licht?.([]);
+    letzteSprache = Date.now() + 2000;
     melde("fuehrung", { aus: true, fertig: false });
   }
 
@@ -782,7 +780,7 @@ export function starteMerlin(rahmen) {
     beobachte: (b) => {
       beobachter.add(b);
       // Startseite wurde während der Führung (neu) geladen: sofort die aktuelle Station zeigen
-      if (fuehrung && fuehrungStand) { b.fuehrung?.(fuehrungStand); b.sage?.(blase.textContent); }
+      if (fuehrung && fuehrungStand) b.fuehrung?.(fuehrungStand);
       if (zuhoerer) b.lauscht?.({ an: true, hinweis: "" });
       return () => beobachter.delete(b);
     },

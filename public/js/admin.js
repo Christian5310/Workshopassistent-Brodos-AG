@@ -492,3 +492,20 @@ try {
     addEventListener("pagehide", () => { abmelden(); ohnePegel(); });
   }
 } catch {}
+
+// ── Führung durch die App: Lautstärke der Hintergrundmusik (gilt je Gerät und sofort) ──
+try {
+  const musik = window.parent?.merlin?.fuehrungMusik;
+  const speicher = () => { try { return localStorage.getItem("broki-fuehrung-musik"); } catch { return null; } };
+  $("#musik").value = speicher() ?? 30;
+  const zeigeMusik = () => ($("#musik-wert").textContent = Number($("#musik").value) === 0 ? "aus" : `${$("#musik").value} %`);
+  zeigeMusik();
+  $("#musik-probe").replaceChildren(icon("play"), "Musik anhören");
+  $("#musik").addEventListener("input", () => {
+    zeigeMusik();
+    try { localStorage.setItem("broki-fuehrung-musik", $("#musik").value); } catch {}
+    musik?.aktualisiere();
+  });
+  $("#musik-probe").addEventListener("click", () => musik?.probe());
+  if (!musik) $("#musik-probe").disabled = true;
+} catch {}

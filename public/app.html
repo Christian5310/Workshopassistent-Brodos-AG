@@ -32,6 +32,15 @@
       <img src="/img/merlin-avatar.png" alt="">
       <span class="sr-only">Mit Merlin sprechen</span>
     </button>
+    <!-- Führung durch die App (public/js/fuehrung-buehne.js): weich gezeichneter Hintergrund, Merlin links mit beweglichem Mund, Bubbles rechts. Kein Text, nur Sprache. -->
+    <div id="buehne" class="fuehrung-buehne" hidden role="dialog" aria-label="Führung durch die App">
+      <p id="buehne-text" class="sr-only" aria-live="polite"></p>
+      <button type="button" id="buehne-merlin" class="buehne-merlin" data-platz="mitte" title="Klick beendet die Führung" aria-label="Führung beenden">
+        <span class="buehne-gesicht"><img class="zu" src="/img/merlin-mund-zu.jpg" alt=""><img class="auf" src="/img/merlin-hoert.webp" alt=""></span>
+      </button>
+      <div id="buehne-bubbles" class="buehne-bubbles"></div>
+      <div class="buehne-leiste"><ol id="buehne-punkte" class="fuehrung-punkte" aria-label="Fortschritt der Führung"></ol><button type="button" id="buehne-ende" class="zweit klein">Führung beenden</button></div>
+    </div>
     <section id="merlin" class="merlin-panel" hidden aria-label="Merlin">
       <div class="merlin-kopf"><b>Merlin</b><button type="button" id="merlin-zurueck" class="textlink klein-text">Start</button><button type="button" id="merlin-zu" class="textlink klein-text">Schließen</button></div>
       <div id="merlin-stationen" class="merlin-stationen" role="tablist" hidden></div>

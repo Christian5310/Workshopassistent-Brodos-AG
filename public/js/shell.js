@@ -3,6 +3,7 @@
 import { Aufnahme } from "./aufnahme.js";
 import { sende, verbinde } from "./common.js";
 import { starteMerlin } from "./merlin.js";
+import { starteBuehne } from "./fuehrung-buehne.js";
 
 const $ = (id) => document.querySelector(id);
 
@@ -95,12 +96,10 @@ window.merlin = {
 };
 
 // ── Merlin: schwebt außerhalb des Fensters, navigiert, stimmt ein, erinnert an Pausen ──
-/** Führung durch die App: lässt die genannten Punkte der oberen Navigation leuchten (leere Liste = aus). */
-function licht(namen) {
-  for (const a of document.querySelectorAll(".app-kopf nav a")) a.classList.toggle("fuehrung-licht", namen.includes(a.dataset.nav));
-}
-merlinNavi = starteMerlin({ gehe: geheZu, bereich: aktuellerBereich, steuerung: window.merlin, istAufnahmegeraet: () => istAufnahmegeraet(), licht });
+merlinNavi = starteMerlin({ gehe: geheZu, bereich: aktuellerBereich, steuerung: window.merlin, istAufnahmegeraet: () => istAufnahmegeraet() });
 window.merlin.navigator = merlinNavi.schnittstelle;
+// Bühne der Führung durch die App (Merlin links, Bubbles rechts, Musik); die Lautstärke der Musik stellt Admin → Erweitert ein
+window.merlin.fuehrungMusik = starteBuehne(merlinNavi.schnittstelle).musik;
 
 let meetingOffen = false;
 let meetingName = "";

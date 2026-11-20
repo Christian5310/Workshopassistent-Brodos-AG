@@ -9,3 +9,6 @@ CLAUDE.md
 # Lokaler Whisper-Dienst: Python-Umgebung und Modelle nicht ins Repo
 lokal/.venv/
 lokal/modelle/
+
+# Hintergrundmusik der Führung: Nutzungsrechte klären, bevor sie ins Repo kommt (Datei public/audio/fuehrung.mp3 liegt nur lokal)
+public/audio/
