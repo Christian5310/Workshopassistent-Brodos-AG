@@ -14,7 +14,9 @@ Merlin erklärt auf Zuruf in etwa zwei Minuten, was die App kann. Der Hintergrun
 **Screenshots:** liegen in `public/img/fuehrung/` (`1.png` bis `5b.png`: Zahl = Station, b/c = kleine zusätzliche Bubble) und sind im Drehbuch zugeordnet. Kreise schneiden die Ecken ab. Bei nicht quadratischen Bildern bestimmen `fokus` (Mittelpunkt in Prozent) und `zoom` den Ausschnitt, `passt: true` zeigt das ganze Bild mit hellem Rand. Mehrere Bubbles je Station sind möglich (große und kleine, versetzt über `nach`). Neue Bilder am besten quadratisch, ab etwa 1000 Pixel, Wichtiges in der Mitte.
 
 ## Merlins Gesicht
-Zwei Bilder wechseln beim Sprechen: `public/img/merlin-mund-zu.jpg` und `public/img/merlin-hoert.webp` (Mund offen). Wechsel im Takt von Silben mit zufälligen Pausen. Echte Lippen-Synchronität gibt die Browser-Stimme nicht her.
+Zwei Bilder wechseln beim Sprechen: `public/img/merlin-mund-zu.jpg` und `public/img/merlin-hoert.webp` (Mund offen). Der Mund folgt dem Text: Der Satz wird in Wörter und Silben zerlegt, je Silbe geht der Mund auf und zu, zwischen Wörtern und an Satzzeichen bleibt er zu. Er startet erst, wenn die Stimme wirklich anfängt. Meldet die Stimme jedes Wort (die Windows-Stimmen tun das), richtet sich der Mund bei jedem Wort neu aus. Echte Lippen-Synchronität gibt die Browser-Stimme nicht her.
+
+**Stimme:** Browser laden die Stimmenliste erst beim ersten Zugriff. Merlin lädt sie jetzt beim Start der App vor und wartet beim Sprechen darauf, sonst sprach der erste Satz mit der Standardstimme des Geräts.
 
 ## Hintergrundmusik
 - Datei: `public/audio/fuehrung.mp3` (liegt nur lokal und ist per `.gitignore` aus Git heraus, weil die Nutzungsrechte noch zu klären sind). Auf einem zweiten Laptop dort selbst ablegen. Fehlt die Datei, läuft die Führung ohne Musik.

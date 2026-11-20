@@ -481,18 +481,36 @@ export function starteMerlin(rahmen) {
     const alle = speechSynthesis.getVoices();
     return alle.find((s) => v.stimme && s.name === v.stimme) ?? alle.find((s) => s.lang?.startsWith("de")) ?? null;
   };
+  // Browser laden die Stimmenliste erst beim ersten Zugriff. Ohne Vorlauf spräche der erste Satz mit der Standardstimme des Geräts.
+  if ("speechSynthesis" in window) {
+    speechSynthesis.getVoices();
+    speechSynthesis.addEventListener?.("voiceschanged", () => speechSynthesis.getVoices());
+  }
+  /** Führt fn aus, sobald die Stimmenliste da ist (höchstens 1,5 s warten). */
+  function mitStimmen(fn) {
+    if (speechSynthesis.getVoices().length) return fn();
+    let fertig = false;
+    const los = () => { if (!fertig) { fertig = true; fn(); } };
+    speechSynthesis.addEventListener("voiceschanged", los, { once: true });
+    setTimeout(los, 1500);
+  }
   function sprich(text, beiEnde = null) {
     if (!("speechSynthesis" in window) || !text) return;
     speechSynthesis.cancel();
-    const satz = new SpeechSynthesisUtterance(text);
-    satz.lang = "de-DE";
-    satz.voice = stimme();
-    satz.rate = stand?.vorlesen?.tempo ?? 0.98;
-    satz.onend = satz.onerror = () => { letzteSprache = Date.now(); verstumme(); beiEnde?.(); };
     rahmen.steuerung.aufnahme.stumm = true; // Merlin soll sich nicht selbst mitschreiben
     zustand("spricht");
     if (modus === "ansage") beschrifte($("#merlin-sprechen"), "pause", "Stopp");
-    speechSynthesis.speak(satz);
+    mitStimmen(() => {
+      const satz = new SpeechSynthesisUtterance(text);
+      satz.lang = "de-DE";
+      satz.voice = stimme();
+      satz.rate = stand?.vorlesen?.tempo ?? 0.98;
+      // Für den Mund der Führung: Beginn der echten Sprachausgabe und, wo die Stimme es meldet, jedes gesprochene Wort
+      satz.onstart = () => melde("sprechen", { text, tempo: satz.rate });
+      satz.onboundary = (e) => { if (e.name !== "sentence") melde("wort", e.charIndex); };
+      satz.onend = satz.onerror = () => { melde("sprechen", null); letzteSprache = Date.now(); verstumme(); beiEnde?.(); };
+      speechSynthesis.speak(satz);
+    });
   }
   function verstumme() {
     if (knopf.classList.contains("spricht")) letzteSprache = Date.now();

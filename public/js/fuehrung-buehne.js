@@ -98,22 +98,49 @@ export function starteBuehne(navi) {
   new Image().src = "/img/merlin-mund-zu.jpg"; // beide Gesichter vorladen, sonst flackert der erste Mundwechsel
   new Image().src = "/img/merlin-hoert.webp";
 
-  let mundTimer = null;
   let bubbleTimer = [];
   let verbergen = null;
 
-  // ── Mund: abwechselnd zu und auf, solange Merlin spricht. Die Browser-Stimme verrät den Ton nicht, deshalb im Takt von Silben und mit Auslassern. ──
+  // ── Mund: folgt dem gesprochenen Text. Die Browser-Stimme verrät ihren Ton nicht, deshalb wird der Satz in Wörter und Silben zerlegt:
+  // je Silbe geht der Mund auf und wieder zu, zwischen Wörtern und an Satzzeichen bleibt er zu. Gestartet wird erst, wenn die Stimme wirklich anfängt.
+  // Melden Stimmen jedes Wort (Ereignis "wort"), richtet sich der Mund bei jedem Wort neu danach aus. ──
   const mund = (auf) => merlin.classList.toggle("mund-auf", auf);
-  function sprechen(an) {
-    clearTimeout(mundTimer);
-    musik.duck(an);
-    if (!an) return mund(false);
-    const takt = (auf) => {
-      mund(auf);
-      const pause = auf ? 85 + Math.random() * 90 : Math.random() < 0.15 ? 220 + Math.random() * 120 : 65 + Math.random() * 105;
-      mundTimer = setTimeout(() => takt(!auf), pause);
-    };
-    takt(true);
+  let plan = null;
+  let mundFrame = 0;
+  function planeMund(text, tempo) {
+    const silbe = 165 / (tempo || 1); // etwa 6 Silben je Sekunde
+    const offen = [];
+    const wortStart = new Map();
+    let t = 0;
+    for (const m of text.matchAll(/\S+/g)) {
+      const wort = m[0];
+      wortStart.set(m.index, t);
+      const silben = Math.max(1, (wort.toLowerCase().match(/[aeiouäöüy]+/g) ?? []).length);
+      for (let i = 0; i < silben; i++) { offen.push([t, t + silbe * 0.62]); t += silbe; }
+      t += 35;
+      const zeichen = wort.slice(-1);
+      if (",;".includes(zeichen)) t += 170;
+      else if (".!?:".includes(zeichen)) t += 320;
+    }
+    return { offen, wortStart };
+  }
+  function mundSchleife() {
+    if (!plan) return;
+    const jetzt = performance.now() - plan.start + plan.versatz;
+    mund(plan.offen.some(([von, bis]) => jetzt >= von && jetzt < bis));
+    mundFrame = requestAnimationFrame(mundSchleife);
+  }
+  function spricht(info) {
+    cancelAnimationFrame(mundFrame);
+    plan = null;
+    mund(false);
+    if (!info || buehne.hidden) return;
+    plan = { ...planeMund(info.text, info.tempo), start: performance.now(), versatz: 0 };
+    mundSchleife();
+  }
+  function wort(index) {
+    const t = plan?.wortStart.get(index);
+    if (t !== undefined) plan.versatz = t - (performance.now() - plan.start);
   }
 
   // ── Bubbles ──
@@ -147,8 +174,7 @@ export function starteBuehne(navi) {
   }
 
   function ende() {
-    clearTimeout(mundTimer);
-    mund(false);
+    spricht(null);
     bubbleWeg();
     musik.stopp(1800);
     buehne.classList.remove("an");
@@ -160,7 +186,9 @@ export function starteBuehne(navi) {
   $("#buehne-ende").addEventListener("click", () => navi.beendeFuehrung());
   navi.beobachte({
     fuehrung: (s) => (s && !s.aus ? zeige(s) : ende()),
-    zustand: (name) => sprechen(name === "spricht" && !buehne.hidden),
+    sprechen: spricht,
+    wort,
+    zustand: (name) => { musik.duck(name === "spricht"); if (name !== "spricht") spricht(null); },
   });
   return { musik };
 }
