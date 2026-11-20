@@ -11,7 +11,7 @@ Merlin erklärt auf Zuruf in etwa zwei Minuten, was die App kann. Der Hintergrun
 ## Texte, Bilder, Bubbles ändern
 `public/js/fuehrung-stationen.js`: je Station `text` und `bilder`. Pro Bubble: `datei`, `x`/`y` (Mitte in Prozent der Bühne), `groesse` (in vmin), `von` (rechts/links/oben/unten), `nach` (Verzögerung in ms), `fokus`/`zoom` für breite Screenshots. Ohne `bilder` bleibt Merlin allein in der Mitte. Die Beschreibung steht am Dateianfang.
 
-**Eigene Screenshots:** in `public/img/fuehrung/` ablegen und in der Station eintragen. Kreise schneiden die Ecken ab, deshalb das Wichtige in die Mitte setzen, am besten quadratige Ausschnitte (ab etwa 1000 Pixel). Mehrere Bubbles je Station sind möglich (große und kleine, versetzt über `nach`).
+**Screenshots:** liegen in `public/img/fuehrung/` (`1.png` bis `5b.png`: Zahl = Station, b/c = kleine zusätzliche Bubble) und sind im Drehbuch zugeordnet. Kreise schneiden die Ecken ab. Bei nicht quadratischen Bildern bestimmen `fokus` (Mittelpunkt in Prozent) und `zoom` den Ausschnitt, `passt: true` zeigt das ganze Bild mit hellem Rand. Mehrere Bubbles je Station sind möglich (große und kleine, versetzt über `nach`). Neue Bilder am besten quadratisch, ab etwa 1000 Pixel, Wichtiges in der Mitte.
 
 ## Merlins Gesicht
 Zwei Bilder wechseln beim Sprechen: `public/img/merlin-mund-zu.jpg` und `public/img/merlin-hoert.webp` (Mund offen). Wechsel im Takt von Silben mit zufälligen Pausen. Echte Lippen-Synchronität gibt die Browser-Stimme nicht her.
@@ -20,12 +20,6 @@ Zwei Bilder wechseln beim Sprechen: `public/img/merlin-mund-zu.jpg` und `public/
 - Datei: `public/audio/fuehrung.mp3` (liegt nur lokal und ist per `.gitignore` aus Git heraus, weil die Nutzungsrechte noch zu klären sind). Auf einem zweiten Laptop dort selbst ablegen. Fehlt die Datei, läuft die Führung ohne Musik.
 - Lautstärke: Admin → Erweitert → Führung durch die App (je Gerät, 0 = aus). Unter Merlins Stimme wird sie automatisch leiser, Ein- und Ausblenden sind weich.
 - Der Beamer-Ton muss am Laptop hängen.
-
-## Platzhalter-Bilder erzeugen
-```powershell
-node scripts/fuehrung-bilder.mjs
-```
-Das Skript kopiert die App in einen Wegwerf-Ordner, startet sie dort im Mock-Modus mit Beispieldaten und fotografiert die Bereiche mit Chrome oder Edge. Echte Daten und `.env` bleiben unberührt. Ergebnis: `public/img/fuehrung/*.png`. Anderer Browser: Umgebungsvariable `CHROME_PFAD`.
 
 ## Technik
 - Server (`src/merlin.ts`): Aktion `fuehrung` (feste Regel `FUEHRUNG`, auch in der KI-Liste), Ablehnung bei laufender Aufnahme in `aufloesen`.

@@ -59,6 +59,32 @@ function erstelleMusik() {
   };
 }
 
+/** Eine Bubble (Kreis mit Screenshot) als Element; Position, Größe und Herkunft stehen in fuehrung-stationen.js. */
+export function erzeugeBubble(b) {
+  const [dx, dy] = VON[b.von] ?? VON.rechts;
+  const aussen = document.createElement("div");
+  aussen.className = "buehne-bubble";
+  aussen.style.setProperty("--x", `${b.x ?? 68}%`);
+  aussen.style.setProperty("--y", `${b.y ?? 50}%`);
+  aussen.style.setProperty("--g", `${b.groesse ?? 56}vmin`);
+  aussen.style.setProperty("--dx", dx);
+  aussen.style.setProperty("--dy", dy);
+  const kreis = document.createElement("div");
+  kreis.className = "bubble-kreis";
+  kreis.style.animationDelay = `${-Math.random() * 4}s`; // jede schwebt in ihrem eigenen Takt
+  const bild = document.createElement("img");
+  bild.src = `/img/fuehrung/${b.datei}`;
+  bild.alt = b.titel ?? "";
+  // Standard: der Kreis zeigt einen Ausschnitt (fokus = Mittelpunkt, zoom = Vergrößerung). "passt": das ganze Bild, mit hellem Rand oben und unten.
+  bild.style.objectFit = b.passt ? "contain" : "cover";
+  bild.style.objectPosition = b.fokus ?? "50% 50%";
+  bild.style.transformOrigin = b.fokus ?? "50% 50%";
+  bild.style.transform = `scale(${b.zoom ?? 1})`;
+  kreis.append(bild);
+  aussen.append(kreis);
+  return aussen;
+}
+
 /**
  * @param {object} navi merlin.js, schnittstelle: beobachte()
  * @returns {{ musik: ReturnType<typeof erstelleMusik> }}
@@ -100,26 +126,7 @@ export function starteBuehne(navi) {
     }
   }
   function bubbleRein(b) {
-    const [dx, dy] = VON[b.von] ?? VON.rechts;
-    const aussen = document.createElement("div");
-    aussen.className = "buehne-bubble";
-    aussen.style.setProperty("--x", `${b.x ?? 68}%`);
-    aussen.style.setProperty("--y", `${b.y ?? 50}%`);
-    aussen.style.setProperty("--g", `${b.groesse ?? 56}vmin`);
-    aussen.style.setProperty("--dx", dx);
-    aussen.style.setProperty("--dy", dy);
-    const kreis = document.createElement("div");
-    kreis.className = "bubble-kreis";
-    kreis.style.animationDelay = `${-Math.random() * 4}s`; // jede schwebt in ihrem eigenen Takt
-    const bild = document.createElement("img");
-    bild.src = `/img/fuehrung/${b.datei}`;
-    bild.alt = b.titel ?? "";
-    bild.style.objectPosition = b.fokus ?? "50% 50%";
-    bild.style.transformOrigin = b.fokus ?? "50% 50%";
-    bild.style.transform = `scale(${b.zoom ?? 1})`;
-    kreis.append(bild);
-    aussen.append(kreis);
-    blasen.append(aussen);
+    blasen.append(erzeugeBubble(b));
   }
 
   function zeige(s) {
