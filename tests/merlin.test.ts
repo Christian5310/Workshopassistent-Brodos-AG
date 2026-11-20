@@ -116,3 +116,12 @@ test("Freihand: was Merlin aus einem Satz macht", () => {
   assert.deepEqual(deuteZuruf("Ignoriere das", "antwort"), { art: "antwort", aktion: "nein" });
   assert.deepEqual(deuteZuruf("Wir müssen noch über die Preise reden", "antwort"), { art: "antwort", aktion: "nein" });
 });
+
+test("Tagesablauf: feste Ansage zum Workshop-Start", () => {
+  for (const satz of ["Merlin, wie ist der Tagesablauf?", "Erzähl uns den Tagesablauf", "Worum geht es im heutigen Workshop?", "Was machen wir heute?", "Wie sieht der Ablauf heute aus?"]) {
+    assert.deepEqual(regeln(satz), { aktion: "tagesablauf" }, satz);
+  }
+  for (const satz of ["Wie sieht die Agenda aus?", "Lies die Agenda vor", "Zu den Agenten", "Wie spät ist es?"]) {
+    assert.notEqual(aktion(satz), "tagesablauf", satz);
+  }
+});

@@ -200,7 +200,7 @@ export function starteMerlin(rahmen) {
     if (FUEHRT_WEITER.has(e.aktion) && !auswahl.length) { if (offen) schliesse(); }
     else zeigeAntwort();
     // Aus dem Raum gesprochen: Merlin hält sich kurz, solange er redet, ist das Protokoll stumm. Der volle Text steht in der Blase.
-    const antworte = (text = e.antwort) => { sage(text); if (gesprochen) sprich(imFreihand ? kurz(e.aktion === "hilfe" ? "Die Befehle stehen auf dem Bildschirm." : text) : text); };
+    const antworte = (text = e.antwort) => { sage(text); if (gesprochen) sprich(imFreihand ? e.aktion === "tagesablauf" ? text : kurz(e.aktion === "hilfe" ? "Die Befehle stehen auf dem Bildschirm." : text) : text); };
     switch (e.aktion) {
       case "gerufen":
         // Nur der Name gesagt: "Ja?" und dann sieben Sekunden auf den Befehl warten (Merlin zittert dabei wie beim Zuhören per Klick)

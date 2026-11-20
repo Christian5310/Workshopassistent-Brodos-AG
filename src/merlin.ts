@@ -54,6 +54,7 @@ export const BefehlSchema = z.discriminatedUnion("aktion", [
   z.object({ aktion: z.literal("nein") }),
   z.object({ aktion: z.literal("hilfe") }),
   z.object({ aktion: z.literal("fuehrung") }),
+  z.object({ aktion: z.literal("tagesablauf") }),
   z.object({ aktion: z.literal("loeschen") }),
   z.object({ aktion: z.literal("unbekannt") }),
 ]);
@@ -128,6 +129,7 @@ export type Ergebnis =
   | { aktion: "gerufen" | "ignoriert"; antwort: string } // Freihand: nur der Name gesagt bzw. nichts für Merlin
   | { aktion: "nachfrage"; text: string; antwort: string } // Freihand: nicht sicher, ob Merlin gemeint war
   | { aktion: "fuehrung"; antwort: string }
+  | { aktion: "tagesablauf"; antwort: string }
   | { aktion: "hilfe" | "unbekannt" | "hinweis"; antwort: string; auswahl?: Auswahl[] };
 
 const klein = (s: string) =>
@@ -280,6 +282,9 @@ function findeEinstellung(s: string): keyof typeof EINSTELLUNGEN | null {
 /** "Erklär uns die App", "Führung durch die App", "Rundgang", "Zeig uns die App" */
 const FUEHRUNG = /(f(ü|ue)hrung|rundgang|app ?tour|\btour\b)|((erkl(ä|ae)r|zeig|stell)\w* (uns |mir |euch )?((doch|mal|kurz|bitte) )*(die |diese |unsere |eure |das )?(neue[nr]? )?(broki )?(meeting )?(app|anwendung|programm|tool|oberfl(ä|ae)che))|(wie funktioniert (die|das|unsere|diese) (neue )?(broki )?(meeting )?(app|anwendung|programm|tool))/;
 
+/** "Wie sieht der Tagesablauf aus?", "Worum geht es im heutigen Workshop?" */
+const TAGESABLAUF = /tagesablauf|tagesplan|ablauf (des |von |für )?(heute|dem tag|den tag|tages)|(heutige[nrm]?|heutigen) (workshop|ablauf|tag)|(was|wie) (machen|haben|planen|steht) (wir|bei uns) heute|worum geht('s| es) (heute|im workshop|beim workshop)/;
+
 /** Feste Regeln. Reihenfolge zählt: spezielle Formulierungen vor allgemeinen. */
 export function regeln(text: string): Befehl | null {
   const s = bereinige(text);
@@ -287,6 +292,7 @@ export function regeln(text: string): Befehl | null {
   let m: RegExpMatchArray | null;
 
   if (FUEHRUNG.test(s)) return { aktion: "fuehrung" };
+  if (TAGESABLAUF.test(s)) return { aktion: "tagesablauf" };
   if (/frage an /.test(s)) {
     const [adressat, ...rest] = text.replace(/^.*?frage an\s*/i, "").split(/[:,]/);
     const frage = rest.join(",").trim();
@@ -391,8 +397,14 @@ export function kontextFuerModell(bereich: string): string {
 const NAMEN: Record<(typeof ZIELE)[number], string> = { start: "zur Auswahl", meeting: "zu den Meetings", workshop: "zu den Workshops", assistent: "zum Meeting Assistenten", agenten: "zu den Agenten", pinnwand: "zur Pinnwand", archiv: "ins Archiv", admin: "in den Admin", regie: "in die Regie" };
 const STATION_TEXT: Record<(typeof STATIONEN)[number], string> = { begruessung: "Ich begrüße alle.", eingereicht: "Ich fasse das eingereichte Material zusammen.", regeln: "Ich erkläre die Regeln.", agenda: "Ich lese die Agenda vor." };
 
+/** Vorgesprochener Text für den Workshop-Start. Hier ändern, Merlin liest ihn unverändert vor (auch im Freihand-Modus, ungekürzt). */
+export const TAGESABLAUF_TEXT =
+  "Heute geht es um das Thema Sales Agentic Workshop. Unser Zielbild: KI übernimmt eine zentrale Rolle im Vertriebsprozess. Davon erhoffen wir uns mehr Produktivität, weil Verkaufschancen gezielt erkannt und vermittelt werden. Mehr Geschwindigkeit, weil wir durch Automation und KI schneller Aktionen einleiten können. Und natürlich mehr Umsatz, weil wir durch den KI-Einsatz qualifizierte Abschlüsse erhöhen. " +
+  "Um das zu erreichen, haben wir vier Schritte auf unserer Agenda. Eins: Ist-Analyse, verlorene Chancen und Zeitverluste identifizieren. Zwei: Neu denken, den idealen Arbeitsalltag und die Rollen entwerfen. Drei: Den Soll-Prozess schrittweise gestalten und dabei die Machbarkeit berücksichtigen. Und vier: Umsetzung, Aufgabenboard und Prioritäten setzen. " +
+  "Die KI begleitet euch dabei, so weit es geht: Das Protokoll wird aufgenommen, To-dos werden erkannt, ihr könnt die Agenten befragen, und am Ende gibt es eine saubere Zusammenfassung. Viel Spaß dabei!";
+
 export const HILFE =
-  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Öffne die Pinnwand“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Hake CRM-Export ab“, „Setze beim To-do CRM-Export die Frist auf Montag“, „Lösche das To-do CRM-Export“ (mit Rückfrage), „Wo ändere ich die Lesegeschwindigkeit?“, „Erklär uns die App“ (nur ohne geöffnetes Meeting) oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
+  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Öffne die Pinnwand“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Hake CRM-Export ab“, „Setze beim To-do CRM-Export die Frist auf Montag“, „Lösche das To-do CRM-Export“ (mit Rückfrage), „Wo ändere ich die Lesegeschwindigkeit?“, „Wie ist der Tagesablauf?“, „Erklär uns die App“ (nur ohne geöffnetes Meeting) oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
 
 /** Prüft den Befehl gegen den Zustand der App und löst Namen in IDs auf. */
 export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
@@ -524,6 +536,8 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
       // Nur ohne laufende Aufnahme. Ein offenes, aber pausiertes Meeting stört nicht: die Führung bleibt auf dem Startscreen.
       if (aufnahmeLaeuft) return { aktion: "hinweis", antwort: "Gerade läuft eine Aufnahme. Pausiere sie, dann zeige ich euch die App." };
       return { aktion: "fuehrung", antwort: "Gern. Ich zeige euch die App." };
+    case "tagesablauf":
+      return { aktion: "tagesablauf", antwort: TAGESABLAUF_TEXT };
     case "hilfe":
       return { aktion: "hilfe", antwort: HILFE };
     case "loeschen":

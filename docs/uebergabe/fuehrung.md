@@ -28,3 +28,6 @@ Zwei Bilder wechseln beim Sprechen: `public/img/merlin-mund-zu.jpg` und `public/
 - Ablauf (`public/js/merlin.js`): `starteFuehrung` / `beendeFuehrung`, Vorlesen satzweise (`sprichBis`), meldet jede Station über den Beobachter-Kanal `fuehrung`.
 - Bühne (`public/js/fuehrung-buehne.js`, Markup in `public/app.html`, Styles am Ende von `brodos.css`): Bubbles, Mund, Musik.
 - Tests: `tests/merlin.test.ts` (Sprachbefehl).
+
+## Tagesablauf-Ansage (Workshop-Start)
+Auf „Merlin, wie ist der Tagesablauf?“ (auch „heutiger Workshop“, „Was machen wir heute?“, „Worum geht es heute?“) liest Merlin einen festen Text vor, auch im Freihand-Modus ungekürzt. Der Text steht in `src/merlin.ts` (`TAGESABLAUF_TEXT`), die Stichwörter in `TAGESABLAUF`. Änderungen brauchen einen Neustart des Servers.
