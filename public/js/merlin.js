@@ -207,6 +207,12 @@ export function starteMerlin(rahmen) {
         sage("Ja?");
         sprich("Ja?", () => setzeModus("folge", 7000));
         return;
+      case "todo-text-fehlt":
+        // "Füge ein To-do hinzu" ohne Text: fragen und den nächsten Satz (ohne Namen) als Text nehmen
+        sage(e.antwort);
+        if (zuhoerer && gesprochen) sprich(e.antwort, () => setzeModus("todo", 15_000));
+        else if (gesprochen) sprich(e.antwort);
+        return;
       case "nachfrage":
         // Name nur ähnlich gehört: nicht handeln, sondern fragen
         rueckfrage(e.antwort, true, "Ja", async () => { await befehl(e.text, true); });
@@ -751,7 +757,7 @@ export function starteMerlin(rahmen) {
   }
   async function behandleZuruf(e) {
     if (!e || e.aktion === "ignoriert") return; // nicht für Merlin: nichts anzeigen, nichts merken
-    if (freihandModus === "folge" && e.aktion !== "gerufen" && e.aktion !== "nachfrage") setzeModus("stichwort");
+    if ((freihandModus === "folge" || freihandModus === "todo") && e.aktion !== "gerufen" && e.aktion !== "nachfrage" && e.aktion !== "todo-text-fehlt") setzeModus("stichwort");
     imFreihand = true;
     try {
       info(`Verstanden: „${e.erkannt}“`);

@@ -497,7 +497,7 @@ app.post("/api/merlin/befehl", async (req, res) => {
  * Freihand: ein im Raum gehörter Satz. Nur mit Merlins Namen am Anfang wird daraus ein Befehl (src/merlin.ts, deuteZuruf).
  * Alles andere wird sofort vergessen. Ist der Name nur ähnlich gehört, fragt Merlin nach, statt zu handeln.
  */
-type ZurufModus = "stichwort" | "folge" | "antwort";
+type ZurufModus = "stichwort" | "folge" | "antwort" | "todo";
 async function merlinZuruf(text: string, bereich: string, modus: ZurufModus): Promise<(merlin.Ergebnis & { erkannt: string }) | { aktion: "ignoriert"; antwort: string; erkannt: string }> {
   meldeFreihand(true);
   const z = merlin.deuteZuruf(text, modus);
@@ -513,7 +513,7 @@ async function merlinZuruf(text: string, bereich: string, modus: ZurufModus): Pr
       return { aktion: "nachfrage", text: z.text, antwort: `Meintest du mich? Ich habe verstanden: „${z.text.slice(0, 80)}“.`, erkannt: text };
   }
 }
-const zurufModus = (wert: unknown): ZurufModus => (wert === "folge" || wert === "antwort" ? wert : "stichwort");
+const zurufModus = (wert: unknown): ZurufModus => (wert === "folge" || wert === "antwort" || wert === "todo" ? wert : "stichwort");
 
 /** Freihand zum Ausprobieren und für Tests: derselbe Weg wie das Audio, nur als Text. */
 app.post("/api/merlin/zuruf", async (req, res) => {

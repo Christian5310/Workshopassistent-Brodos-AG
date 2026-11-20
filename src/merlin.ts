@@ -130,6 +130,7 @@ export type Ergebnis =
   | { aktion: "nachfrage"; text: string; antwort: string } // Freihand: nicht sicher, ob Merlin gemeint war
   | { aktion: "fuehrung"; antwort: string }
   | { aktion: "tagesablauf"; antwort: string }
+  | { aktion: "todo-text-fehlt"; antwort: string } // "Füge ein To-do hinzu" ohne Text: Merlin fragt, der nächste Satz ist der Text
   | { aktion: "hilfe" | "unbekannt" | "hinweis"; antwort: string; auswahl?: Auswahl[] };
 
 const klein = (s: string) =>
@@ -196,7 +197,7 @@ const meetings = () => store.liste().filter((t) => !workshops.liste().some((w) =
  */
 export function zerlegeTodo(satz: string): { text: string; owner?: string; frist?: string } {
   let rest = satz.trim().replace(/^(hey |ok |okay )?merlin[,.!:]?\s*/i, "").replace(/^bitte\s+/i, "");
-  rest = rest.replace(/^.*?\bto[ -]?dos?\b\s*(anlegen|hinzufügen|notieren|aufnehmen|an|hinzu|auf)?\s*/i, "");
+  rest = rest.replace(/^.*?\b(?:to[ -]?dos?|tool|tu[ -]?dus?)\b\s*(anlegen|hinzufügen|notieren|aufnehmen|an|hinzu|auf)?\s*/i, "");
   let owner: string | undefined;
   let frist: string | undefined;
   const vorne = rest.match(/^(?:für|fuer|an)\s+([^:,]+?)\s*[:,]\s*(.*)$/i);
@@ -205,7 +206,13 @@ export function zerlegeTodo(satz: string): { text: string; owner?: string; frist
   if (bis) [rest, frist] = [bis[1]!, bis[2]!.trim()];
   if (!owner) {
     const fuer = rest.match(/^(.*?)\s+(?:für|fuer)\s+([A-ZÄÖÜ][\wäöüß-]*(?:\s+[A-ZÄÖÜ][\wäöüß-]*)?)\s*(.*)$/);
-    if (fuer) [rest, owner] = [`${fuer[1]} ${fuer[3]}`, fuer[2]!];
+    if (fuer) {
+      // "für Montag" ist eine Frist, kein Mensch
+      const tag = /^(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|morgen|übermorgen|heute|nächste|naechste|kommende|ende|anfang|mitte)\b/i.test(fuer[2]!);
+      rest = `${fuer[1]} ${fuer[3]}`;
+      if (tag) frist ??= fuer[2]!.trim();
+      else owner = fuer[2]!;
+    }
   }
   const text = rest.replace(/^[\s:,–-]+|[\s.!?,]+$/g, "").replace(/\s+/g, " ");
   return { text, owner, frist };
@@ -337,7 +344,7 @@ export function regeln(text: string): Befehl | null {
   if (/((aufnahme|transkription|aufzeichnung|mitschrift)\w* (stoppen|stopp|stop|pausieren|pause|beenden|anhalten))|((stoppe|pausiere|beende|halte) (die )?(aufnahme|transkription|aufzeichnung|mitschrift))|^(pause|stopp|stop|pausieren)$|machen (eine |kurz )?pause|kaffeepause/.test(s))
     return { aktion: "aufnahme-pause" };
   // To-dos über die Bubble: anlegen und verschieben (wirkt sofort; die Aufnahme ist beim Zuhören stumm, also kein Doppel)
-  if (/^(neue[snr]? to ?do|to ?do (für|fuer|an) |notiere (ein |das |als )?to ?do|nimm (ein |das )?to ?do auf|schreib (ein |das )?to ?do|leg (ein |das )?(neues )?to ?do an|füg (ein |das )?to ?do hinzu|fuege (ein )?to ?do hinzu|to ?do:)/.test(s) || /^neue[snr]? to ?do/.test(s)) {
+  if (/^(neue[snr]? to ?do|to ?do (für|fuer|an) |notiere (ein |das |als )?to ?do|nimm (ein |das )?to ?do auf|schreib (ein |das )?to ?do|leg (ein |das )?(neues )?to ?do an|f(ü|ue)g(e|t)? (ein |das |mal )*(neues |neuen )?(to ?dos?|tool|tu ?dus?) hinzu|to ?do:)/.test(s) || /^neue[snr]? to ?do/.test(s)) {
     const t = zerlegeTodo(text);
     return { aktion: "todo-neu", text: t.text, owner: t.owner, frist: t.frist };
   }
@@ -467,7 +474,7 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
       return { aktion: "ansage", station: b.station, antwort: STATION_TEXT[b.station] };
     case "todo-neu": {
       if (!store.istOffen) return { aktion: "gehe", ziel: "meeting", antwort: "Für ein To-do brauche ich ein geöffnetes Meeting. Welches soll ich öffnen?", auswahl: auswahlMeetings() };
-      if (!b.text.trim()) return { aktion: "hinweis", antwort: "Was soll ich als To-do notieren? Sag zum Beispiel: Neues To-do für Anna: CRM-Export bis Freitag." };
+      if (!b.text.trim()) return { aktion: "todo-text-fehlt", antwort: "Was soll ich als To-do notieren?" };
       const punkt = store.daten.protokoll.agenda.find((a) => a.status === "läuft");
       const owner = b.owner?.trim() || "offen";
       const frist = b.frist?.trim() || "offen";
@@ -583,12 +590,17 @@ export type Zuruf =
 /**
  * Entscheidet, was ein im Raum gehörter Satz für Merlin bedeutet.
  * stichwort: Normalzustand, nur mit Namen.  folge: Merlin hat "Ja?" gesagt, ein klarer Befehl genügt auch ohne Namen.
- * antwort: Merlin hat nachgefragt, erwartet wird Ja oder Nein (wer weiterredet, sagt damit Nein).
+ * todo: Merlin hat gefragt, was notiert werden soll.  antwort: Merlin hat nachgefragt, erwartet wird Ja oder Nein (wer weiterredet, sagt damit Nein).
  */
-export function deuteZuruf(text: string, modus: "stichwort" | "folge" | "antwort"): Zuruf {
+export function deuteZuruf(text: string, modus: "stichwort" | "folge" | "antwort" | "todo"): Zuruf {
   const roh = text.trim();
   if (!roh) return { art: "ignoriert" };
   const w = stichwort(roh);
+  if (modus === "todo") {
+    // Merlin hat gefragt, was notiert werden soll: der nächste Satz ist das To-do, mit oder ohne Namen davor
+    const rest = (w.art === "exakt" ? w.rest : roh).trim();
+    return rest ? { art: "befehl", text: `Neues To-do: ${rest}`, sicher: true, ki: false } : { art: "gerufen" };
+  }
   if (modus === "antwort") {
     const s = klein(w.art === "keins" ? roh : w.rest);
     if (/^(ja|jawohl|genau|gerne|gern|klar|sicher|richtig|mach das|mach es|bitte ja)( |$)/.test(s) && s.split(" ").length <= 4) return { art: "antwort", aktion: "ja" };

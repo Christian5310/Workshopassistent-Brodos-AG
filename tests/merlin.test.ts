@@ -125,3 +125,14 @@ test("Tagesablauf: feste Ansage zum Workshop-Start", () => {
     assert.notEqual(aktion(satz), "tagesablauf", satz);
   }
 });
+
+test("To-do hinzufügen: auch bei Hörfehlern, und der Text darf im nächsten Satz folgen", () => {
+  for (const satz of ["Füge ein To-do hinzu", "Füge ein Todo hinzu", "Fügt ein Tool hinzu", "Füge ein neues To-do hinzu: Raum buchen"]) {
+    assert.equal(regeln(satz)?.aktion, "todo-neu", satz);
+  }
+  assert.deepEqual(regeln("Füge ein To-do hinzu: Meeting Raum buchen für Montag"), { aktion: "todo-neu", text: "Meeting Raum buchen", owner: undefined, frist: "Montag" });
+  // ohne Text fragt Merlin nach; der nächste Satz zählt dann auch ohne Namen als Text
+  assert.deepEqual(deuteZuruf("Meeting Raum buchen für Montag", "todo"), { art: "befehl", text: "Neues To-do: Meeting Raum buchen für Montag", sicher: true, ki: false });
+  assert.deepEqual(deuteZuruf("Merlin, Preisliste prüfen", "todo"), { art: "befehl", text: "Neues To-do: Preisliste prüfen", sicher: true, ki: false });
+  assert.equal(deuteZuruf("Meeting Raum buchen", "stichwort").art, "ignoriert");
+});
