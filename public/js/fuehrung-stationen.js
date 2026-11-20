@@ -17,7 +17,7 @@ export const FUEHRUNG = [
   },
   {
     text: "Und das Wichtigste: Ihr könnt mich jederzeit mit meinem Namen ansprechen. Sagt einfach „Merlin“ und dann, was ihr braucht, zum Beispiel einen Bereich öffnen, ein To-do anlegen oder abhaken. Ich führe es für euch aus.",
-    bilder: [{ datei: "6.png", titel: "Mit Merlin sprechen: „Hallo Merlin …“", x: 68, y: 47, groesse: 58, von: "rechts", passt: true }],
+    bilder: [{ datei: "6.png", titel: "Mit Merlin sprechen: „Hallo Merlin …“", x: 68, y: 47, groesse: 58, von: "rechts", passt: true, nach: 3500 }],
   },
   {
     text: "Hier startet ihr. Wählt zwischen Meeting oder Workshop, legt Teilnehmer und Agenda an und ladet Infomaterial für den Kontext hoch. Fertig!",
