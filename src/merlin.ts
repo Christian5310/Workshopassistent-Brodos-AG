@@ -344,7 +344,7 @@ export function regeln(text: string): Befehl | null {
   if (/((aufnahme|transkription|aufzeichnung|mitschrift)\w* (stoppen|stopp|stop|pausieren|pause|beenden|anhalten))|((stoppe|pausiere|beende|halte) (die )?(aufnahme|transkription|aufzeichnung|mitschrift))|^(pause|stopp|stop|pausieren)$|machen (eine |kurz )?pause|kaffeepause/.test(s))
     return { aktion: "aufnahme-pause" };
   // To-dos über die Bubble: anlegen und verschieben (wirkt sofort; die Aufnahme ist beim Zuhören stumm, also kein Doppel)
-  if (/^(neue[snr]? to ?do|to ?do (für|fuer|an) |notiere (ein |das |als )?to ?do|nimm (ein |das )?to ?do auf|schreib (ein |das )?to ?do|leg (ein |das )?(neues )?to ?do an|f(ü|ue)g(e|t)? (ein |das |mal )*(neues |neuen )?(to ?dos?|tool|tu ?dus?) hinzu|to ?do:)/.test(s) || /^neue[snr]? to ?do/.test(s)) {
+  if (/^(neue[snr]? to ?do|to ?do (für|fuer|an) |notiere (ein |das |als )?to ?do|nimm (ein |das )?to ?do auf|schreib (ein |das )?to ?do|leg (ein |das )?(neues )?to ?do an|f(ü|ue)g(e|t)? (ein |das |mal )*(neues |neuen )?(to ?dos?|tool|tu ?dus?) hinzu|(erstell|anleg|leg|erfass|mach)\w* (ein |das |mal |uns |mir )*(neues |neuen )?(to ?dos?|tool|tu ?dus?)|(to ?dos?|tool|tu ?dus?) (erstellen|anlegen|hinzuf(ü|ue)gen|erfassen|notieren|aufnehmen)|to ?do:)/.test(s) || /^neue[snr]? to ?do/.test(s)) {
     const t = zerlegeTodo(text);
     return { aktion: "todo-neu", text: t.text, owner: t.owner, frist: t.frist };
   }

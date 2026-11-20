@@ -127,7 +127,7 @@ test("Tagesablauf: feste Ansage zum Workshop-Start", () => {
 });
 
 test("To-do hinzufügen: auch bei Hörfehlern, und der Text darf im nächsten Satz folgen", () => {
-  for (const satz of ["Füge ein To-do hinzu", "Füge ein Todo hinzu", "Fügt ein Tool hinzu", "Füge ein neues To-do hinzu: Raum buchen"]) {
+  for (const satz of ["Füge ein To-do hinzu", "Füge ein Todo hinzu", "Fügt ein Tool hinzu", "Füge ein neues To-do hinzu: Raum buchen", "To-do erstellen", "To do erstellen", "Erstelle ein To-do: Raum buchen", "Erstelle ein Todo für Anna: Preisliste prüfen", "Todo anlegen"]) {
     assert.equal(regeln(satz)?.aktion, "todo-neu", satz);
   }
   assert.deepEqual(regeln("Füge ein To-do hinzu: Meeting Raum buchen für Montag"), { aktion: "todo-neu", text: "Meeting Raum buchen", owner: undefined, frist: "Montag" });
