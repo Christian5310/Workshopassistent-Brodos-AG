@@ -2,7 +2,7 @@
 // Prüft Merlins feste Regeln für die Sätze aus dem Workshop (Stand 19.11.2026).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { aufloesen, regeln } from "../src/merlin.ts";
+import { aufloesen, deuteZuruf, regeln, stichwort } from "../src/merlin.ts";
 
 const aktion = (satz: string) => regeln(satz)?.aktion ?? null;
 
@@ -73,4 +73,46 @@ test("Führung durch die App", () => {
   for (const satz of ["Zu den Agenten", "Wie sieht die Agenda aus?", "Zeig die letzten Meetings", "Öffne die Pinnwand", "Was kannst du?"]) {
     assert.notEqual(aktion(satz), "fuehrung", satz);
   }
+});
+
+test("To-dos per Stimme: abhaken, ändern, löschen", () => {
+  assert.deepEqual(regeln("Hake die Preisliste ab"), { aktion: "todo-erledigt", todo: "preisliste" });
+  assert.deepEqual(regeln("Merlin, hake das To-do CRM-Export ab"), { aktion: "todo-erledigt", todo: "crm export" });
+  assert.deepEqual(regeln("Setze beim To-do Preisliste die Frist auf Montag"), { aktion: "todo-aendern", todo: "preisliste", frist: "Montag" });
+  assert.deepEqual(regeln("Lösche das To-do Preisliste"), { aktion: "todo-loeschen", todo: "preisliste" });
+  assert.equal(aktion("Lösche die Notiz"), "loeschen"); // ohne To-do bleibt es beim Hinweis
+  assert.equal(aktion("Ignoriere das"), "nein");
+});
+
+test("Freihand: Stichwort am Satzanfang", () => {
+  assert.equal(stichwort("Merlin, öffne die Agenten").art, "exakt");
+  assert.equal(stichwort("Hey Merlin öffne die Agenten").art, "exakt");
+  assert.equal(stichwort("Merlin, To-do für Anna: Export bis Freitag.").rest, "To-do für Anna: Export bis Freitag.");
+  assert.equal(stichwort("Marlin öffne die Agenten").art, "aehnlich");
+  assert.equal(stichwort("Berlin ist ein wichtiger Standort").art, "aehnlich");
+  // Mitten im Satz zählt nicht
+  assert.equal(stichwort("Wir haben das mit Merlin besprochen").art, "keins");
+  assert.equal(stichwort("Der Fachhandel sitzt in Berlin und Fulda").art, "keins");
+});
+
+test("Freihand: was Merlin aus einem Satz macht", () => {
+  // Ohne Namen: nie
+  assert.deepEqual(deuteZuruf("Öffne die Agenten", "stichwort"), { art: "ignoriert" });
+  assert.deepEqual(deuteZuruf("Wir sollten die Aufnahme starten", "stichwort"), { art: "ignoriert" });
+  // Name eindeutig: ausführen
+  assert.deepEqual(deuteZuruf("Merlin, zu den Agenten", "stichwort"), { art: "befehl", text: "zu den Agenten", sicher: true, ki: true });
+  // Nur der Name: Merlin ruft "Ja?"
+  assert.deepEqual(deuteZuruf("Merlin.", "stichwort"), { art: "gerufen" });
+  // Name nur ähnlich: nachfragen, aber nur wenn der Rest ein klarer Befehl ist
+  assert.deepEqual(deuteZuruf("Marlin, zu den Agenten", "stichwort"), { art: "befehl", text: "zu den Agenten", sicher: false, ki: false });
+  assert.deepEqual(deuteZuruf("Berlin hat 1.600 Kunden", "stichwort"), { art: "ignoriert" });
+  // Nach "Ja?" genügt ein klarer Befehl ohne Namen, Gerede nicht
+  assert.deepEqual(deuteZuruf("zu den Agenten", "folge"), { art: "befehl", text: "zu den Agenten", sicher: true, ki: false });
+  assert.deepEqual(deuteZuruf("also ich denke das passt schon", "folge"), { art: "ignoriert" });
+  // Auf eine Rückfrage: Ja nur bei Ja, alles andere (auch Weiterreden) ist Nein
+  assert.deepEqual(deuteZuruf("Ja", "antwort"), { art: "antwort", aktion: "ja" });
+  assert.deepEqual(deuteZuruf("Merlin, ja bitte", "antwort"), { art: "antwort", aktion: "ja" });
+  assert.deepEqual(deuteZuruf("Nein", "antwort"), { art: "antwort", aktion: "nein" });
+  assert.deepEqual(deuteZuruf("Ignoriere das", "antwort"), { art: "antwort", aktion: "nein" });
+  assert.deepEqual(deuteZuruf("Wir müssen noch über die Preise reden", "antwort"), { art: "antwort", aktion: "nein" });
 });

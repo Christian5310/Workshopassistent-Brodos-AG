@@ -99,9 +99,17 @@ function starteMerlinMitte() {
     }
   };
 
+  // Freihand-Modus: Merlin hört ohne Klick zu (Admin → Erweitert). Der Hinweis zeigt, wie man ihn anspricht, oder was nicht klappt.
+  let lauscht = false;
+  const GRUND_TEXT = () => (lauscht ? "Merlin hört zu. Sag „Merlin, …“" : "Mit Merlin sprechen");
   const abmelden = navi.beobachte({
     sage: (text) => { frage.textContent = text; },
     fuehrung: zeigeFuehrung,
+    lauscht: ({ an, hinweis }) => {
+      lauscht = an;
+      mikro.classList.toggle("lauscht", an);
+      $("#merlin-mikro-text").textContent = hinweis || GRUND_TEXT();
+    },
     zustand: (name) => {
       figur.classList.toggle("spricht", name === "spricht");
       mikro.classList.toggle("hoert", name === "hoert");
@@ -111,7 +119,7 @@ function starteMerlinMitte() {
       const aktiv = name === "hoert" || name === "denkt";
       figur.classList.toggle("aktiv", aktiv);
       bild.src = aktiv ? BILD.hoert : BILD.ruhig;
-      $("#merlin-mikro-text").textContent = name === "hoert" ? "Ich höre zu … zum Beenden noch einmal klicken" : "Mit Merlin sprechen";
+      $("#merlin-mikro-text").textContent = name === "hoert" ? (lauscht ? "Ich höre zu …" : "Ich höre zu … zum Beenden noch einmal klicken") : GRUND_TEXT();
       if (!name && frage.textContent === "Einen Moment …") frage.innerHTML = startText;
     },
   });

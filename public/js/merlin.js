@@ -6,6 +6,12 @@
 // Ohne Klick gesagt ("Merlin, To-do für …") wirkt nur auf das Protokoll des Meeting Assistenten.
 import { el, icon, sende } from "./common.js";
 import { FUEHRUNG } from "./fuehrung-stationen.js";
+import { starteZuhoeren } from "./freihand.js";
+
+// Freihand-Modus: gilt je Gerät (Admin → Erweitert), nicht für alle
+const FREIHAND = "broki-freihand";
+const FREIHAND_EMPFINDLICHKEIT = "broki-freihand-empfindlichkeit";
+const ablage = (name, wert) => { try { return wert === undefined ? localStorage.getItem(name) : localStorage.setItem(name, wert); } catch { return null; } };
 
 const $ = (id) => document.querySelector(id);
 const STATIONEN = [["begruessung", "Begrüßung"], ["eingereicht", "Eingereicht"], ["regeln", "Regeln"], ["agenda", "Agenda"]];
@@ -35,6 +41,12 @@ export function starteMerlin(rahmen) {
   let erinnerungFuer = null;
   let fuehrung = null; // laufende Führung durch die App: { aus: boolean, weiter: () => void }
   let fuehrungStand = null; // aktuelle Station, damit eine neu geladene Startseite mittendrin einsteigen kann
+  let zuhoerer = null; // Freihand-Modus: laufendes Zuhören (public/js/freihand.js)
+  let freihandStartet = false;
+  let freihandModus = "stichwort"; // "stichwort" | "folge" (nach "Ja?") | "antwort" (nach einer Rückfrage)
+  let modusTimer = null;
+  let imFreihand = false; // die gerade ausgeführte Aktion kam aus dem Raum, nicht von einem Klick
+  let letzteSprache = 0;
 
   // ── Anzeige ──
   const knopf = $("#merlin-knopf");
@@ -174,10 +186,11 @@ export function starteMerlin(rahmen) {
   });
 
   /** Aktionen, die woandershin führen: dort zeigt sich das Ergebnis, ein Antwortfenster braucht es nicht */
-  const FUEHRT_WEITER = new Set(["gehe", "einstellung", "meeting-neu", "workshop-neu", "meeting-oeffnen", "workshop-oeffnen", "frage", "dokument", "fuehrung"]);
+  const FUEHRT_WEITER = new Set(["gehe", "einstellung", "meeting-neu", "workshop-neu", "meeting-oeffnen", "workshop-oeffnen", "frage", "dokument", "fuehrung", "gerufen"]);
   async function ausfuehren(e, gesprochen) {
     if (e.aktion === "ja" || e.aktion === "nein") {
       const frage = offeneFrage;
+      if (!frage && imFreihand) return; // im Raum ist "ja" oder "nein" ohne offene Frage nichts für Merlin
       if (!frage) return void (zeigeAntwort(), sage(e.aktion === "ja" ? "Wobei soll ich ja sagen? Ich habe gerade nichts gefragt." : "Gut."));
       abbrechen();
       try { await (e.aktion === "ja" ? frage.ja() : frage.nein()); } catch (f) { sage(f.message); }
@@ -187,8 +200,24 @@ export function starteMerlin(rahmen) {
     auswahl = e.auswahl ?? [];
     if (FUEHRT_WEITER.has(e.aktion) && !auswahl.length) { if (offen) schliesse(); }
     else zeigeAntwort();
-    const antworte = (text = e.antwort) => { sage(text); if (gesprochen) sprich(text); };
+    // Aus dem Raum gesprochen: Merlin hält sich kurz, solange er redet, ist das Protokoll stumm. Der volle Text steht in der Blase.
+    const antworte = (text = e.antwort) => { sage(text); if (gesprochen) sprich(imFreihand ? kurz(e.aktion === "hilfe" ? "Die Befehle stehen auf dem Bildschirm." : text) : text); };
     switch (e.aktion) {
+      case "gerufen":
+        // Nur der Name gesagt: "Ja?" und dann sieben Sekunden auf den Befehl warten (Merlin zittert dabei wie beim Zuhören per Klick)
+        sage("Ja?");
+        sprich("Ja?", () => setzeModus("folge", 7000));
+        return;
+      case "nachfrage":
+        // Name nur ähnlich gehört: nicht handeln, sondern fragen
+        rueckfrage(e.antwort, true, "Ja", async () => { await befehl(e.text, true); });
+        return;
+      case "todo-loeschen":
+        rueckfrage(e.antwort, gesprochen, "Ja, löschen", async () => {
+          await sende(`/api/todos/${e.id}`, {}, "DELETE");
+          sage("Gelöscht. Mit „Rückgängig“ im Assistenten holst du es zurück.");
+        });
+        return;
       case "gehe":
         antworte();
         rahmen.gehe(e.ziel);
@@ -223,14 +252,17 @@ export function starteMerlin(rahmen) {
         antworte();
         rahmen.gehe("assistent", true);
         break;
-      case "aufnahme-start":
-        // Kurz Zeit zum Abbrechen, falls Merlin sich verhört hat
-        mitAbbruch(e.antwort, gesprochen, async () => {
+      case "aufnahme-start": {
+        const starte = async () => {
           await rahmen.steuerung.starten();
           sage("Die Aufnahme läuft. Ich bin jetzt leise.");
           if (rahmen.bereich() !== "assistent" && rahmen.bereich() !== "agenten") rahmen.gehe("assistent");
-        });
+        };
+        // Per Klick: kurz Zeit zum Abbrechen. Aus dem Raum gesagt: lieber einmal nachfragen, ein Abbrechen-Knopf hilft dort nicht.
+        if (imFreihand) rueckfrage("Soll ich die Aufnahme starten?", true, "Ja, starten", starte);
+        else mitAbbruch(e.antwort, gesprochen, starte);
         break;
+      }
       case "aufnahme-pause":
         await rahmen.steuerung.pausieren();
         antworte("Die Aufnahme ist pausiert. Alles bleibt erhalten.");
@@ -318,7 +350,10 @@ export function starteMerlin(rahmen) {
   /** Fragt mit Ja/Nein nach. */
   function rueckfrage(text, gesprochen, jaText, aktion, mitNein = true) {
     sage(text);
-    if (gesprochen) sprich(text);
+    // Hört Merlin gerade frei zu, genügt "Ja" oder "Nein" im Raum. Wer stattdessen weiterredet, sagt damit Nein.
+    const nachher = () => { if (zuhoerer) setzeModus("antwort", 10_000); };
+    if (gesprochen) sprich(text, nachher);
+    else nachher();
     const leiste = $("#merlin-rueckfrage");
     const ja = el("button", "klein");
     ja.type = "button";
@@ -331,7 +366,7 @@ export function starteMerlin(rahmen) {
     const beiJa = async () => { abbrechen(); try { await aktion(); } catch (f) { sage(f.message); } };
     const beiNein = () => { abbrechen(); sage("Gut, ich lasse es."); };
     offeneFrage = { ja: beiJa, nein: beiNein };
-    abbruch = () => { leiste.hidden = true; abbruch = null; offeneFrage = null; };
+    abbruch = () => { leiste.hidden = true; abbruch = null; offeneFrage = null; if (freihandModus === "antwort") setzeModus("stichwort"); };
     ja.addEventListener("click", beiJa);
     nein.addEventListener("click", beiNein);
   }
@@ -454,13 +489,14 @@ export function starteMerlin(rahmen) {
     satz.lang = "de-DE";
     satz.voice = stimme();
     satz.rate = stand?.vorlesen?.tempo ?? 0.98;
-    satz.onend = satz.onerror = () => { verstumme(); beiEnde?.(); };
+    satz.onend = satz.onerror = () => { letzteSprache = Date.now(); verstumme(); beiEnde?.(); };
     rahmen.steuerung.aufnahme.stumm = true; // Merlin soll sich nicht selbst mitschreiben
     zustand("spricht");
     if (modus === "ansage") beschrifte($("#merlin-sprechen"), "pause", "Stopp");
     speechSynthesis.speak(satz);
   }
   function verstumme() {
+    if (knopf.classList.contains("spricht")) letzteSprache = Date.now();
     if ("speechSynthesis" in window) speechSynthesis.cancel();
     if (!hoert) rahmen.steuerung.aufnahme.stumm = false;
     if (knopf.classList.contains("spricht")) zustand(null);
@@ -607,6 +643,112 @@ export function starteMerlin(rahmen) {
     melde("fuehrung", { aus: true, fertig: false });
   }
 
+  // ── Freihand-Modus: Merlin hört ohne Klick auf seinen Namen (Admin → Erweitert, je Gerät) ──
+  // Das Mikrofon läuft parallel zur Aufnahme des Protokolls. Kurze Sätze gehen an /api/merlin/zuhoeren. Ohne Namen am Satzanfang
+  // passiert nichts und das Audio ist sofort weg. Ist der Name nur ähnlich gehört, fragt Merlin nach (src/merlin.ts, deuteZuruf).
+  /** Für die Sprachausgabe: höchstens etwa zwei Sätze, der volle Text bleibt in der Blase. */
+  function kurz(text, max = 200) {
+    const saetze = String(text).split(/(?<=[.!?])\s+/).filter(Boolean);
+    let aus = "";
+    for (const s of saetze) {
+      if (aus && (aus + s).length > max) break;
+      aus = aus ? `${aus} ${s}` : s;
+    }
+    return aus.length > 260 ? `${aus.slice(0, 250)} …` : aus;
+  }
+
+  /** "folge": Merlin wartet nach "Ja?" auf den Befehl. "antwort": er wartet auf Ja oder Nein. Er zittert dabei wie beim Zuhören per Klick. */
+  function setzeModus(neu, ms = 0) {
+    clearTimeout(modusTimer);
+    const war = freihandModus;
+    freihandModus = neu;
+    if (neu === "stichwort") {
+      if (war !== "stichwort" && !hoert && !knopf.classList.contains("spricht")) zustand(null);
+      return;
+    }
+    zustand("hoert");
+    modusTimer = setTimeout(() => {
+      freihandModus = "stichwort";
+      if (!hoert && !knopf.classList.contains("spricht")) zustand(null);
+      if (neu === "antwort" && offeneFrage) { abbrechen(); sage("Keine Antwort, ich lasse es."); }
+      else if (neu === "folge" && blase.textContent === "Ja?") sage(begruessungstext()); // niemand hat etwas gesagt: zurück zur Ausgangsfrage
+    }, ms);
+  }
+
+  const freihandPausiert = () => hoert || !!fuehrung || knopf.classList.contains("spricht") || Date.now() - letzteSprache < 700;
+  const meldeServer = (an) => sende("/api/merlin/freihand", { an }).catch(() => {});
+  const zeigeLauscht = (an, hinweis = "") => { knopf.classList.toggle("lauscht", an); melde("lauscht", { an, hinweis }); };
+  const pegelHoerer = new Set();
+
+  async function schalteFreihand(an) {
+    if (!an) {
+      zuhoerer?.stopp();
+      zuhoerer = null;
+      setzeModus("stichwort");
+      zeigeLauscht(false);
+      meldeServer(false);
+      return;
+    }
+    if (zuhoerer || freihandStartet) return;
+    freihandStartet = true;
+    try {
+      zuhoerer = await starteZuhoeren({
+        beiSatz: sendeZuruf,
+        pausiert: freihandPausiert,
+        empfindlichkeit: ablage(FREIHAND_EMPFINDLICHKEIT) ?? "mittel",
+        beiPegel: (pegel, laut, grund) => pegelHoerer.forEach((f) => f(pegel, laut, grund)),
+        beiFehler: (text) => { schalteFreihand(false); zeigeLauscht(false, text); },
+      });
+      zeigeLauscht(true);
+      meldeServer(true);
+    } catch (fehler) {
+      zuhoerer = null;
+      zeigeLauscht(false, fehler.name === "NotAllowedError" ? "Freihand: Das Mikrofon ist im Browser nicht erlaubt." : `Freihand: ${fehler.message}`);
+    } finally {
+      freihandStartet = false;
+    }
+  }
+  setInterval(() => { if (zuhoerer) meldeServer(true); }, 30_000);
+  if (ablage(FREIHAND) === "an") schalteFreihand(true);
+
+  const zurufSchlange = [];
+  let zurufLaeuft = false;
+  /** Ein im Raum gehörter Satz (WAV). Es wird immer nur einer gleichzeitig ausgewertet, höchstens zwei warten. */
+  async function sendeZuruf(wav) {
+    zurufSchlange.push(wav);
+    if (zurufSchlange.length > 2) zurufSchlange.shift();
+    if (zurufLaeuft) return;
+    zurufLaeuft = true;
+    try {
+      while (zurufSchlange.length) {
+        const satz = zurufSchlange.shift();
+        try {
+          const antwort = await fetch(`/api/merlin/zuhoeren?bereich=${encodeURIComponent(rahmen.bereich())}&modus=${freihandModus}`, { method: "POST", headers: { "Content-Type": "audio/wav" }, body: satz });
+          if (antwort.ok) await behandleZuruf(await antwort.json());
+        } catch {
+          // ein verlorener Satz ist kein Problem, Merlin hört weiter zu
+        }
+      }
+    } finally {
+      zurufLaeuft = false;
+    }
+  }
+  async function behandleZuruf(e) {
+    if (!e || e.aktion === "ignoriert") return; // nicht für Merlin: nichts anzeigen, nichts merken
+    if (freihandModus === "folge" && e.aktion !== "gerufen" && e.aktion !== "nachfrage") setzeModus("stichwort");
+    imFreihand = true;
+    try {
+      info(`Verstanden: „${e.erkannt}“`);
+      auswahl = e.auswahl ?? [];
+      await ausfuehren(e, true);
+    } catch (fehler) {
+      sage(fehler.message);
+    } finally {
+      imFreihand = false;
+      if (!knopf.classList.contains("spricht") && freihandModus === "stichwort") zustand(null);
+    }
+  }
+
   // ── Pausen-Erinnerung ──
   function pruefePause() {
     const p = stand?.pause;
@@ -641,10 +783,19 @@ export function starteMerlin(rahmen) {
       beobachter.add(b);
       // Startseite wurde während der Führung (neu) geladen: sofort die aktuelle Station zeigen
       if (fuehrung && fuehrungStand) { b.fuehrung?.(fuehrungStand); b.sage?.(blase.textContent); }
+      if (zuhoerer) b.lauscht?.({ an: true, hinweis: "" });
       return () => beobachter.delete(b);
     },
     starteFuehrung: () => starteFuehrung(),
     beendeFuehrung: () => beendeFuehrung(),
+    /** Freihand-Modus an oder aus (Admin → Erweitert). Gilt je Gerät. */
+    freihand: (an) => { ablage(FREIHAND, an ? "an" : "aus"); return schalteFreihand(an); },
+    freihandAn: () => !!zuhoerer,
+    setzeEmpfindlichkeit: (name) => { ablage(FREIHAND_EMPFINDLICHKEIT, name); zuhoerer?.setzeEmpfindlichkeit(name); },
+    /** Pegel des Mikrofons für den Test im Admin: (pegel, laut, grund) */
+    pegel: (f) => { pegelHoerer.add(f); return () => pegelHoerer.delete(f); },
+    /** Zum Ausprobieren ohne Mikrofon: einen Satz so behandeln, als wäre er im Raum gesagt worden. */
+    zuruf: async (text, modus = freihandModus) => behandleZuruf(await sende("/api/merlin/zuruf", { text, modus, bereich: rahmen.bereich() })),
   };
 
   return {

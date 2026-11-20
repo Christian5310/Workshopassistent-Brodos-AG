@@ -69,6 +69,30 @@
             <div id="stt-status" class="klein-text gedaempft"></div>
           </div>
         </section>
+        <section class="kasten" id="freihand-kasten">
+          <div class="kasten-kopf"><h2>Freihand-Modus</h2><span id="freihand-meldung" class="meldung" role="status"></span></div>
+          <div class="kasten-inhalt stapel">
+            <div class="feld">
+              <label class="haken"><input id="freihand-an" type="checkbox"> Merlin hört ohne Klick auf seinen Namen</label>
+              <p>Merlin hört auf diesem Gerät dauernd mit und reagiert nur, wenn ein Satz mit „<span id="freihand-wort">Merlin</span>“ beginnt: navigieren, Agenten fragen, To-dos anlegen, ändern oder abhaken, Aufnahme pausieren. Alles andere wird sofort vergessen, Audio wird nicht gespeichert. Der Protokollant arbeitet unabhängig davon weiter und hört nur To-dos, Entscheidungen und offene Fragen heraus. Gilt nur für dieses Gerät und sofort, ohne Speichern. Ohne Raummikrofon besser ausschalten, dann bleibt es beim Klick auf Merlin.</p>
+            </div>
+            <div class="zweispaltig">
+              <div class="feld">
+                <label for="freihand-empf">Empfindlichkeit</label>
+                <select id="freihand-empf">
+                  <option value="niedrig">Niedrig: laute Umgebung</option>
+                  <option value="mittel">Mittel</option>
+                  <option value="hoch">Hoch: Mikrofon weit weg oder leise Stimmen</option>
+                </select>
+              </div>
+              <div class="feld">
+                <label>Mikrofon-Test</label>
+                <div class="pegel" aria-hidden="true"><i id="pegel-balken"></i></div>
+                <p>Der Balken zeigt, was Merlin hört. Er wird gelb, sobald Merlin Sprechen erkennt.</p>
+              </div>
+            </div>
+          </div>
+        </section>
         <section class="kasten">
           <div class="kasten-kopf"><h2>Merlin-Bubble</h2></div>
           <div class="kasten-inhalt zweispaltig">

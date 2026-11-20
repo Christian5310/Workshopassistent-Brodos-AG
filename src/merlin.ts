@@ -47,6 +47,9 @@ export const BefehlSchema = z.discriminatedUnion("aktion", [
   z.object({ aktion: z.literal("uhrzeit") }),
   z.object({ aktion: z.literal("todo-neu"), text: z.string().max(300), owner: z.string().max(60).optional(), frist: z.string().max(60).optional() }),
   z.object({ aktion: z.literal("todo-verschieben"), todo: z.string().max(300), ziel: z.string().max(120) }),
+  z.object({ aktion: z.literal("todo-erledigt"), todo: z.string().max(300) }),
+  z.object({ aktion: z.literal("todo-aendern"), todo: z.string().max(300), text: z.string().max(300).optional(), owner: z.string().max(60).optional(), frist: z.string().max(60).optional() }),
+  z.object({ aktion: z.literal("todo-loeschen"), todo: z.string().max(300) }),
   z.object({ aktion: z.literal("ja") }),
   z.object({ aktion: z.literal("nein") }),
   z.object({ aktion: z.literal("hilfe") }),
@@ -119,6 +122,11 @@ export type Ergebnis =
   | { aktion: "ja" | "nein"; antwort: string }
   | { aktion: "todo-neu"; text: string; owner: string; frist: string; agendapunkt: string; antwort: string }
   | { aktion: "todo-verschieben"; id: string; agendapunkt: string; antwort: string }
+  | { aktion: "todo-erledigt"; id: string; antwort: string }
+  | { aktion: "todo-aendern"; id: string; text?: string; owner?: string; frist?: string; antwort: string }
+  | { aktion: "todo-loeschen"; id: string; antwort: string } // gelöscht wird erst nach "Ja" im Browser
+  | { aktion: "gerufen" | "ignoriert"; antwort: string } // Freihand: nur der Name gesagt bzw. nichts für Merlin
+  | { aktion: "nachfrage"; text: string; antwort: string } // Freihand: nicht sicher, ob Merlin gemeint war
   | { aktion: "fuehrung"; antwort: string }
   | { aktion: "hilfe" | "unbekannt" | "hinweis"; antwort: string; auswahl?: Auswahl[] };
 
@@ -286,7 +294,19 @@ export function regeln(text: string): Befehl | null {
   }
   const einstellung = findeEinstellung(s);
   if (einstellung) return { aktion: "einstellung", ziel: einstellung };
-  if (/(lösch|loesch|entfern)/.test(s)) return { aktion: "loeschen" };
+  // To-dos per Stimme: abhaken, ändern, löschen (Löschen fragt der Browser vorher nach)
+  if ((m = s.match(/^(?:hake|hak) (?:das |den |die )?(?:to ?dos? )?(.+?) ab$/)) || (m = s.match(/^(?:das |den |die )?(?:to ?dos? )?(.+?) ist (?:erledigt|fertig)$/)) || (m = s.match(/^(?:erledige|erledigt) (?:das |den |die )?to ?dos? (.+)$/)))
+    return { aktion: "todo-erledigt", todo: m[1]! };
+  if ((m = s.match(/^(?:ändere|aendere|setze|stelle) (?:beim |bei dem |bei |das |den |die )?(?:to ?dos? )?(.+?) (?:die |den )?(frist|owner|besitzer|verantwortliche[rn]?) (?:auf|zu|um auf) (.+)$/)) && /to ?do/.test(s)) {
+    const wert = m[3]!.trim().replace(/(^|\s)(\S)/g, (_, vor: string, buchstabe: string) => vor + buchstabe.toUpperCase()); // "ende november" → "Ende November"
+    return /^frist/.test(m[2]!) ? { aktion: "todo-aendern", todo: m[1]!, frist: wert } : { aktion: "todo-aendern", todo: m[1]!, owner: wert };
+  }
+  if ((m = s.match(/^(?:benenne|ändere|aendere) (?:das )?to ?dos? (.+?) (?:um )?(?:in|zu) (.+)$/))) return { aktion: "todo-aendern", todo: m[1]!, text: m[2]!.trim() };
+  if (/(lösch|loesch|entfern)/.test(s)) {
+    if ((m = s.match(/(?:lösche|loesche|entferne|lösch|loesch) (?:das |den |die )?(?:to ?dos? )?(.+)$/)) && /to ?do/.test(s)) return { aktion: "todo-loeschen", todo: m[1]! };
+    return { aktion: "loeschen" };
+  }
+  if (/^(ignorier\w*|schon gut|vergiss das|vergiss es)( |$)/.test(s)) return { aktion: "nein" };
   // "Zurück zum Meeting", "Bring mich zurück ins Meeting", "Ich will wieder ins Meeting", "Zurück zum laufenden Workshop"
   if (/^(zurück|zurueck)$/.test(s) || (/(zurück|zurueck|wieder)/.test(s) && /(meeting|workshop|besprechung|assistent)/.test(s) && !/(auswahl|start|übersicht|uebersicht|neue[nsr]?)/.test(s) && !finde(meetings(), s, 0.6) && !finde(workshops.liste(), s, 0.6)))
     return { aktion: "zurueck" };
@@ -298,7 +318,7 @@ export function regeln(text: string): Befehl | null {
   // Antwort auf Merlins Rückfrage ("Soll ich …?"): nur kurze Sätze, sonst ist es ein neuer Befehl
   if (s.split(" ").length <= 4) {
     if (/^(ja|jawohl|genau|gerne|gern|klar|sicher|richtig)( |$)|^(mach das|mach es|bitte ja|bitte mach das)$/.test(s)) return { aktion: "ja" };
-    if (/^(nein|nee|ne|nö|lieber nicht|nicht|abbrechen|doch nicht|vergiss es)( |$)/.test(s)) return { aktion: "nein" };
+    if (/^(nein|nee|ne|nö|lieber nicht|nicht|abbrechen|doch nicht|vergiss es|egal)( |$)/.test(s)) return { aktion: "nein" };
   }
   if (/wie spät|wie spaet|wie ?viel uhr|uhrzeit|welche zeit haben wir/.test(s)) return { aktion: "uhrzeit" };
   // Schließen: egal ob Meeting oder Workshop, geschlossen wird das gerade geöffnete
@@ -372,7 +392,7 @@ const NAMEN: Record<(typeof ZIELE)[number], string> = { start: "zur Auswahl", me
 const STATION_TEXT: Record<(typeof STATIONEN)[number], string> = { begruessung: "Ich begrüße alle.", eingereicht: "Ich fasse das eingereichte Material zusammen.", regeln: "Ich erkläre die Regeln.", agenda: "Ich lese die Agenda vor." };
 
 export const HILFE =
-  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Öffne die Pinnwand“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Wo ändere ich die Lesegeschwindigkeit?“, „Erklär uns die App“ (nur ohne geöffnetes Meeting) oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
+  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Öffne die Pinnwand“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Hake CRM-Export ab“, „Setze beim To-do CRM-Export die Frist auf Montag“, „Lösche das To-do CRM-Export“ (mit Rückfrage), „Wo ändere ich die Lesegeschwindigkeit?“, „Erklär uns die App“ (nur ohne geöffnetes Meeting) oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
 
 /** Prüft den Befehl gegen den Zustand der App und löst Namen in IDs auf. */
 export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
@@ -451,6 +471,19 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
       if (!punkt) return { aktion: "hinweis", antwort: `Den Agendapunkt „${b.ziel}“ habe ich nicht gefunden. Sag zum Beispiel „zu Punkt 2“ oder nenne den Titel.` };
       return { aktion: "todo-verschieben", id: todo.id, agendapunkt: punkt.id, antwort: `Ich habe „${todo.name}“ verschoben: ${punkt.id ? `jetzt bei „${punkt.titel}“` : "jetzt ohne Agendapunkt"}.` };
     }
+    case "todo-erledigt":
+    case "todo-aendern":
+    case "todo-loeschen": {
+      if (!store.istOffen) return { aktion: "hinweis", antwort: "Es ist gerade kein Meeting geöffnet." };
+      const todos = store.daten.protokoll.todos.map((t) => ({ name: t.text, id: t.id }));
+      const todo = finde(todos, b.todo, 0.5);
+      if (!todo) return { aktion: "hinweis", antwort: `Ein To-do „${b.todo}“ habe ich nicht gefunden. Sag mir ein Stichwort aus dem To-do.` };
+      if (b.aktion === "todo-erledigt") return { aktion: "todo-erledigt", id: todo.id, antwort: `Abgehakt: „${todo.name}“.` };
+      if (b.aktion === "todo-loeschen") return { aktion: "todo-loeschen", id: todo.id, antwort: `Soll ich das To-do „${todo.name}“ löschen?` };
+      if (!b.text && !b.owner && !b.frist) return { aktion: "hinweis", antwort: "Was soll ich ändern? Sag zum Beispiel: Setze beim To-do Preisliste die Frist auf Montag." };
+      const was = [b.text ? `Text: ${b.text}` : "", b.owner ? `Owner: ${b.owner}` : "", b.frist ? `Frist: ${b.frist}` : ""].filter(Boolean).join(", ");
+      return { aktion: "todo-aendern", id: todo.id, text: b.text, owner: b.owner, frist: b.frist, antwort: `Geändert bei „${todo.name}“: ${was}.` };
+    }
     case "uhrzeit":
       return { aktion: "hinweis", antwort: `Es ist ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" })} Uhr.` };
     case "ja":
@@ -503,4 +536,55 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
 /** Fachbegriffe für die Spracherkennung eines Befehls: Namen von Meetings, Workshops und Agenten. */
 export function begriffeFuerBefehl(): string[] {
   return [einstellungen.aktivierungswort, ...meetings().slice(0, 20).map((t) => t.name), ...workshops.liste().slice(0, 20).map((w) => w.name), ...einstellungen.agenten.map((a) => a.name)];
+}
+
+// ── Freihand: Merlin hört dauernd zu und nimmt nur sein Stichwort ernst ──
+const FUELLER = new Set(["hey", "hallo", "ok", "okay", "und", "also", "so", "ja", "dann", "gut", "bitte", "nun", "jetzt", "na"]);
+
+/**
+ * Sucht das Aktivierungswort ganz vorne im Satz (höchstens zwei Füllwörter davor).
+ * "exakt": "Merlin, öffne die Agenten". "aehnlich": klingt wie das Wort ("Marlin", "Berlin"), da fragt Merlin lieber nach.
+ * "rest" ist der Satz nach dem Wort in Originalschreibweise (Namen und Satzzeichen bleiben für To-dos erhalten).
+ */
+export function stichwort(text: string): { art: "exakt" | "aehnlich" | "keins"; rest: string } {
+  const wort = klein(einstellungen.aktivierungswort);
+  const roh = text.trim().split(/\s+/).filter(Boolean);
+  for (let i = 0; i < Math.min(roh.length, 3); i++) {
+    const w = klein(roh[i]!);
+    if (i > 0 && !FUELLER.has(klein(roh[i - 1]!))) break;
+    const rest = roh.slice(i + 1).join(" ");
+    if (w === wort || (w.startsWith(wort) && w.length <= wort.length + 2)) return { art: "exakt", rest };
+    if (w.length >= 4 && aehnlich(w, wort) >= 0.7) return { art: "aehnlich", rest };
+    if (!FUELLER.has(w)) break;
+  }
+  return { art: "keins", rest: text };
+}
+
+export type Zuruf =
+  | { art: "ignoriert" }
+  | { art: "gerufen" } // nur der Name: Merlin antwortet "Ja?" und wartet kurz auf den Befehl
+  | { art: "antwort"; aktion: "ja" | "nein" } // auf Merlins Rückfrage; alles andere zählt als Nein
+  | { art: "befehl"; text: string; sicher: boolean; ki: boolean }; // sicher = Name eindeutig gehört
+
+/**
+ * Entscheidet, was ein im Raum gehörter Satz für Merlin bedeutet.
+ * stichwort: Normalzustand, nur mit Namen.  folge: Merlin hat "Ja?" gesagt, ein klarer Befehl genügt auch ohne Namen.
+ * antwort: Merlin hat nachgefragt, erwartet wird Ja oder Nein (wer weiterredet, sagt damit Nein).
+ */
+export function deuteZuruf(text: string, modus: "stichwort" | "folge" | "antwort"): Zuruf {
+  const roh = text.trim();
+  if (!roh) return { art: "ignoriert" };
+  const w = stichwort(roh);
+  if (modus === "antwort") {
+    const s = klein(w.art === "keins" ? roh : w.rest);
+    if (/^(ja|jawohl|genau|gerne|gern|klar|sicher|richtig|mach das|mach es|bitte ja)( |$)/.test(s) && s.split(" ").length <= 4) return { art: "antwort", aktion: "ja" };
+    return { art: "antwort", aktion: "nein" };
+  }
+  if (w.art === "exakt") return w.rest.trim() ? { art: "befehl", text: w.rest, sicher: true, ki: true } : { art: "gerufen" };
+  if (w.art === "aehnlich") return w.rest.trim() && regeln(w.rest) ? { art: "befehl", text: w.rest, sicher: false, ki: false } : { art: "ignoriert" };
+  if (modus === "folge") {
+    const b = regeln(roh);
+    if (b && b.aktion !== "ja" && b.aktion !== "nein") return { art: "befehl", text: roh, sicher: true, ki: false };
+  }
+  return { art: "ignoriert" };
 }

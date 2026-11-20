@@ -355,6 +355,7 @@ async function ladeErweitert() {
   $("#promptZusammenfassung").value = e.promptZusammenfassung;
   $("#maxTodos").value = e.maxTodosProZyklus;
   $("#wort").value = e.aktivierungswort;
+  $("#freihand-wort").textContent = e.aktivierungswort;
   $("#sprachfragen").checked = e.sprachfragen;
   gewuenschteStimme = e.stimme;
   $("#lesetempo").value = e.lesetempo;
@@ -463,5 +464,31 @@ try {
       setTimeout(() => rahmen.classList.remove("merlin-markiert"), 4000);
       if (ziel.matches("input, select, textarea")) ziel.focus({ preventScroll: true });
     }
+  }
+} catch {}
+
+// ── Freihand-Modus (Merlin hört ohne Klick zu): gilt je Gerät und sofort, wird nicht mit den Einstellungen gespeichert ──
+try {
+  const navi = window.parent?.merlin?.navigator;
+  const meldeFreihand = (text) => ($("#freihand-meldung").textContent = text);
+  if (!navi?.freihand) {
+    $("#freihand-an").disabled = true;
+    meldeFreihand("Nur im App-Fenster möglich");
+  } else {
+    const speicher = (name) => { try { return localStorage.getItem(name); } catch { return null; } };
+    $("#freihand-an").checked = speicher("broki-freihand") === "an";
+    $("#freihand-empf").value = speicher("broki-freihand-empfindlichkeit") ?? "mittel";
+    $("#freihand-an").addEventListener("change", async () => {
+      meldeFreihand($("#freihand-an").checked ? "Mikrofon wird geöffnet …" : "Aus");
+      await navi.freihand($("#freihand-an").checked);
+      if ($("#freihand-an").checked && !navi.freihandAn()) $("#freihand-an").checked = false; // der Grund steht in der Meldung
+    });
+    $("#freihand-empf").addEventListener("change", () => navi.setzeEmpfindlichkeit($("#freihand-empf").value));
+    const abmelden = navi.beobachte({ lauscht: ({ an, hinweis }) => meldeFreihand(hinweis || (an ? "Merlin hört zu" : "Aus")) });
+    const ohnePegel = navi.pegel((pegel, laut) => {
+      $("#pegel-balken").style.width = `${Math.min(100, Math.round((pegel / 0.12) * 100))}%`;
+      $("#pegel-balken").classList.toggle("laut", laut);
+    });
+    addEventListener("pagehide", () => { abmelden(); ohnePegel(); });
   }
 } catch {}

@@ -66,6 +66,12 @@ Analyse ist gemacht, noch nichts an Dateien geändert. Ergebnis in Kürze:
 - **Test statt Schätzen:** ca. 25 Fragen je Agenda-Block durch die Agenten laufen lassen, Lücken ergänzen, Überflüssiges kürzen, Namen-Check.
 - Offene Entscheidung: Zuschnitt der drei Agenten (siehe oben).
 
+## ERLEDIGT (20.11.2026): Freihand-Modus (Merlin hört ohne Klick)
+Admin → Erweitert → Freihand-Modus (je Gerät, Standard aus). Merlin reagiert nur auf Sätze, die mit „Merlin“ beginnen; Rückfrage bei ähnlichem Namen und bei heiklen Aktionen; „Ja?“-Fenster; neu per Stimme: To-do abhaken, ändern, löschen (mit Rückfrage). Der Protokollant ignoriert Befehle an Merlin, solange der Modus läuft. Details: `docs/uebergabe/freihand.md`. Mit einem Test-Chrome mit künstlichem Mikrofon Ende zu Ende geprüft. **Noch nicht geprüft:** echtes Raummikrofon, Spracherkennung (Voxtral) mit echten Sätzen, 7–10 Leute im Raum.
+
+## OFFEN (Entscheidung steht): Führung lockerer
+Merlin wandert nach links, Hintergrund weich gezeichnet, rechts je Station Screenshots in runden Bubbles (Kreis, das Wichtige in der Mitte), keine Sprechblase und kein Text, nur Sprachausgabe. Mund wechselt beim Sprechen zwischen `public/img/merlin-hoert.webp` (Mund auf) und `public/img/merlin-mund-zu.jpg` (Mund zu). Musik: Datei `Calculated_Calm.mp3` im Download-Ordner des Users (Nutzungsrechte klären, nicht ins Git). Screenshots liefert der User je Station nach.
+
 ## ERLEDIGT (19.11.2026): „Merlin führt durch die App“
 Auf Zuruf („Merlin, erklär uns die App“) oder per Knopf auf dem Startscreen: Merlin spricht 7 Stationen, blendet Bildschirmfotos ein, Navigation leuchtet, Klick auf Merlin/Esc bricht ab. Nicht bei laufender Aufnahme und nicht in Assistent/Agenten/Pinnwand (ein offenes, pausiertes Meeting stört nicht). Details: `docs/uebergabe/fuehrung.md`. Im Browser-Panel mit Mock-Daten geprüft (Ablauf, Abbruch, Start aus Admin, Ablehnung bei offenem Meeting). **Noch nicht geprüft:** Klang/Tempo mit der echten Merlin-Stimme am Workshop-Laptop und Beamer.
 Offen: Der User sprach von „zwei weiteren Projekten“, genannt wurde nur dieses. Zweites noch nachfragen.

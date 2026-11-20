@@ -4,6 +4,7 @@ import { repariereJson } from "./json-reparatur.ts";
 import { config } from "../config.ts";
 import { agentenFuer, einstellungen, promptAgentenFertig } from "../einstellungen.ts";
 import { store } from "../store.ts";
+import { freihandAktiv } from "../freihand.ts";
 import type { Protokoll } from "../types.ts";
 import type { ChatKontext, Sprachmodell } from "./schnittstellen.ts";
 
@@ -35,6 +36,12 @@ const TECHNIK_PROTOKOLL = "Gib NICHT den ganzen STAND zurück, sondern nur die �
 /** Anleitung für Sprachbefehle. Greift nur, wenn im Abschnitt das Aktivierungswort fällt (der Server prüft das zusätzlich). */
 function sprachbefehle(): string {
   const wort = einstellungen.aktivierungswort;
+  // Freihand-Modus: "Merlin" ist ein eigener Assistent, der Bedienung übernimmt. Der Protokollant hört nur Inhalte heraus.
+  if (freihandAktiv()) {
+    return `Wichtig, das gilt vor allen anderen Anweisungen zu "${wort}": "${wort}" ist ein anderer Assistent, der die Bedienung der App übernimmt (To-dos anlegen, ändern, abhaken, löschen, Agenten fragen, Aufnahme steuern).
+Sätze, die sich an "${wort}" richten, sind Bedienbefehle: Leite daraus KEINE To-dos, Entscheidungen, offenen Fragen oder Notizen ab. Setze immer "befehle": [] und "frage": null.
+Alles andere, was die Runde bespricht, wertest du wie gewohnt aus.`;
+  }
   const agenten = agentenFuer(store.daten.agenten).map((a) => `"${a.id}" (${a.name})`).join(", ");
   return `Zu den Feldern "befehle" und "frage": Fülle sie NUR, wenn im ABSCHNITT jemand ausdrücklich "${wort}" anspricht; sonst "befehle": [] und "frage": null.
 - "befehle": Änderungen an bestehenden Einträgen, die "${wort}" ausdrücklich aufgetragen werden.
@@ -290,6 +297,9 @@ Erlaubte Aktionen:
 {"aktion": "uhrzeit"}
 {"aktion": "todo-neu", "text": "kurze Aufgabe ohne Owner und Frist", "owner": "Name oder weglassen", "frist": "z. B. Freitag oder weglassen"}  (neues To-do notieren; Owner und Frist auch mitten im Satz erkennen: "Tom übernimmt bis Ende November die Preisliste" → {"aktion": "todo-neu", "text": "Preisliste übernehmen", "owner": "Tom", "frist": "Ende November"}; Zeitangaben ohne "bis" wie "morgen" oder "nächste Woche" sind ebenfalls die Frist)
 {"aktion": "todo-verschieben", "todo": "Stichwort aus dem To-do", "ziel": "Nummer oder Titel des Agendapunkts"}
+{"aktion": "todo-erledigt", "todo": "Stichwort aus dem To-do"}  (To-do abhaken: "hake die Preisliste ab")
+{"aktion": "todo-aendern", "todo": "Stichwort aus dem To-do", "text": "neuer Text, optional", "owner": "neuer Owner, optional", "frist": "neue Frist, optional"}
+{"aktion": "todo-loeschen", "todo": "Stichwort aus dem To-do"}  (Merlin fragt vor dem Löschen noch einmal nach)
 {"aktion": "ja"}  /  {"aktion": "nein"}  (Antwort auf eine Rückfrage)
 {"aktion": "hilfe"}
 {"aktion": "fuehrung"}  (die App erklären, Führung bzw. Rundgang durch die App, "Zeig uns die App")

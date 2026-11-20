@@ -769,3 +769,13 @@ img.avatar { object-fit: cover; background: transparent; }
   .start-modus.fuehrung-bild-an .merlin-mitte .merlin-figur { width: 6rem; height: 6rem; }
 }
 @media (prefers-reduced-motion: reduce) { .app-kopf nav a.fuehrung-licht, .fuehrung-bild-feld.neu, .merlin-mitte .merlin-figur.spricht { animation: none; } }
+
+/* ── Freihand-Modus: Merlin hört ohne Klick zu ── */
+.merlin-knopf.lauscht::after { content: ""; position: absolute; right: 0.25rem; bottom: 0.25rem; width: 0.75rem; height: 0.75rem; border-radius: 50%; background: #1e9e4a; border: 2px solid #fff; }
+.merlin-mikro-rund.lauscht { background: #e3f4e8; border-color: #9fd4b0; color: #1e7b3a; animation: lauschtatmet 2.8s ease-in-out infinite; }
+.merlin-mikro-rund.lauscht.hoert { background: #d6001c; border-color: #d6001c; color: #fff; }
+@keyframes lauschtatmet { 0%, 100% { box-shadow: 0 0 0 0 rgba(30, 158, 74, 0.35); } 50% { box-shadow: 0 0 0 10px rgba(30, 158, 74, 0); } }
+.pegel { height: 0.75rem; border-radius: 999px; background: var(--surface-alt, #eef0f2); overflow: hidden; border: 1px solid var(--line); }
+.pegel i { display: block; width: 0; height: 100%; background: var(--ink-muted, #7a8590); transition: width 0.08s linear, background 0.15s; }
+.pegel i.laut { background: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .merlin-mikro-rund.lauscht { animation: none; } }

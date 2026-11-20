@@ -8,6 +8,7 @@ import * as archiv from "./archiv.ts";
 import { config, quelle } from "./config.ts";
 import * as admin from "./einstellungen.ts";
 import * as merlin from "./merlin.ts";
+import { freihandAktiv, meldeFreihand } from "./freihand.ts";
 import * as workshops from "./workshops.ts";
 import * as ansagen from "./ansagen.ts";
 import * as dateien from "./dateien.ts";
@@ -164,8 +165,9 @@ async function verarbeiteAbschnitt(text: string): Promise<void> {
       let neu = admin.absichern(alt, geprueft.data, punkt);
 
       // Sprachbefehle und Sprachfragen gelten nur, wenn das Aktivierungswort wirklich im Abschnitt steht.
+      // Im Freihand-Modus führt Merlin selbst aus (src/freihand.ts): der Protokollant hört dann nur noch To-dos, Entscheidungen und Fragen heraus.
       const zusatz = ZusatzSchema.safeParse(antwort);
-      const angesprochen = text.toLowerCase().includes(admin.einstellungen.aktivierungswort.toLowerCase());
+      const angesprochen = !freihandAktiv() && text.toLowerCase().includes(admin.einstellungen.aktivierungswort.toLowerCase());
       const ausgefuehrt = angesprochen && zusatz.success ? fuehreBefehleAus(neu, zusatz.data.befehle) : { protokoll: neu, meldungen: [] };
       neu = ausgefuehrt.protokoll;
 
@@ -391,10 +393,10 @@ app.post("/api/chat-audio", express.raw({ type: "audio/*", limit: "8mb" }), (req
 });
 
 // ── Merlin als Navigator: getippter oder gesprochener Befehl → eine Aktion, die der Browser ausführt ──
-async function merlinDeuten(text: string, bereich: string): Promise<merlin.Ergebnis & { erkannt: string; ki: boolean; ms: number }> {
+async function merlinDeuten(text: string, bereich: string, mitKi = true): Promise<merlin.Ergebnis & { erkannt: string; ki: boolean; ms: number }> {
   const beginn = Date.now();
   let befehl = merlin.regeln(text);
-  const ki = !befehl && !config.mock;
+  const ki = !befehl && !config.mock && mitKi;
   if (ki) {
     try {
       const geprueft = merlin.BefehlSchema.safeParse(await anbieter.sprachmodell.merlinBefehl(text, merlin.kontextFuerModell(bereich)));
@@ -406,7 +408,7 @@ async function merlinDeuten(text: string, bereich: string): Promise<merlin.Ergeb
   let ergebnis = merlin.aufloesen(befehl ?? { aktion: "unbekannt" }, aufnahme);
   if (ergebnis.aktion === "wissen") ergebnis = await merlinWissen(ergebnis.frage, false);
   if (ergebnis.aktion === "todo-neu" && !config.mock) ergebnis = await verfeinereTodo(text, ergebnis);
-  if (ergebnis.aktion === "todo-neu" || ergebnis.aktion === "todo-verschieben") ergebnis = fuehreTodoAus(ergebnis);
+  if (ergebnis.aktion === "todo-neu" || ergebnis.aktion === "todo-verschieben" || ergebnis.aktion === "todo-erledigt" || ergebnis.aktion === "todo-aendern") ergebnis = fuehreTodoAus(ergebnis);
   const ms = Date.now() - beginn;
   console.log(`Merlin: „${text.slice(0, 80)}" → ${ergebnis.aktion} (${ki ? "KI" : "Regel"}, ${ms} ms)`);
   return { ...ergebnis, erkannt: text, ki, ms };
@@ -436,6 +438,19 @@ function fuehreTodoAus(e: merlin.Ergebnis): merlin.Ergebnis {
     if (!todo) return { aktion: "hinweis", antwort: "Das To-do gibt es nicht mehr." };
     merkeSchritt(`To-do verschoben: „${todo.text}"`);
     todo.agendapunkt = e.agendapunkt;
+  } else if (e.aktion === "todo-erledigt") {
+    const todo = p.todos.find((t) => t.id === e.id);
+    if (!todo) return { aktion: "hinweis", antwort: "Das To-do gibt es nicht mehr." };
+    merkeSchritt(`To-do von Merlin abgehakt: „${todo.text}"`);
+    todo.status = "erledigt";
+    if (!todo.gruppe) todo.gruppe = "abgelegt"; // wie das Häkchen in der Liste: raus aus der aktuellen Liste
+  } else if (e.aktion === "todo-aendern") {
+    const todo = p.todos.find((t) => t.id === e.id);
+    if (!todo) return { aktion: "hinweis", antwort: "Das To-do gibt es nicht mehr." };
+    merkeSchritt(`To-do von Merlin geändert: „${todo.text}"`);
+    todo.text = e.text?.trim().slice(0, 300) || todo.text;
+    todo.owner = e.owner?.trim().slice(0, 60) || todo.owner;
+    todo.frist = e.frist?.trim().slice(0, 60) || todo.frist;
   } else return e;
   store.speichern();
   senden();
@@ -476,6 +491,54 @@ app.post("/api/merlin/befehl", async (req, res) => {
   const text = String(req.body?.text ?? "").trim().slice(0, 500);
   if (!text) return void res.status(400).json({ fehler: "Bitte etwas eingeben." });
   res.json(await merlinDeuten(text, String(req.body?.bereich ?? "")));
+});
+
+/**
+ * Freihand: ein im Raum gehörter Satz. Nur mit Merlins Namen am Anfang wird daraus ein Befehl (src/merlin.ts, deuteZuruf).
+ * Alles andere wird sofort vergessen. Ist der Name nur ähnlich gehört, fragt Merlin nach, statt zu handeln.
+ */
+type ZurufModus = "stichwort" | "folge" | "antwort";
+async function merlinZuruf(text: string, bereich: string, modus: ZurufModus): Promise<(merlin.Ergebnis & { erkannt: string }) | { aktion: "ignoriert"; antwort: string; erkannt: string }> {
+  meldeFreihand(true);
+  const z = merlin.deuteZuruf(text, modus);
+  switch (z.art) {
+    case "ignoriert":
+      return { aktion: "ignoriert", antwort: "", erkannt: text };
+    case "gerufen":
+      return { aktion: "gerufen", antwort: "Ja?", erkannt: text };
+    case "antwort":
+      return { aktion: z.aktion, antwort: "", erkannt: text };
+    case "befehl":
+      if (z.sicher) return merlinDeuten(z.text, bereich, z.ki);
+      return { aktion: "nachfrage", text: z.text, antwort: `Meintest du mich? Ich habe verstanden: „${z.text.slice(0, 80)}“.`, erkannt: text };
+  }
+}
+const zurufModus = (wert: unknown): ZurufModus => (wert === "folge" || wert === "antwort" ? wert : "stichwort");
+
+/** Freihand zum Ausprobieren und für Tests: derselbe Weg wie das Audio, nur als Text. */
+app.post("/api/merlin/zuruf", async (req, res) => {
+  const text = String(req.body?.text ?? "").trim().slice(0, 500);
+  res.json(await merlinZuruf(text, String(req.body?.bereich ?? ""), zurufModus(req.body?.modus)));
+});
+
+/** Freihand: kurzer Satz als Audio (WAV). Wird nach der Transkription verworfen, auch wenn er nicht für Merlin war. */
+app.post("/api/merlin/zuhoeren", express.raw({ type: "audio/*", limit: "2mb" }), async (req, res) => {
+  const audio = req.body as Buffer;
+  meldeFreihand(true);
+  if (quelle !== "mikro" || !Buffer.isBuffer(audio) || audio.length < 2000) return void res.json({ aktion: "ignoriert", antwort: "", erkannt: "" });
+  try {
+    const text = (await anbieter.transkript.transkribiere(audio, "befehl", String(req.headers["content-type"] ?? "audio/wav"), merlin.begriffeFuerBefehl())) ?? "";
+    res.json(await merlinZuruf(text, String(req.query.bereich ?? ""), zurufModus(req.query.modus)));
+  } catch (fehler) {
+    console.warn("Freihand:", (fehler as Error).message);
+    res.json({ aktion: "ignoriert", antwort: "", erkannt: "" }); // ein Hörfehler soll den Raum nicht stören
+  }
+});
+
+/** Freihand: der Browser meldet sich, solange er zuhört (alle 30 s) und beim Abschalten. */
+app.post("/api/merlin/freihand", (req, res) => {
+  meldeFreihand(req.body?.an === true);
+  res.json({ ok: true });
 });
 
 /** Gesprochener Befehl: Audio im Body, wird nach der Transkription verworfen. */
