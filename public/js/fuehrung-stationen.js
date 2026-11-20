@@ -21,7 +21,9 @@ export const FUEHRUNG = [
   },
   {
     text: "Hier startet ihr. Wählt zwischen Meeting oder Workshop, legt Teilnehmer und Agenda an und ladet Infomaterial für den Kontext hoch. Fertig!",
-    bilder: [{ datei: "1.png", titel: "Startscreen: Meeting oder Workshop", x: 69, y: 47, groesse: 60, von: "rechts", fokus: "50% 48%", zoom: 1.25 }],
+    bilder: [{ datei: "1.png", titel: "Startscreen: Meeting oder Workshop", x: 69, y: 47, groesse: 60, von: "rechts", fokus: "50% 48%", zoom: 1.25 },
+      { datei: "7.png", titel: "Einrichten: Teilnehmer, Agenda und Material", x: 86, y: 80, groesse: 30, von: "unten", fokus: "25% 45%", zoom: 1.3, nach: 2400 },
+    ],
   },
   {
     text: "Dann geht's los! Ihr startet die Aufnahme, ich höre zu und schreibe mit. Daraus entstehen live die To-dos und die Entscheidungen. Und keine Sorge: Das Audio wird nach der Transkription sofort verworfen.",
