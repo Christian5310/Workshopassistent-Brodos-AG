@@ -16,7 +16,7 @@ export const FUEHRUNG = [
     text: "Hallo zusammen! Ich bin Merlin und ich zeige euch nun kurz, wie die neue Broki Meeting App funktioniert. Los geht's!",
   },
   {
-    text: "Und das Wichtigste: Ihr könnt mich jederzeit mit meinem Namen ansprechen. Sagt einfach „Merlin“ und dann, was ihr braucht, zum Beispiel einen Bereich öffnen, ein To-do anlegen oder abhaken. Ich führe es für euch aus.",
+    text: "Ihr könnt mich jederzeit mit meinem Namen ansprechen. Sagt einfach „Merlin“ und dann, was ihr braucht, zum Beispiel einen Bereich öffnen, ein To-do anlegen oder abhaken. Ich führe es für euch aus.",
     bilder: [{ datei: "6.png", titel: "Mit Merlin sprechen: „Hallo Merlin …“", x: 68, y: 47, groesse: 58, von: "rechts", passt: true, nach: 3500 }],
   },
   {
@@ -26,7 +26,7 @@ export const FUEHRUNG = [
     ],
   },
   {
-    text: "Dann geht's los! Ihr startet die Aufnahme, ich höre zu und schreibe mit. Daraus entstehen live die To-dos und die Entscheidungen. Und keine Sorge: Das Audio wird nach der Transkription sofort verworfen.",
+    text: "Dann geht's los! Ihr startet die Aufnahme, ich höre zu und schreibe mit. Daraus entstehen live die Tu-Dus und die Entscheidungen. Und keine Sorge: Das Audio wird nach der Transkription sofort verworfen.",
     bilder: [
       { datei: "2_aufnahme.png", titel: "Aufnahme starten", x: 47, y: 24, groesse: 27, von: "oben" },
       { datei: "2b.png", titel: "To-dos und Entscheidungen entstehen live", x: 70, y: 58, groesse: 58, von: "unten", fokus: "0% 65%", nach: 4000 },
