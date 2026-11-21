@@ -64,9 +64,9 @@ Trage in die letzte Spalte ein: **Behalten**, **Streichen**, **Wichtig** (muss i
 | „Fasse das Material zusammen“ | Fasst das eingereichte Material zusammen | ✅ | |
 | „Erkläre die Regeln“ | Liest die Spielregeln vor | ✅ | |
 | „Erklär uns die App“ | Führung durch die App (nur ohne Meeting) | ✅ | |
-| „Starte Punkt 2“ / „Weiter zum nächsten Punkt“ | Agendapunkt wechseln | 💡 | |
+| „Starte Punkt 2“ / „Weiter zum nächsten Punkt“ | Agendapunkt wechseln | ✅ | |
 | „Wie viel Zeit haben wir noch für diesen Punkt?“ | Sagt die Restzeit | 💡 | |
-| „Stell einen Timer auf 10 Minuten“ | Timer, Merlin meldet sich | 💡 | |
+| „Stell einen Timer auf 10 Minuten“ | Timer, Merlin meldet sich | ✅ | |
 
 ## 6. To-dos, Entscheidungen, offene Fragen
 
@@ -82,10 +82,10 @@ Trage in die letzte Spalte ein: **Behalten**, **Streichen**, **Wichtig** (muss i
 | „Lösche das To-do CRM-Export“ | Fragt „Ja, löschen?“ | ✅ | |
 | „Welche To-dos sind offen?“ / „Lies die To-dos vor“ | Merlin liest die offenen To-dos vor | 💡 | |
 | „Welche To-dos hat Anna?“ | Nur die To-dos einer Person | 💡 | |
-| „Notiere eine Entscheidung: …“ | Neue Entscheidung im Protokoll | 💡 | |
-| „Notiere eine offene Frage: …“ | Neue offene Frage | 💡 | |
+| „Notiere eine Entscheidung: …“ | Neue Entscheidung im Protokoll | ✅ | |
+| „Notiere eine offene Frage: …“ | Neue offene Frage | ✅ | |
 | „Lies die Entscheidungen vor“ | Vorlesen | 💡 | |
-| „Rückgängig“ | Letzte Änderung zurück | 💡 | |
+| „Rückgängig“ | Letzte Änderung zurück | ✅ | |
 
 ## 7. Agenten und Wissen
 
@@ -95,7 +95,7 @@ Trage in die letzte Spalte ein: **Behalten**, **Streichen**, **Wichtig** (muss i
 | „Frage an alle: …“ / „Frage an die Experten: …“ | Alle Agenten antworten | ✅ | |
 | „Wie sieht der Ist-Prozess aus?“ (Fachfrage zum Material) | Antwort aus den eingereichten Unterlagen | ✅ | |
 | „Öffne das Dokument [Name]“ | Öffnet das Material | ✅ | |
-| „Was sagt der BPM Spezialist dazu?“ | Frage mit der letzten Aussage an einen Agenten | 💡 | |
+| „Was sagt der BPM Spezialist dazu?“ | Frage mit der letzten Aussage an einen Agenten | ✅ | |
 | „Fasse den letzten Agendapunkt zusammen“ | Kurzfassung des Punktes | 💡 | |
 
 ## 8. Eigene Wünsche (bitte ergänzen)

@@ -293,6 +293,14 @@ export function starteMerlin(rahmen) {
       case "fuehrung":
         starteFuehrung(); // läuft für sich weiter, hier nicht warten
         break;
+      case "timer":
+        starteTimer(e.sekunden);
+        antworte();
+        break;
+      case "timer-stopp":
+        stoppeTimer();
+        antworte();
+        break;
       case "agenda-fehlt":
         rueckfrage(e.antwort, gesprochen, "Ja, Agenda anlegen", async () => {
           if (e.workshop) {
@@ -541,6 +549,68 @@ export function starteMerlin(rahmen) {
     if (knopf.classList.contains("spricht")) zustand(null);
     beschrifte($("#merlin-sprechen"), "play", "Vorlesen");
   }
+  // ── Timer (nur in diesem Browser): kleine Anzeige bei Merlin, am Ende piept es und Merlin sagt Bescheid. Ein Klick auf die Anzeige stoppt ihn. ──
+  const TIMER_KEY = "broki-timer"; // Endzeitpunkt, damit ein Neuladen der Seite den Timer nicht verliert
+  let timerEnde = 0;
+  let timerTakt = null;
+  const timerChip = document.createElement("button");
+  timerChip.type = "button";
+  timerChip.className = "merlin-timer";
+  timerChip.hidden = true;
+  timerChip.title = "Timer stoppen";
+  knopf.parentElement.append(timerChip);
+  function zeigeTimer() {
+    const rest = Math.max(0, Math.round((timerEnde - Date.now()) / 1000));
+    const min = Math.floor(rest / 60);
+    const std = Math.floor(min / 60);
+    timerChip.textContent = `⏱ ${std ? `${std}:${String(min % 60).padStart(2, "0")}` : min}:${String(rest % 60).padStart(2, "0")}`;
+    // unter Merlin, wenn er oben schwebt, sonst darüber; auf dem Startscreen oben rechts
+    const r = knopf.getBoundingClientRect();
+    const w = timerChip.offsetWidth;
+    if (knopf.hidden || !r.width) { timerChip.style.left = `${innerWidth - w - 16}px`; timerChip.style.top = "16px"; }
+    else {
+      timerChip.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2))}px`;
+      timerChip.style.top = r.top < innerHeight / 2 ? `${r.bottom + 8}px` : `${Math.max(8, r.top - timerChip.offsetHeight - 8)}px`;
+    }
+    if (rest <= 0 && timerTakt) timerFertig();
+  }
+  function starteTimer(sekunden) {
+    stoppeTimer(false);
+    timerEnde = Date.now() + sekunden * 1000;
+    try { localStorage.setItem(TIMER_KEY, String(timerEnde)); } catch {}
+    timerChip.classList.remove("fertig");
+    timerChip.hidden = false;
+    zeigeTimer();
+    timerTakt = setInterval(zeigeTimer, 500);
+  }
+  function stoppeTimer(weg = true) {
+    clearInterval(timerTakt);
+    timerTakt = null;
+    timerEnde = 0;
+    try { localStorage.removeItem(TIMER_KEY); } catch {}
+    if (weg) timerChip.hidden = true;
+  }
+  function timerFertig() {
+    clearInterval(timerTakt);
+    timerTakt = null;
+    try { localStorage.removeItem(TIMER_KEY); } catch {}
+    timerChip.classList.add("fertig");
+    timerChip.textContent = "⏱ Zeit ist um";
+    try {
+      const k = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.35, 0.7].forEach((t) => { const o = k.createOscillator(); const g = k.createGain(); o.frequency.value = 880; g.gain.value = 0.15; o.connect(g); g.connect(k.destination); o.start(k.currentTime + t); o.stop(k.currentTime + t + 0.2); });
+      setTimeout(() => k.close().catch(() => {}), 1500);
+    } catch {}
+    sage("Die Zeit ist um.");
+    sprich("Die Zeit ist um.");
+    setTimeout(() => { if (!timerTakt) timerChip.hidden = true; }, 20_000);
+  }
+  timerChip.addEventListener("click", () => stoppeTimer());
+  try {
+    const gemerkt = Number(localStorage.getItem(TIMER_KEY));
+    if (gemerkt > Date.now()) { timerEnde = gemerkt; timerChip.hidden = false; zeigeTimer(); timerTakt = setInterval(zeigeTimer, 500); }
+  } catch {}
+
   const beschrifte = (k, iconName, text) => k.replaceChildren(icon(iconName), text);
 
   // ── Einstimmung: vier Stationen mit Texten je Meeting ──

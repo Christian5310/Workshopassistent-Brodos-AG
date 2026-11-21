@@ -790,3 +790,7 @@ img.avatar { object-fit: cover; background: transparent; }
 .merlin-knopf:not(.lauscht):hover, .merlin-knopf:not(.lauscht):focus-visible { opacity: 1; }
 .merlin-knopf.pausiert { opacity: 0.45 !important; filter: grayscale(0.7); }
 .merlin-knopf.pausiert:hover, .merlin-knopf.pausiert:focus-visible { opacity: 0.8 !important; }
+
+/* Timer bei Merlin (per Stimme: „Stell einen Timer auf 10 Minuten“) */
+.merlin-timer { position: fixed; z-index: 40; min-height: 0; padding: 0.3rem 0.9rem; border: 2px solid var(--accent); border-radius: 999px; background: var(--surface); color: var(--text, #102636); font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; box-shadow: 0 6px 18px rgba(16, 38, 54, 0.25); cursor: pointer; }
+.merlin-timer.fertig { background: #ffd50d; animation: lauschtatmet 1.2s ease-in-out infinite; }

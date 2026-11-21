@@ -409,6 +409,7 @@ async function merlinDeuten(text: string, bereich: string, mitKi = true): Promis
   if (ergebnis.aktion === "wissen") ergebnis = await merlinWissen(ergebnis.frage, false);
   if (ergebnis.aktion === "todo-neu" && !config.mock) ergebnis = await verfeinereTodo(text, ergebnis);
   if (ergebnis.aktion === "todo-neu" || ergebnis.aktion === "todo-verschieben" || ergebnis.aktion === "todo-erledigt" || ergebnis.aktion === "todo-aendern") ergebnis = fuehreTodoAus(ergebnis);
+  ergebnis = fuehreProtokollAus(ergebnis);
   const ms = Date.now() - beginn;
   console.log(`Merlin: „${text.slice(0, 80)}" → ${ergebnis.aktion} (${ki ? "KI" : "Regel"}, ${ms} ms)`);
   return { ...ergebnis, erkannt: text, ki, ms };
@@ -451,6 +452,31 @@ function fuehreTodoAus(e: merlin.Ergebnis): merlin.Ergebnis {
     todo.text = e.text?.trim().slice(0, 300) || todo.text;
     todo.owner = e.owner?.trim().slice(0, 60) || todo.owner;
     todo.frist = e.frist?.trim().slice(0, 60) || todo.frist;
+  } else return e;
+  store.speichern();
+  senden();
+  return e;
+}
+
+/** Agendapunkt wechseln, Entscheidung oder offene Frage notieren, letzten Schritt rückgängig machen (per Stimme). */
+function fuehreProtokollAus(e: merlin.Ergebnis): merlin.Ergebnis {
+  const p = store.daten.protokoll;
+  if (e.aktion === "punkt-wechseln") {
+    const punkt = p.agenda.find((a) => a.id === e.id);
+    if (!punkt) return { aktion: "hinweis", antwort: "Den Agendapunkt gibt es nicht mehr." };
+    for (const a of p.agenda) if (a.status === "läuft") a.status = "erledigt";
+    punkt.status = "läuft";
+  } else if (e.aktion === "eintrag-neu") {
+    const liste = e.art === "entscheidung" ? p.entscheidungen : p.offene_fragen;
+    const name = e.art === "entscheidung" ? "Entscheidung" : "Offene Frage";
+    if (liste.some((x) => x.text.toLowerCase() === e.text.toLowerCase())) return { aktion: "hinweis", antwort: `„${e.text}“ steht schon im Protokoll.` };
+    merkeSchritt(`${name} von Merlin: „${e.text}"`);
+    const nummer = Math.max(0, ...liste.map((x) => Number(x.id.slice(1)) || 0)) + 1;
+    if (e.art === "entscheidung") p.entscheidungen.push({ id: `E${nummer}`, text: e.text, agendapunkt: e.agendapunkt });
+    else p.offene_fragen.push({ id: `F${nummer}`, text: e.text, status: "offen", agendapunkt: e.agendapunkt });
+  } else if (e.aktion === "rueckgaengig") {
+    const was = macheRueckgaengig();
+    return { aktion: "hinweis", antwort: was ? `Rückgängig gemacht: ${was}.` : "Es gibt nichts rückgängig zu machen." };
   } else return e;
   store.speichern();
   senden();
@@ -572,15 +598,21 @@ app.post("/api/vorschlag/:id/:aktion", (req, res) => {
 });
 
 /** Macht die letzte Änderung am Protokoll rückgängig (KI oder Hand). Mehrfach möglich, bis zu 30 Schritte. */
-app.post("/api/rueckgaengig", (_req, res) => {
+/** Macht den letzten Schritt rückgängig (Einträge gehen zurück, die Agenda behält ihren Stand). Gibt den Namen des Schritts zurück oder null. */
+function macheRueckgaengig(): string | null {
   const schritt = schritte.pop();
-  if (!schritt || !store.istOffen) return void res.status(409).json({ fehler: "Es gibt nichts rückgängig zu machen." });
+  if (!schritt || !store.istOffen) return null;
   // Die Agenda steuert die Moderation: ihr aktueller Stand bleibt, nur die Einträge gehen zurück.
   store.daten.protokoll = { ...schritt.protokoll, agenda: store.daten.protokoll.agenda };
   store.speichern();
   arbeit = `Rückgängig gemacht: ${schritt.was}`;
   senden();
-  res.json({ ok: true, was: schritt.was });
+  return schritt.was;
+}
+app.post("/api/rueckgaengig", (_req, res) => {
+  const was = macheRueckgaengig();
+  if (was === null) return void res.status(409).json({ fehler: "Es gibt nichts rückgängig zu machen." });
+  res.json({ ok: true, was });
 });
 
 /** Agendapunkt von Hand auswählen: Er läuft ab jetzt; der bisher laufende gilt als erledigt. */

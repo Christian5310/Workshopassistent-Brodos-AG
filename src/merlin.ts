@@ -55,6 +55,12 @@ export const BefehlSchema = z.discriminatedUnion("aktion", [
   z.object({ aktion: z.literal("hilfe") }),
   z.object({ aktion: z.literal("fuehrung") }),
   z.object({ aktion: z.literal("tagesablauf") }),
+  z.object({ aktion: z.literal("punkt-wechseln"), ziel: z.string().max(120) }), // "@weiter", "@zurueck" oder Nummer/Titel
+  z.object({ aktion: z.literal("rueckgaengig") }),
+  z.object({ aktion: z.literal("eintrag-neu"), art: z.enum(["entscheidung", "frage"]), text: z.string().max(300) }),
+  z.object({ aktion: z.literal("timer"), sekunden: z.number().int().min(1).max(14400).optional() }),
+  z.object({ aktion: z.literal("timer-stopp") }),
+  z.object({ aktion: z.literal("frage-dazu"), an: z.string().max(40) }),
   z.object({ aktion: z.literal("loeschen") }),
   z.object({ aktion: z.literal("unbekannt") }),
 ]);
@@ -130,6 +136,11 @@ export type Ergebnis =
   | { aktion: "nachfrage"; text: string; antwort: string } // Freihand: nicht sicher, ob Merlin gemeint war
   | { aktion: "fuehrung"; antwort: string }
   | { aktion: "tagesablauf"; antwort: string }
+  | { aktion: "punkt-wechseln"; id: string; antwort: string } // wird auf dem Server ausgeführt
+  | { aktion: "rueckgaengig"; antwort: string } // wird auf dem Server ausgeführt
+  | { aktion: "eintrag-neu"; art: "entscheidung" | "frage"; text: string; agendapunkt: string; antwort: string } // wird auf dem Server ausgeführt
+  | { aktion: "timer"; sekunden: number; antwort: string } // läuft im Browser
+  | { aktion: "timer-stopp"; antwort: string }
   | { aktion: "todo-text-fehlt"; antwort: string } // "Füge ein To-do hinzu" ohne Text: Merlin fragt, der nächste Satz ist der Text
   | { aktion: "hilfe" | "unbekannt" | "hinweis"; antwort: string; auswahl?: Auswahl[] };
 
@@ -292,6 +303,39 @@ const FUEHRUNG = /(f(ü|ue)hrung|rundgang|app ?tour|\btour\b)|((erkl(ä|ae)r|zei
 /** "Wie sieht der Tagesablauf aus?", "Worum geht es im heutigen Workshop?" */
 const TAGESABLAUF = /tagesablauf|tagesplan|ablauf (des |von |für )?(heute|dem tag|den tag|tages)|(heutige[nrm]?|heutigen) (workshop|ablauf|tag)|(was|wie) (machen|haben|planen|steht) (wir|bei uns) heute|worum geht('s| es) (heute|im workshop|beim workshop)/;
 
+const ZAHLWOERTER: Record<string, number> = { ein: 1, eine: 1, einen: 1, eins: 1, zwei: 2, drei: 3, vier: 4, fünf: 5, fuenf: 5, sechs: 6, sieben: 7, acht: 8, neun: 9, zehn: 10, elf: 11, zwölf: 12, zwoelf: 12, fünfzehn: 15, fuenfzehn: 15, zwanzig: 20, fünfundzwanzig: 25, fuenfundzwanzig: 25, dreißig: 30, dreissig: 30, vierzig: 40, fünfundvierzig: 45, fuenfundvierzig: 45, fünfzig: 50, fuenfzig: 50, sechzig: 60, neunzig: 90 };
+
+/** "10 Minuten", "eine halbe Stunde", "Viertelstunde", "90 Sekunden" → Sekunden (oder null) */
+export function dauerInSekunden(text: string): number | null {
+  const s = text.toLowerCase().replace(/(\d),(\d)/g, "$1.$2");
+  if (/dreiviertel ?stunde/.test(s)) return 45 * 60;
+  if (/viertel ?stunde/.test(s)) return 15 * 60;
+  if (/(eine )?halbe stunde|halbe std/.test(s)) return 30 * 60;
+  if (/anderthalb stunden?|eineinhalb stunden?/.test(s)) return 90 * 60;
+  const m = s.match(/(\d+(?:\.\d+)?|[a-zäöüß]+) ?(sekunden?|sek|minuten?|min|stunden?|std)\b/);
+  if (!m) return null;
+  const zahl = /^\d/.test(m[1]!) ? Number(m[1]) : ZAHLWOERTER[m[1]!];
+  if (!zahl || !Number.isFinite(zahl)) return null;
+  const faktor = /^sek/.test(m[2]!) ? 1 : /^m/.test(m[2]!) ? 60 : 3600;
+  return Math.round(zahl * faktor);
+}
+
+/** Dauer für die Ansage: "10 Minuten", "1 Stunde 30 Minuten", "90 Sekunden" */
+export function dauerText(sekunden: number): string {
+  if (sekunden < 120) return `${sekunden} ${sekunden === 1 ? "Sekunde" : "Sekunden"}`;
+  const h = Math.floor(sekunden / 3600);
+  const min = Math.round((sekunden % 3600) / 60);
+  return [h ? `${h} ${h === 1 ? "Stunde" : "Stunden"}` : "", min ? `${min} ${min === 1 ? "Minute" : "Minuten"}` : ""].filter(Boolean).join(" ");
+}
+
+/** Letzte Aussage aus dem Transkript, ohne die Sätze, in denen Merlin angesprochen wird */
+export function letzteAussage(maxZeichen = 700): string {
+  const wort = klein(einstellungen.aktivierungswort);
+  const abschnitte = store.daten.transkript.slice(-2).map((t) => t.text).join(" ");
+  const saetze = abschnitte.split(/(?<=[.!?])\s+/).filter((x) => !klein(x).includes(wort));
+  return saetze.join(" ").slice(-maxZeichen).trim();
+}
+
 /** Feste Regeln. Reihenfolge zählt: spezielle Formulierungen vor allgemeinen. */
 export function regeln(text: string): Befehl | null {
   const s = bereinige(text);
@@ -300,6 +344,24 @@ export function regeln(text: string): Befehl | null {
 
   if (FUEHRUNG.test(s)) return { aktion: "fuehrung" };
   if (TAGESABLAUF.test(s)) return { aktion: "tagesablauf" };
+  // Timer: "Stell einen Timer auf 10 Minuten", "Timer 5 Minuten", "Timer abbrechen"
+  if (/timer|stoppuhr|wecker/.test(s)) {
+    if (/(abbrech|stopp|stop|lösch|loesch|aus\b|beend|vergiss)/.test(s) && dauerInSekunden(s) === null) return { aktion: "timer-stopp" };
+    return { aktion: "timer", sekunden: dauerInSekunden(s) ?? undefined };
+  }
+  // Agendapunkt wechseln: "Weiter zum nächsten Punkt", "Starte Punkt 2", "Zurück zum vorherigen Punkt"
+  if (/(n(ä|ae)chste[nrsm]?|weiter(er|en)?) (agenda ?)?(punkt|top|tagesordnungspunkt)|^weiter zum n(ä|ae)chsten/.test(s)) return { aktion: "punkt-wechseln", ziel: "@weiter" };
+  if (/(vorherige[nrsm]?|letzte[nrsm]?|vorige[nrsm]?) (agenda ?)?(punkt|top)|zur(ü|ue)ck zum (vorherigen|letzten) punkt/.test(s) && /punkt|top/.test(s)) return { aktion: "punkt-wechseln", ziel: "@zurueck" };
+  if ((m = s.match(/^(?:starte|beginne|gehe? zu(?:m|r)?|wechsel\w* zu(?:m|r)?|weiter zu(?:m|r)?|weiter mit|jetzt) (?:den |dem |der )?(?:agenda ?)?(?:punkt|top|tagesordnungspunkt) (.+)$/))) return { aktion: "punkt-wechseln", ziel: m[1]! };
+  // Rückgängig: "Rückgängig", "Mach den letzten Schritt rückgängig", "Nimm das zurück"
+  if (/r(ü|ue)ckg(ä|ae)ngig|nimm (das|es|den letzten schritt) zur(ü|ue)ck/.test(s)) return { aktion: "rueckgaengig" };
+  // Entscheidung oder offene Frage notieren
+  if ((m = s.match(/^(?:notiere|halte fest|schreib\w*|trag\w*|nimm auf|erfasse|erstelle|f(?:ü|ue)ge?)\s+(?:bitte )?(?:eine?n? )?(?:neue[nrs]? )?(entscheidung|offene frage|frage)\b\s*(?:hinzu|auf|ein)?\s*[:,\-–]?\s*(.*)$/)) || (m = s.match(/^(entscheidung|offene frage)\s*[:,\-–]\s*(.*)$/))) {
+    const roh = text.replace(/^.*?(entscheidung|offene frage|frage)\s*(?:hinzu|auf|ein)?\s*[:,\-–]?\s*/i, "");
+    return { aktion: "eintrag-neu", art: m[1] === "entscheidung" ? "entscheidung" : "frage", text: roh.replace(/^[\s:,\-–]+|[\s]+$/g, "") };
+  }
+  // "Was sagt der BPM Spezialist dazu?" → Frage zur letzten Aussage im Meeting
+  if ((m = s.match(/^(?:was|wie) (?:sagt|meint|denkt|findet|sieht)\w* (?:denn )?(?:der |die |das |unser |unsere )?(.+?) (?:dazu|dazu jetzt|zu dem|zu dieser aussage|zu dem punkt)$/)) || (m = s.match(/^frage (?:den |die |das )?(.+?) dazu$/)) || (m = s.match(/^(?:was )?(?:meinen|sagen) (?:die |unsere )?(experten|agenten|spezialisten|alle) dazu$/))) return { aktion: "frage-dazu", an: m[1]! };
   if (/frage an /.test(s)) {
     const [adressat, ...rest] = text.replace(/^.*?frage an\s*/i, "").split(/[:,]/);
     const frage = rest.join(",").trim();
@@ -411,7 +473,7 @@ export const TAGESABLAUF_TEXT =
   "Die KI begleitet euch dabei, so weit es geht: Das Protokoll wird aufgenommen, To-dos werden erkannt, ihr könnt die Agenten befragen, und am Ende gibt es eine saubere Zusammenfassung. Viel Spaß dabei!";
 
 export const HILFE =
-  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Öffne die Pinnwand“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Hake CRM-Export ab“, „Setze beim To-do CRM-Export die Frist auf Montag“, „Lösche das To-do CRM-Export“ (mit Rückfrage), „Wo ändere ich die Lesegeschwindigkeit?“, „Wie ist der Tagesablauf?“, „Erklär uns die App“ (nur ohne geöffnetes Meeting) oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
+  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Öffne die Pinnwand“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Hake CRM-Export ab“, „Setze beim To-do CRM-Export die Frist auf Montag“, „Lösche das To-do CRM-Export“ (mit Rückfrage), „Wo ändere ich die Lesegeschwindigkeit?“, „Starte Punkt 2“, „Weiter zum nächsten Punkt“, „Rückgängig“, „Notiere eine Entscheidung: …“, „Stell einen Timer auf 10 Minuten“, „Was sagt der BPM Spezialist dazu?“, „Wie ist der Tagesablauf?“, „Erklär uns die App“ (nur ohne geöffnetes Meeting) oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
 
 /** Prüft den Befehl gegen den Zustand der App und löst Namen in IDs auf. */
 export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
@@ -545,6 +607,48 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
       return { aktion: "fuehrung", antwort: "Gern. Ich zeige euch die App." };
     case "tagesablauf":
       return { aktion: "tagesablauf", antwort: TAGESABLAUF_TEXT };
+    case "timer":
+      if (!b.sekunden) return { aktion: "hinweis", antwort: "Wie lange soll der Timer laufen? Sag zum Beispiel: Stell einen Timer auf 10 Minuten." };
+      return { aktion: "timer", sekunden: b.sekunden, antwort: `Timer läuft: ${dauerText(b.sekunden)}.` };
+    case "timer-stopp":
+      return { aktion: "timer-stopp", antwort: "Der Timer ist gestoppt." };
+    case "rueckgaengig":
+      if (!store.istOffen) return { aktion: "hinweis", antwort: "Es ist gerade kein Meeting geöffnet." };
+      return { aktion: "rueckgaengig", antwort: "" }; // der Server macht den letzten Schritt rückgängig und schreibt die Antwort
+    case "eintrag-neu": {
+      if (!store.istOffen) return { aktion: "gehe", ziel: "meeting", antwort: "Dafür brauche ich ein geöffnetes Meeting. Welches soll ich öffnen?", auswahl: auswahlMeetings() };
+      const text = b.text.trim();
+      const name = b.art === "entscheidung" ? "Entscheidung" : "Offene Frage";
+      if (!text) return { aktion: "hinweis", antwort: `Was soll ich notieren? Sag zum Beispiel: Notiere ${b.art === "entscheidung" ? "eine Entscheidung: Wir starten im Januar" : "eine offene Frage: Wer zahlt das"}.` };
+      const punkt = store.daten.protokoll.agenda.find((a) => a.status === "läuft");
+      return { aktion: "eintrag-neu", art: b.art, text: text.slice(0, 300), agendapunkt: punkt?.id ?? "", antwort: `${name} notiert: ${text.replace(/[.!?]+$/, "")}.` };
+    }
+    case "punkt-wechseln": {
+      if (!store.istOffen) return { aktion: "gehe", ziel: "meeting", antwort: "Dafür brauche ich ein geöffnetes Meeting. Welches soll ich öffnen?", auswahl: auswahlMeetings() };
+      const agenda = store.daten.protokoll.agenda;
+      if (!agenda.length) return { aktion: "hinweis", antwort: "Für dieses Meeting gibt es noch keine Agenda." };
+      const aktuell = agenda.findIndex((a) => a.status === "läuft");
+      let ziel: { id: string; titel: string } | null | undefined;
+      if (b.ziel === "@weiter") {
+        ziel = agenda[aktuell + 1];
+        if (!ziel) return { aktion: "hinweis", antwort: "Das war schon der letzte Punkt der Agenda." };
+      } else if (b.ziel === "@zurueck") {
+        ziel = aktuell > 0 ? agenda[aktuell - 1] : undefined;
+        if (!ziel) return { aktion: "hinweis", antwort: "Es gibt keinen vorherigen Punkt." };
+      } else {
+        ziel = findeAgendapunkt(b.ziel);
+        if (!ziel?.id) return { aktion: "hinweis", antwort: `Den Agendapunkt „${b.ziel}“ habe ich nicht gefunden. Sag zum Beispiel „Starte Punkt 2“.` };
+      }
+      const index = agenda.findIndex((a) => a.id === ziel!.id);
+      if (index === aktuell) return { aktion: "hinweis", antwort: `Punkt ${index + 1} läuft schon.` };
+      return { aktion: "punkt-wechseln", id: ziel.id, antwort: `Weiter mit Punkt ${index + 1}: „${ziel.titel}“.` };
+    }
+    case "frage-dazu": {
+      if (!store.istOffen) return { aktion: "gehe", ziel: "meeting", antwort: "Für Fragen an die Agenten brauche ich ein geöffnetes Meeting. Welches soll ich öffnen?", auswahl: auswahlMeetings() };
+      const aussage = letzteAussage();
+      if (!aussage) return { aktion: "hinweis", antwort: "Es gibt noch keine Aussage im Transkript, zu der ich den Agenten fragen könnte." };
+      return aufloesen({ aktion: "frage", an: b.an, text: `Nimm aus deiner Rolle kurz Stellung zur letzten Aussage im Meeting: „${aussage}“` }, aufnahmeLaeuft);
+    }
     case "hilfe":
       return { aktion: "hilfe", antwort: HILFE };
     case "loeschen":

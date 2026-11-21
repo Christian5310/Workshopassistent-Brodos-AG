@@ -304,6 +304,11 @@ Erlaubte Aktionen:
 {"aktion": "hilfe"}
 {"aktion": "fuehrung"}  (die App erklären, Führung bzw. Rundgang durch die App, "Zeig uns die App")
 {"aktion": "tagesablauf"}  (Tagesablauf, Ablauf des heutigen Workshops, worum es heute geht)
+{"aktion": "punkt-wechseln", "ziel": "@weiter oder @zurueck oder Nummer/Titel des Agendapunkts"}  ("Weiter zum nächsten Punkt", "Starte Punkt 2")
+{"aktion": "rueckgaengig"}  (den letzten Schritt rückgängig machen)
+{"aktion": "eintrag-neu", "art": "entscheidung oder frage", "text": "kurzer Text"}  (Entscheidung bzw. offene Frage notieren; für To-dos nimm "todo-neu")
+{"aktion": "timer", "sekunden": 600}  (Timer stellen; Dauer in Sekunden)  /  {"aktion": "timer-stopp"}
+{"aktion": "frage-dazu", "an": "Name des Agenten oder alle"}  ("Was sagt der BPM Spezialist dazu?")
 {"aktion": "unbekannt"}
 
 Regeln: Löschen gibt es nicht (dann "unbekannt"). Im Zweifel "unbekannt". Will jemand zu einem bestimmten Meeting oder Workshop, nimm "meeting-oeffnen" bzw. "workshop-oeffnen" und übernimm den Namen GENAU aus der Liste im KONTEXT (auch bei Hörfehlern den ähnlichsten). "assistent" und "agenten" nur, wenn bereits ein Meeting geöffnet ist. "eingereicht" = eingereichtes Material zusammenfassen. "assistent" = Meeting Assistent mit Protokoll und To-dos.`,
