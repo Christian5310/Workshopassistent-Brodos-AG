@@ -10,7 +10,6 @@
 //     nach:   Verzögerung in Millisekunden nach dem Beginn der Station (für die zweite und dritte Bubble)
 //     fokus, zoom: bei nicht quadratischen Bildern, was in den Kreis soll: Mittelpunkt in Prozent ("70% 55%") und Vergrößerung (1 = mittleres Quadrat)
 //     passt:  true zeigt das ganze Bild im Kreis (heller Rand oben und unten), gut für breite Bilder mit großer Schrift
-// Die Platzhalter-Bilder entstehen mit "node scripts/fuehrung-bilder.mjs" (siehe docs/uebergabe/fuehrung.md).
 export const FUEHRUNG = [
   {
     text: "Hallo zusammen! Ich bin Merlin und ich zeige euch nun kurz, wie die neue Broki Meeting App funktioniert. Los geht's!",

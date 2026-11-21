@@ -248,7 +248,7 @@ function aehnlichkeit(a: string, b: string): number {
  */
 export function absichern(alt: Protokoll, neu: Protokoll, punkt = ""): Protokoll {
   const gleich = (a: string, b: string) => aehnlichkeit(a, b) >= 0.8;
-  const naechste = (liste: { id: string }[], praefix: string) => Math.max(0, ...liste.map((e) => Number(e.id.slice(1)) || 0)) + 1;
+  const naechste = (liste: { id: string }[]) => Math.max(0, ...liste.map((e) => Number(e.id.slice(1)) || 0)) + 1;
 
   /** Trennt die Antwort in Status-Updates für bestehende Einträge und wirklich neue Einträge. */
   function teile<T extends { id: string; text: string }>(a: T[], n: T[]) {
@@ -272,7 +272,7 @@ export function absichern(alt: Protokoll, neu: Protokoll, punkt = ""): Protokoll
   const f = teile(alt.offene_fragen, neu.offene_fragen);
 
   const max = einstellungen.maxTodosProZyklus;
-  let tNr = naechste(alt.todos, "T");
+  let tNr = naechste(alt.todos);
   const todos = [
     ...alt.todos.map((x) => ({ ...x, status: t.updates.get(x.id)?.status ?? x.status })),
     ...t.neue.slice(0, max).map((y) => ({ ...y, id: `T${tNr++}`, gruppe: "", agendapunkt: punkt })),
@@ -285,8 +285,8 @@ export function absichern(alt: Protokoll, neu: Protokoll, punkt = ""): Protokoll
     if (![...vorschlaege, ...todos].some((x) => gleich(x.text, k.text))) vorschlaege.push({ ...k, agendapunkt: punkt, id: `V-${randomUUID().slice(0, 8)}` });
   }
 
-  let eNr = naechste(alt.entscheidungen, "E");
-  let fNr = naechste(alt.offene_fragen, "F");
+  let eNr = naechste(alt.entscheidungen);
+  let fNr = naechste(alt.offene_fragen);
   return {
     agenda: alt.agenda, // die Agenda steuert die Moderation von Hand, nicht das Sprachmodell
     todos,

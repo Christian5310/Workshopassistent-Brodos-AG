@@ -12,3 +12,7 @@ lokal/modelle/
 
 # Hintergrundmusik der Führung: Nutzungsrechte klären, bevor sie ins Repo kommt (Datei public/audio/fuehrung.mp3 liegt nur lokal)
 public/audio/
+
+# Excel-Sperrdateien und lokale Claude-Einstellungen (launch.json bleibt im Repo)
+~$*
+.claude/settings.local.json
