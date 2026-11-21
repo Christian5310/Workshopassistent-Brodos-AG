@@ -31,7 +31,7 @@ export const FUEHRUNG = [
   },
   {
     text: "Ihr könnt mich jederzeit mit meinem Namen ansprechen. Sagt einfach „Merlin“ und dann, was ihr braucht, zum Beispiel einen Bereich öffnen, ein Tu-Du anlegen oder abhaken. Ich führe es für euch aus.",
-    bilder: [{ datei: "e.webp", titel: "Merlin, der Zauberer", x: 68, y: 47, groesse: 52, von: "rechts", nach: 3000 }],
+    bilder: [{ datei: "e.webp", titel: "Merlin, der Zauberer", x: 68, y: 47, groesse: 52, von: "rechts", zoom: 0.92, nach: 3000 }],
   },
   {
     text: "Wir haben auch eine Pinnwand. Dort findet ihr die Infodateien, die ihr vorher eingereicht habt, und könnt sie jederzeit abrufen.",
