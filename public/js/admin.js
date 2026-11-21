@@ -509,3 +509,22 @@ try {
   $("#musik-probe").addEventListener("click", () => musik?.probe());
   if (!musik) $("#musik-probe").disabled = true;
 } catch {}
+
+// ── Technische Ausführung: Zeile unten in der Seitenleiste öffnet die Spezifikation (public/technik-inhalt.html) ──
+{
+  const fenster = $("#technik");
+  let geladen = false;
+  $("#technik-zeile").addEventListener("click", async (e) => {
+    e.preventDefault();
+    fenster.showModal();
+    if (geladen) return;
+    try {
+      const antwort = await fetch("/technik-inhalt.html");
+      if (!antwort.ok) throw new Error(String(antwort.status));
+      $("#technik-inhalt").innerHTML = await antwort.text(); // eigene, feste Datei
+      geladen = true;
+    } catch {
+      $("#technik-inhalt").textContent = "Die Spezifikation konnte nicht geladen werden.";
+    }
+  });
+}

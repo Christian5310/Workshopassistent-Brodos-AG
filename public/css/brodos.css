@@ -794,3 +794,15 @@ img.avatar { object-fit: cover; background: transparent; }
 /* Timer bei Merlin (per Stimme: „Stell einen Timer auf 10 Minuten“) */
 .merlin-timer { position: fixed; z-index: 40; min-height: 0; padding: 0.3rem 0.9rem; border: 2px solid var(--accent); border-radius: 999px; background: var(--surface); color: var(--text, #102636); font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; box-shadow: 0 6px 18px rgba(16, 38, 54, 0.25); cursor: pointer; }
 .merlin-timer.fertig { background: #ffd50d; animation: lauschtatmet 1.2s ease-in-out infinite; }
+
+/* ── Admin: Zeile „Technische Ausführung“ ganz unten in der Seitenleiste und das Fenster dazu ── */
+.seitenleiste .seitenfuss-zeile { margin-top: auto; padding: var(--space-2) 0.25rem 0; border-top: 1px solid var(--line); font-size: 0.875rem; color: var(--ink-muted); text-decoration: none; cursor: pointer; }
+.seitenleiste .seitenfuss-zeile:hover, .seitenleiste .seitenfuss-zeile:focus-visible { color: var(--brand); text-decoration: underline; }
+dialog.technik-fenster { width: min(72rem, 94vw); max-height: 92vh; }
+.technik-inhalt { overflow-y: auto; max-height: 72vh; padding-right: 0.5rem; }
+.technik h3 { margin: var(--space-3) 0 var(--space-1); font-size: 1rem; color: var(--brand); }
+.technik h3:first-child { margin-top: 0; }
+.technik table { margin-bottom: var(--space-1); }
+.technik th, .technik td { padding: 0.375rem 0.75rem; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; white-space: normal; }
+.technik td:first-child { font-weight: 600; white-space: nowrap; }
+.technik code { font-size: 0.8125rem; background: var(--surface-alt); padding: 0 0.25rem; border-radius: 4px; }

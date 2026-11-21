@@ -1,0 +1,237 @@
+<!-- Technische Ausführung (Stand 21.11.2026). Wird im Admin über die Zeile „Technische Ausführung“ in ein Fenster geladen. Stichworte und Tabellen, keine Fließtexte. -->
+<div class="technik">
+
+<h3>1 · Überblick</h3>
+<table>
+  <tr><th>Merkmal</th><th>Wert</th></tr>
+  <tr><td>Name</td><td>BroKI · KI Meeting Agent (Brodos Sales Agentic Workshop)</td></tr>
+  <tr><td>Art</td><td>Prototyp, Web-App, lokal betrieben</td></tr>
+  <tr><td>Einsatz</td><td>26.11.2026, 7–10 Personen, 1 Aufnahme-Laptop</td></tr>
+  <tr><td>Architektur</td><td>Node-Server + Browser-Oberfläche, Server-Sent Events (live)</td></tr>
+  <tr><td>Datenhaltung</td><td>JSON-Dateien, keine Datenbank</td></tr>
+  <tr><td>Rollen</td><td>Merlin (Sprachassistent) · Protokollant (Chronist) · 3 Spezial-Agenten</td></tr>
+  <tr><td>Umfang</td><td>≈ 4.000 Zeilen TypeScript (Server) · ≈ 4.300 Zeilen JavaScript (Browser)</td></tr>
+</table>
+
+<h3>2 · Technologie</h3>
+<table>
+  <tr><th>Schicht</th><th>Technik</th><th>Version</th></tr>
+  <tr><td>Laufzeit</td><td>Node.js</td><td>24</td></tr>
+  <tr><td>Sprache Server</td><td>TypeScript, ohne Build (tsx)</td><td>TS 7.0 · tsx 4.23</td></tr>
+  <tr><td>Web-Server</td><td>Express</td><td>5.3</td></tr>
+  <tr><td>Validierung</td><td>zod</td><td>4.6</td></tr>
+  <tr><td>Excel lesen</td><td>exceljs</td><td>4.4</td></tr>
+  <tr><td>Word lesen</td><td>mammoth</td><td>1.13</td></tr>
+  <tr><td>PDF lesen</td><td>unpdf</td><td>2.2</td></tr>
+  <tr><td>Browser</td><td>Vanilla-JS (ES-Module), kein Framework, kein Bundler</td><td>Chrome</td></tr>
+  <tr><td>App-Rahmen</td><td><code>app.html</code> + <code>shell.js</code>, Bereiche als iframes</td><td>–</td></tr>
+  <tr><td>Live-Updates</td><td>Server-Sent Events, <code>GET /api/events</code></td><td>–</td></tr>
+  <tr><td>Tests</td><td>node:test über tsx · 38 Tests in 5 Dateien</td><td>–</td></tr>
+</table>
+
+<h3>3 · Systemlandschaft</h3>
+<table>
+  <tr><th>Komponente</th><th>Ort</th><th>Port / Adresse</th><th>Zweck</th></tr>
+  <tr><td>BroKI-Server</td><td>Laptop 1</td><td>3000 (Standard 127.0.0.1)</td><td>App, API, Daten</td></tr>
+  <tr><td>Browser Moderation</td><td>Laptop 1</td><td>localhost:3000</td><td>Mikrofon, Merlin, Bedienung</td></tr>
+  <tr><td>Browser Anzeige</td><td>Laptop 2 / 2. Monitor</td><td>http://&lt;IP&gt;:3000</td><td>Anzeige (<code>HOST=0.0.0.0</code>)</td></tr>
+  <tr><td>Broki (Open WebUI)</td><td>Brodos, Cloud</td><td>OpenAI-kompatibel, <code>/api/chat/completions</code></td><td>Sprachmodelle</td></tr>
+  <tr><td>Mistral (Voxtral)</td><td>Cloud</td><td>api.mistral.ai</td><td>Transkription (Standard)</td></tr>
+  <tr><td>Whisper lokal</td><td>Laptop 1, optional</td><td>127.0.0.1:8001</td><td>Transkription ohne Cloud</td></tr>
+  <tr><td>Ollama lokal</td><td>optional</td><td>127.0.0.1:11434</td><td>Sprachmodell ohne Cloud</td></tr>
+</table>
+
+<h3>4 · KI-Dienste</h3>
+<table>
+  <tr><th>Aufgabe</th><th>Anbieter</th><th>Modell</th><th>Einstellung</th></tr>
+  <tr><td>Transkription</td><td>Mistral Voxtral</td><td>voxtral-mini-transcribe-3-0</td><td><code>STT_ANBIETER</code> · Admin → Erweitert</td></tr>
+  <tr><td>Transkription (Alternativen)</td><td>Whisper lokal · Broki</td><td>large-v3 · large-v3-turbo</td><td>Admin → Erweitert</td></tr>
+  <tr><td>Protokoll (Chronist)</td><td>Broki</td><td>broki-protokoll (Prompt in Broki)</td><td><code>LLM_MODEL_PROTOKOLL</code></td></tr>
+  <tr><td>Agenten</td><td>Broki</td><td>claude-haiku-5-5</td><td><code>LLM_MODEL</code></td></tr>
+  <tr><td>Merlin (Befehle)</td><td>Broki</td><td>wie <code>LLM_MODEL</code></td><td><code>LLM_MODEL_MERLIN</code> (leer)</td></tr>
+  <tr><td>Zusammenfassung</td><td>Broki</td><td>claude-haiku-5-5</td><td><code>LLM_MODEL</code></td></tr>
+  <tr><td>Fallback ohne Broki</td><td>Mistral</td><td>mistral-medium-latest · Merlin: mistral-small</td><td>ohne <code>LLM_*</code>-Zeilen</td></tr>
+  <tr><td>Lokal</td><td>Ollama</td><td>mistral-small3.2</td><td><code>LLM_ANBIETER=ollama</code></td></tr>
+  <tr><td>Sprachausgabe</td><td>Browser (Web Speech API)</td><td>Stimme und Tempo aus Admin</td><td>kein Dienst, kein Schlüssel</td></tr>
+</table>
+<table>
+  <tr><th>Parameter</th><th>Wert</th></tr>
+  <tr><td>Temperatur</td><td>0,2 (entfällt, wenn das Modell sie ablehnt)</td></tr>
+  <tr><td>Anpassung je Modell</td><td>automatisch: Temperatur, <code>max_completion_tokens</code>, JSON-Modus, Denktiefe</td></tr>
+  <tr><td>Ausgabeformat</td><td>JSON, bei Fehlern Reparatur + 2. Versuch</td></tr>
+  <tr><td>Zeitlimit</td><td>60 s (Ollama 300 s)</td></tr>
+  <tr><td>Längenlimit überschritten</td><td>neuer Versuch mit 3-fachem Limit (max. 32.000)</td></tr>
+  <tr><td>Testergebnis 16.11.</td><td>Haiku 5.5 und Sonnet 5.5: 4 von 4 · gpt-6-luna: ≈ 3 von 4</td></tr>
+</table>
+
+<h3>5 · Datenfluss Protokoll</h3>
+<table>
+  <tr><th>Schritt</th><th>Komponente</th><th>Detail</th></tr>
+  <tr><td>1</td><td>Browser · <code>aufnahme.js</code></td><td>MediaRecorder, webm/opus 32 kbit/s, Schnipsel je Takt</td></tr>
+  <tr><td>2</td><td><code>POST /api/audio-chunk</code></td><td>≤ 8 MB, Einwilligung vorher bestätigt</td></tr>
+  <tr><td>3</td><td>Transkription</td><td>Voxtral / Whisper / Broki, Audio danach verworfen</td></tr>
+  <tr><td>4</td><td><code>verarbeiteAbschnitt</code> (server.ts)</td><td>nur laufender Agendapunkt voll + Kurzliste anderer To-dos</td></tr>
+  <tr><td>5</td><td>Chronist (LLM)</td><td>liefert nur Änderungen: <code>neu · erledigt · beantwortet · befehle · frage</code></td></tr>
+  <tr><td>6</td><td><code>wendeAenderungenAn</code> (delta.ts)</td><td>Änderungen auf das Protokoll anwenden</td></tr>
+  <tr><td>7</td><td><code>ProtokollSchema</code> (zod)</td><td>Struktur prüfen, Ungültiges verwerfen</td></tr>
+  <tr><td>8</td><td><code>absichern</code> (einstellungen.ts)</td><td>Duplikate (Ähnlichkeit ≥ 0,8), IDs T/E/F, Obergrenze neuer To-dos</td></tr>
+  <tr><td>9</td><td>Sprachbefehle im Satz</td><td>Namens-Befehle an Merlin-Logik</td></tr>
+  <tr><td>10</td><td>SSE → Browser</td><td><code>GET /api/events</code>, alle Ansichten aktualisieren sich</td></tr>
+</table>
+<table>
+  <tr><th>Takt</th><th>Wert</th></tr>
+  <tr><td>Meeting</td><td>30 s</td></tr>
+  <tr><td>Workshop</td><td>45 s</td></tr>
+  <tr><td>Einstellbar</td><td>15–120 s je Meeting</td></tr>
+  <tr><td>Erster Schnipsel</td><td>≤ 20 s</td></tr>
+</table>
+
+<h3>6 · Protokoll-Datenmodell</h3>
+<table>
+  <tr><th>Objekt</th><th>Felder</th><th>ID</th></tr>
+  <tr><td>Agendapunkt</td><td>titel, status (offen · läuft · erledigt)</td><td>A1…</td></tr>
+  <tr><td>To-do</td><td>text, owner, frist, status, agendapunkt, gruppe (Ablage)</td><td>T1…</td></tr>
+  <tr><td>Vorschlag</td><td>unsicheres To-do, wartet auf Bestätigung</td><td>V-…</td></tr>
+  <tr><td>Entscheidung</td><td>text, agendapunkt</td><td>E1…</td></tr>
+  <tr><td>Offene Frage</td><td>text, status (offen · beantwortet), agendapunkt</td><td>F1…</td></tr>
+  <tr><td>Notiz</td><td>agendapunkt, text</td><td>–</td></tr>
+  <tr><td>Transkript</td><td>zeit, text, agendapunkt</td><td>–</td></tr>
+  <tr><td>Chat</td><td>Frage und Antwort je Agent</td><td>–</td></tr>
+</table>
+
+<h3>7 · Merlin</h3>
+<table>
+  <tr><th>Baustein</th><th>Detail</th></tr>
+  <tr><td>Befehlsweg</td><td>Feste Regeln (Regex, <code>regeln()</code>) → bei Bedarf Sprachmodell → <code>BefehlSchema</code> (zod) → <code>aufloesen()</code></td></tr>
+  <tr><td>Aktionen</td><td>34 (Navigation, Meeting/Workshop, Aufnahme, To-dos, Einträge, Punkte, Timer, Fragen, Führung, Hilfe)</td></tr>
+  <tr><td>Navigationsziele</td><td>start · meeting · workshop · assistent · agenten · pinnwand · archiv · admin · regie</td></tr>
+  <tr><td>Ausführung Server</td><td>To-dos, Entscheidungen, offene Fragen, Agendapunkt, Rückgängig (30 Schritte)</td></tr>
+  <tr><td>Ausführung Browser</td><td>Navigation, Sprache, Timer, Führung, Rückfragen</td></tr>
+  <tr><td>Wissen</td><td>Antworten aus Briefing + Workshop-Material</td></tr>
+  <tr><td>Aktivierungswort</td><td>„Merlin“ (Admin änderbar)</td></tr>
+  <tr><td>Rückfragen</td><td>Aufnahme starten · Meeting schließen · Löschen · unsicherer Name</td></tr>
+  <tr><td>Führung</td><td><code>fuehrung-stationen.js</code> (Drehbuch) · <code>fuehrung-buehne.js</code> (Bühne)</td></tr>
+</table>
+
+<h3>8 · Freihand-Modus</h3>
+<table>
+  <tr><th>Parameter</th><th>Wert</th></tr>
+  <tr><td>Aktivierung</td><td>Admin → Merlin aktiv, je Gerät (<code>localStorage</code>) · Klick auf Merlin schaltet ein/aus</td></tr>
+  <tr><td>Mikrofon</td><td>zusätzlicher Strom neben der Aufnahme, AudioWorklet</td></tr>
+  <tr><td>Satzerkennung</td><td>Energie-VAD (<code>Segmentierer</code>), adaptives Grundrauschen</td></tr>
+  <tr><td>Zeiten</td><td>Vorlauf 400 ms · Start 70 ms · Stille 750 ms · Nachlauf 250 ms · min. 180 ms · max. 10 s</td></tr>
+  <tr><td>Empfindlichkeit</td><td>niedrig 4,5 · mittel 3,2 · hoch 2,2 (× Grundrauschen)</td></tr>
+  <tr><td>Format</td><td>WAV 16 kHz mono, nur im Arbeitsspeicher</td></tr>
+  <tr><td>Endpunkt</td><td><code>POST /api/merlin/zuhoeren</code> (≤ 2 MB)</td></tr>
+  <tr><td>Stichwort</td><td>exakt: handelt · ähnlich: fragt nach · keins: ignoriert</td></tr>
+  <tr><td>Modi</td><td>stichwort · folge (7 s) · antwort (10 s) · todo (15 s)</td></tr>
+  <tr><td>Pausiert bei</td><td>Merlin spricht · Klick-Zuhören · Führung · 0,7 s danach</td></tr>
+  <tr><td>Heartbeat</td><td>Browser alle 30 s · Server-Frist 90 s</td></tr>
+</table>
+
+<h3>9 · Agenten</h3>
+<table>
+  <tr><th>Id</th><th>Name</th><th>Wissensquellen</th></tr>
+  <tr><td><code>sales</code></td><td>Sales Professional</td><td rowspan="3">Rollenbeschreibung (≤ 8.000 Zeichen) · Wissensdatei (≤ 300.000 Zeichen) · Briefing je Meeting · Workshop-Material</td></tr>
+  <tr><td><code>bpm</code></td><td>BPM Specialist</td></tr>
+  <tr><td><code>consultant</code></td><td>Business Consultant</td></tr>
+</table>
+<table>
+  <tr><th>Merkmal</th><th>Wert</th></tr>
+  <tr><td>Anzahl</td><td>max. 3 (Admin: anlegen, ändern, löschen)</td></tr>
+  <tr><td>Fragen</td><td>Sprache (Mikro-Klick) · Tippen · „Merlin, Frage an …“</td></tr>
+  <tr><td>Weg</td><td><code>POST /api/chat</code> · <code>/api/chat-audio</code> (≤ 8 MB)</td></tr>
+  <tr><td>Status</td><td>bereit · denkt nach</td></tr>
+  <tr><td>Anzeige</td><td><code>screen2.html</code> (auch als zweites Fenster/2. Monitor)</td></tr>
+  <tr><td>Namensregel</td><td>keine Personennamen aus eingereichtem Material</td></tr>
+</table>
+
+<h3>10 · Workshop-Material</h3>
+<table>
+  <tr><th>Merkmal</th><th>Wert</th></tr>
+  <tr><td>Dateitypen</td><td>PDF (unpdf) · Word (mammoth) · Excel (exceljs) · Markdown · Text</td></tr>
+  <tr><td>Größe</td><td>≤ 25 MB je Datei · ≤ 400.000 Zeichen Text je Eintrag</td></tr>
+  <tr><td>Ablage Original</td><td><code>data/workshops/dateien/&lt;workshop&gt;/&lt;material&gt;.&lt;endung&gt;</code></td></tr>
+  <tr><td>Verwendung</td><td>Pinnwand · Merlin-Antworten · Agenten · Zusammenfassung</td></tr>
+  <tr><td>Verdichten</td><td>KI-Kurzfassung je Eintrag (<code>/api/workshops/:id/verdichten</code>)</td></tr>
+</table>
+
+<h3>11 · Daten und Ablage</h3>
+<table>
+  <tr><th>Pfad</th><th>Inhalt</th><th>In Git</th></tr>
+  <tr><td><code>data/tage/&lt;id&gt;.json</code></td><td>Meeting: Protokoll, Transkript, Chat, Einwilligung</td><td>nein</td></tr>
+  <tr><td><code>data/workshops/ws-*.json</code></td><td>Workshop: Teilnehmer, Material, Wissen</td><td>nein</td></tr>
+  <tr><td><code>data/workshops/dateien/</code></td><td>Originaldateien</td><td>nein</td></tr>
+  <tr><td><code>data/einstellungen.json</code></td><td>Prompts, Agenten, Stimme, Wort</td><td>nein</td></tr>
+  <tr><td><code>data/aktiv.json</code></td><td>aktives Meeting</td><td>nein</td></tr>
+  <tr><td><code>.env</code></td><td>Schlüssel, Modelle, Adressen</td><td>nein</td></tr>
+  <tr><td><code>public/audio/fuehrung.mp3</code></td><td>Hintergrundmusik Führung</td><td>nein (Rechte offen)</td></tr>
+  <tr><td><code>docs/</code></td><td>Übergabe, Merlin-Liste, Agentenwissen</td><td>ja</td></tr>
+</table>
+
+<h3>12 · API (Gruppen)</h3>
+<table>
+  <tr><th>Gruppe</th><th>Pfade</th></tr>
+  <tr><td>Zustand</td><td><code>GET /api/state</code> · <code>GET /api/events</code> (SSE) · <code>GET /api/transcript</code></td></tr>
+  <tr><td>Aufnahme</td><td><code>POST /api/audio-chunk</code> · <code>/api/transkription</code> · <code>/api/regie/start|pause|reset|text</code></td></tr>
+  <tr><td>Meetings</td><td><code>/api/tage</code> (GET, POST) · <code>/api/tage/:id</code> (GET, PUT, DELETE) · <code>/aktivieren</code> · <code>/agenten</code> · <code>/ansagen</code></td></tr>
+  <tr><td>Export</td><td><code>/api/tage/:id/markdown</code> · <code>/todos.csv</code> · <code>/ki-zusammenfassung(.md)</code> · <code>/broki</code></td></tr>
+  <tr><td>Protokoll</td><td><code>/api/todos/:id</code> · <code>/api/todos/ablegen</code> · <code>/api/eintraege/:art/:id</code> · <code>/api/vorschlag/:id/:aktion</code> · <code>/api/agenda/:id/aktiv</code> · <code>/api/rueckgaengig</code> · <code>/api/meeting/schliessen</code></td></tr>
+  <tr><td>Agenten</td><td><code>/api/agenten</code> · <code>/api/chat</code> · <code>/api/chat-audio</code></td></tr>
+  <tr><td>Merlin</td><td><code>/api/merlin/befehl|audio|wissen|zuruf|zuhoeren|freihand</code></td></tr>
+  <tr><td>Workshops</td><td><code>/api/workshops</code> · <code>/:id</code> · <code>/material</code> · <code>/datei</code> · <code>/pinnwand</code> · <code>/oeffnen</code> · <code>/wissen</code> · <code>/verdichten</code></td></tr>
+  <tr><td>Admin</td><td><code>/api/admin/einstellungen</code> · <code>/api/admin/vorschau</code> · <code>/api/regie/anbieter|diagnose</code></td></tr>
+  <tr><td>Anfrage-Grenzen</td><td>JSON ≤ 2 MB · Audio 2–8 MB · Datei ≤ 25 MB</td></tr>
+</table>
+
+<h3>13 · Oberfläche</h3>
+<table>
+  <tr><th>Seite</th><th>Zweck</th></tr>
+  <tr><td><code>index.html</code></td><td>Einstieg</td></tr>
+  <tr><td><code>einwilligung.html</code></td><td>Einverständnis vor jeder Aufnahme</td></tr>
+  <tr><td><code>app.html</code></td><td>Rahmen mit Navigation, Merlin, Führungsbühne</td></tr>
+  <tr><td><code>uebersicht.html</code></td><td>Startscreen: Meeting oder Workshop</td></tr>
+  <tr><td><code>workshops.html</code></td><td>Workshop einrichten (Überblick, Teilnehmer, Material)</td></tr>
+  <tr><td><code>screen1.html</code></td><td>Meeting Assistent: To-dos, Entscheidungen, Fragen</td></tr>
+  <tr><td><code>screen2.html</code></td><td>Agenten</td></tr>
+  <tr><td><code>pinnwand.html</code> · <code>pin.html</code></td><td>Pinnwand, Notiz groß</td></tr>
+  <tr><td><code>archiv.html</code></td><td>Archiv, Zusammenfassung, Export</td></tr>
+  <tr><td><code>admin.html</code></td><td>Einstellungen</td></tr>
+  <tr><td><code>regie.html</code></td><td>Test und Diagnose</td></tr>
+</table>
+
+<h3>14 · Konfiguration (<code>.env</code>, nur Namen)</h3>
+<table>
+  <tr><th>Gruppe</th><th>Schlüssel</th></tr>
+  <tr><td>Betrieb</td><td><code>PORT</code> · <code>HOST</code> · <code>MOCK_MODE</code> · <code>MOCK_MIKRO</code> · <code>CHUNK_SECONDS</code></td></tr>
+  <tr><td>Sprachmodell</td><td><code>LLM_ANBIETER</code> · <code>LLM_BASE_URL</code> · <code>LLM_CHAT_PATH</code> · <code>LLM_API_KEY</code> · <code>LLM_MODEL</code> · <code>LLM_MODEL_MERLIN</code> · <code>LLM_MODEL_PROTOKOLL</code> · <code>LLM_REASONING_EFFORT</code> · <code>LLM_KONTEXT</code> · <code>LLM_ZEITLIMIT_SEKUNDEN</code></td></tr>
+  <tr><td>Transkription</td><td><code>STT_ANBIETER</code> · <code>STT_MODEL</code> · <code>MISTRAL_API_KEY</code> · <code>STT_BROKI_URL</code> · <code>WHISPER_URL</code></td></tr>
+  <tr><td>Betriebsmodi</td><td>Mock (Fake-Transkript ohne Schlüssel) · Live (Broki + Voxtral)</td></tr>
+</table>
+
+<h3>15 · Sicherheit und Datenschutz</h3>
+<table>
+  <tr><th>Thema</th><th>Umsetzung</th></tr>
+  <tr><td>Audio</td><td>Nach Transkription sofort verworfen, nie gespeichert</td></tr>
+  <tr><td>Sprechererkennung</td><td>keine</td></tr>
+  <tr><td>Einwilligung</td><td>Bestätigung vor jeder Aufnahme (Sitzung), Nachweis im Meeting</td></tr>
+  <tr><td>Schlüssel</td><td>nur <code>.env</code> (nicht in Git), nie im Browser</td></tr>
+  <tr><td>Zugriff</td><td>kein Login, nur lokales Netz (Prototyp)</td></tr>
+  <tr><td>Daten</td><td>lokal in <code>data/</code>, nicht in Git; Löschen über Archiv/Regie</td></tr>
+  <tr><td>Cloud-Dienste</td><td>Broki (Texte) · Mistral Voxtral (Audio-Schnipsel, optional lokal Whisper)</td></tr>
+  <tr><td>Agenda</td><td>steuert die Moderation, nicht die KI</td></tr>
+  <tr><td>Löschen per Stimme</td><td>nur To-dos, mit Rückfrage (Meetings nur per Klick)</td></tr>
+</table>
+
+<h3>16 · Betrieb</h3>
+<table>
+  <tr><th>Aktion</th><th>Befehl</th></tr>
+  <tr><td>Start</td><td><code>npm.cmd start</code> (Port 3000)</td></tr>
+  <tr><td>Tests</td><td><code>npm.cmd test</code></td></tr>
+  <tr><td>Typen prüfen</td><td><code>npm.cmd run typecheck</code></td></tr>
+  <tr><td>Whisper lokal</td><td><code>lokal\start-whisper.cmd</code></td></tr>
+  <tr><td>Nach Update</td><td><code>git pull</code> · Server neu starten · Strg+F5</td></tr>
+  <tr><td>Browser</td><td>Chrome (Sprachausgabe, Mikrofon nur über localhost oder https)</td></tr>
+</table>
+
+</div>

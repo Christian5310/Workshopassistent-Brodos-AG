@@ -5,6 +5,7 @@
   <aside class="seitenleiste">
     <h2>Auswahl</h2>
     <div id="bereichswahl" class="akkordeon"></div>
+    <a href="#" id="technik-zeile" class="seitenfuss-zeile" role="button" aria-haspopup="dialog">Technische Ausführung</a>
   </aside>
   <main class="inhalt">
     <div id="hinweis" class="hinweisband"></div>
@@ -162,6 +163,13 @@
       </form>
     </section>
   </main>
+  <dialog id="technik" class="breit technik-fenster">
+    <form method="dialog">
+      <h2>Technische Ausführung</h2>
+      <div id="technik-inhalt" class="technik-inhalt">Wird geladen …</div>
+      <div class="reihe"><button value="zu" class="zweit">Schließen</button></div>
+    </form>
+  </dialog>
   <script type="module" src="/js/admin.js"></script>
 </body>
 </html>

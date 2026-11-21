@@ -186,3 +186,16 @@ test("Was sagt der Agent dazu?", () => {
   assert.deepEqual(regeln("Frage den Business Consultant dazu"), { aktion: "frage-dazu", an: "business consultant" });
   assert.equal(regeln("Frage an den Sales Professional: Wie viele Kunden?")?.aktion, "frage");
 });
+
+test("Alternativformulierungen aus der Excel-Liste (Spalte Anmerkung)", () => {
+  const fall: [string, string][] = [
+    ["gehe zu den Agenten", "gehe"], ["gehe zum Meeting", "gehe"], ["gehe zur Pinnwand", "gehe"], ["gehe ins Archiv", "gehe"],
+    ["gehe zu Admin", "gehe"], ["gehe zum Admin Bereich", "gehe"], ["gehe zur Regie", "gehe"], ["gehe zum Hauptfenster", "gehe"],
+    ["gehe zum Startscreen", "gehe"], ["gehe zurück zum Workshop", "zurueck"], ["gehe zurück zum Meeting", "zurueck"],
+    ["Öffne ein neues Meeting", "meeting-neu"], ["lege ein neues Meeting an", "meeting-neu"], ["start die Aufnahme", "aufnahme-start"],
+    ["setzte die Aufnahme fort", "aufnahme-start"], ["wie lautet die Agenda", "ansage"], ["gehe zum nächsten Agenda Punkt", "punkt-wechseln"],
+    ["mach den letzten Schritt rückgängig", "rueckgaengig"], ["Wir machen eine Pause", "aufnahme-pause"], ["Wir stoppen das Meeting", "aufnahme-pause"],
+    ["Öffne die Pinnwand", "gehe"],
+  ];
+  for (const [satz, erwartet] of fall) assert.equal(regeln(satz)?.aktion, erwartet, satz);
+});
