@@ -91,7 +91,13 @@ export function starteMerlin(rahmen) {
     zeigeLeise();
   }
   // Die Bubble ist reine Sprachsteuerung: Klick = zuhören, noch ein Klick = fertig. Ein Fenster gibt es nur für Antworten.
-  knopf.addEventListener("click", () => hoerStart());
+  // Ist Merlin "aktiv" (Freihand, Admin): Klick schaltet ihn aus bzw. wieder an, Doppelklick öffnet sein Fenster. Sonst: Klick = zuhören wie bisher.
+  let klickTimer = null;
+  knopf.addEventListener("click", () => {
+    if (ablage(FREIHAND) !== "an") return hoerStart();
+    if (klickTimer) { clearTimeout(klickTimer); klickTimer = null; oeffne({ fokus: true }); return; }
+    klickTimer = setTimeout(() => { klickTimer = null; schalteMerlin(); }, 280);
+  });
   /** Antwort sichtbar machen: im Fenster, auf der Startseite in Merlins Sprechblase in der Mitte */
   const zeigeAntwort = () => { if (!offen && rahmen.bereich() !== "start") oeffne({ fokus: false }); };
   zeigeLeise(); // gleich beim Laden, nicht erst mit dem ersten Stand vom Server
@@ -115,6 +121,7 @@ export function starteMerlin(rahmen) {
     knopf.classList.toggle("leise", auf && !offen);
     knopf.classList.toggle("schwebt", !auf);
     knopf.hidden = rahmen.bereich() === "start" && !offen;
+    panel.classList.toggle("oben", knopf.classList.contains("lauscht")); // aktiv: Merlin schwebt oben rechts, sein Fenster öffnet darunter
   }
 
   // ── Vorschläge je Bereich ──
@@ -708,7 +715,21 @@ export function starteMerlin(rahmen) {
 
   const freihandPausiert = () => hoert || !!fuehrung || knopf.classList.contains("spricht") || Date.now() - letzteSprache < 700;
   const meldeServer = (an) => sende("/api/merlin/freihand", { an }).catch(() => {});
-  const zeigeLauscht = (an, hinweis = "") => { knopf.classList.toggle("lauscht", an); melde("lauscht", { an, hinweis }); };
+  let perKlickAus = false; // Merlin ist aktiv eingestellt, wurde aber per Klick ausgeschaltet (Einstellung im Admin bleibt)
+  const zeigeLauscht = (an, hinweis = "") => {
+    knopf.classList.toggle("lauscht", an);
+    knopf.classList.toggle("pausiert", !an && perKlickAus);
+    const aktivModus = ablage(FREIHAND) === "an";
+    knopf.title = an ? "Merlin ist aktiv. Klick: ausschalten. Doppelklick: Fenster öffnen" : aktivModus ? "Merlin ist aus. Klick: einschalten" : "Merlin: klicken, sprechen, noch einmal klicken";
+    zeigeLeise();
+    melde("lauscht", { an, hinweis: hinweis || (!an && perKlickAus ? "Aus (per Klick), Einstellung bleibt an" : "") });
+  };
+  /** Klick auf die Bubble im aktiven Modus: ausschalten oder wieder einschalten. Die Admin-Einstellung ändert sich dabei nicht. */
+  async function schalteMerlin() {
+    if (zuhoerer) { perKlickAus = true; await schalteFreihand(false); return; }
+    perKlickAus = false;
+    await schalteFreihand(true);
+  }
   const pegelHoerer = new Set();
 
   async function schalteFreihand(an) {
@@ -820,7 +841,7 @@ export function starteMerlin(rahmen) {
     starteFuehrung: () => starteFuehrung(),
     beendeFuehrung: () => beendeFuehrung(),
     /** Freihand-Modus an oder aus (Admin → Erweitert). Gilt je Gerät. */
-    freihand: (an) => { ablage(FREIHAND, an ? "an" : "aus"); return schalteFreihand(an); },
+    freihand: (an) => { ablage(FREIHAND, an ? "an" : "aus"); perKlickAus = false; return schalteFreihand(an); },
     freihandAn: () => !!zuhoerer,
     setzeEmpfindlichkeit: (name) => { ablage(FREIHAND_EMPFINDLICHKEIT, name); zuhoerer?.setzeEmpfindlichkeit(name); },
     /** Pegel des Mikrofons für den Test im Admin: (pegel, laut, grund) */

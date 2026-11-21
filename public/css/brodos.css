@@ -780,3 +780,13 @@ img.avatar { object-fit: cover; background: transparent; }
 .merlin-knopf.lauscht.schwebt:not(.hoert):not(.spricht):not(.denkt) { animation: merlinschwebt 3.2s ease-in-out infinite alternate, lauschtatmet 2.8s ease-in-out infinite; }
 .merlin-knopf.leise.lauscht { opacity: 0.6; }
 @media (prefers-reduced-motion: reduce) { .merlin-knopf.lauscht:not(.hoert):not(.spricht):not(.denkt), .merlin-knopf.lauscht.schwebt:not(.hoert):not(.spricht):not(.denkt) { animation: none; } }
+
+/* Merlin aktiv (Freihand): auf den Folgeseiten doppelt so groß oben rechts; aus oder inaktiv: klein unten, leicht durchsichtig */
+.app-bg > .merlin-knopf.lauscht { --d: clamp(5.5rem, calc((100vw - 1240px) / 2 - 1rem), 9rem); width: var(--d); height: var(--d); top: 1rem; bottom: auto; right: max(0.5rem, calc(((100vw - 1240px) / 2 - var(--d)) / 2)); }
+.app-bg > .merlin-knopf.lauscht::after { right: 0.6rem; bottom: 0.6rem; width: 1.1rem; height: 1.1rem; }
+.merlin-knopf.leise.lauscht { opacity: 0.9; }
+.app-bg > .merlin-panel.oben { top: 11rem; bottom: auto; max-height: calc(100vh - 12rem); }
+.merlin-knopf:not(.lauscht):not(.leise):not(.hoert):not(.spricht):not(.denkt) { opacity: 0.75; }
+.merlin-knopf:not(.lauscht):hover, .merlin-knopf:not(.lauscht):focus-visible { opacity: 1; }
+.merlin-knopf.pausiert { opacity: 0.45 !important; filter: grayscale(0.7); }
+.merlin-knopf.pausiert:hover, .merlin-knopf.pausiert:focus-visible { opacity: 0.8 !important; }
