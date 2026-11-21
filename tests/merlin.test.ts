@@ -136,3 +136,14 @@ test("To-do hinzufügen: auch bei Hörfehlern, und der Text darf im nächsten Sa
   assert.deepEqual(deuteZuruf("Merlin, Preisliste prüfen", "todo"), { art: "befehl", text: "Neues To-do: Preisliste prüfen", sicher: true, ki: false });
   assert.equal(deuteZuruf("Meeting Raum buchen", "stichwort").art, "ignoriert");
 });
+
+test("Umgangssprachliche Varianten aus der Merlin-Liste", () => {
+  const fall: [string, string][] = [
+    ["gehe zum Hauptfenster", "gehe"], ["gehe zum Startscreen", "gehe"], ["lege ein neues Meeting an", "meeting-neu"],
+    ["start die Aufnahme", "aufnahme-start"], ["setzte die Aufnahme fort", "aufnahme-start"], ["Wir stoppen das Meeting", "aufnahme-pause"],
+    ["Wir machen eine Pause", "aufnahme-pause"], ["gehe zu den Agenten", "gehe"], ["wie lautet die Agenda", "ansage"],
+  ];
+  for (const [satz, erwartet] of fall) assert.equal(regeln(satz)?.aktion, erwartet, satz);
+  assert.deepEqual(regeln("gehe zum Hauptfenster"), { aktion: "gehe", ziel: "start" });
+  assert.deepEqual(regeln("lege ein neues Meeting an"), { aktion: "meeting-neu", name: "" });
+});

@@ -338,8 +338,8 @@ export function regeln(text: string): Befehl | null {
   const art = "(meeting|sitzung|besprechung|workshop)";
   if (new RegExp(`${art} (schliessen|abschliessen|beenden|zumachen)|(schliesse|schliess|beende|mach) (das |den |die )?(aktuelle[n]? |laufende[n]? |offene[n]? )?${art}( zu)?$`).test(s) && !/aufnahme|transkription/.test(s)) return { aktion: "meeting-schliessen" };
   // Pausieren: nur die Aufnahme hält an, Meeting bzw. Workshop bleibt offen
-  if (new RegExp(`(pausiere|unterbrich|unterbreche|halte) (das |den |die )?(aktuelle[n]? |laufende[n]? )?${art}|${art} (pausieren|unterbrechen|anhalten)`).test(s)) return { aktion: "aufnahme-pause" };
-  if (/((aufnahme|transkription|aufzeichnung|mitschrift)\w* (starten|start|beginnen|fortsetzen|los))|((starte|beginne|setze) (die |mit der )?(aufnahme|transkription|aufzeichnung|mitschrift))|^(mitschreiben|nimm auf|aufnehmen)/.test(s))
+  if (new RegExp(`(pausiere|unterbrich|unterbreche|halte|stoppe|stoppen|stopp) (das |den |die )?(aktuelle[n]? |laufende[n]? )?${art}|${art} (pausieren|unterbrechen|anhalten)`).test(s)) return { aktion: "aufnahme-pause" };
+  if (/((aufnahme|transkription|aufzeichnung|mitschrift)\w* (starten|start|beginnen|fortsetzen|los))|((starte?|beginne|setz\w*) (die |mit der )?(aufnahme|transkription|aufzeichnung|mitschrift))|^(mitschreiben|nimm auf|aufnehmen)/.test(s))
     return { aktion: "aufnahme-start" };
   if (/((aufnahme|transkription|aufzeichnung|mitschrift)\w* (stoppen|stopp|stop|pausieren|pause|beenden|anhalten))|((stoppe|pausiere|beende|halte) (die )?(aufnahme|transkription|aufzeichnung|mitschrift))|^(pause|stopp|stop|pausieren)$|machen (eine |kurz )?pause|kaffeepause/.test(s))
     return { aktion: "aufnahme-pause" };
@@ -355,7 +355,7 @@ export function regeln(text: string): Befehl | null {
     return { aktion: "wissen", frage: text.trim() };
   if (/neue[ns]? (meeting|besprechung)/.test(s)) {
     const name = text.match(/neue[ns]?\s+(?:meeting|besprechung)\s*(?:anlegen|einrichten|erstellen|starten|öffnen|machen)?\s*(?:namens|mit dem namen|mit namen|zum thema|für|zu)?\s*[:,]?\s*(.*)$/i)?.[1] ?? "";
-    return { aktion: "meeting-neu", name: name.replace(/[.!?]+$/, "").replace(/^(anlegen|einrichten|erstellen|bitte)$/i, "").trim() };
+    return { aktion: "meeting-neu", name: name.replace(/[.!?]+$/, "").replace(/^(anlegen|einrichten|erstellen|bitte|an|ein|auf)$/i, "").trim() };
   }
   if (/neue[nrs]? workshop/.test(s)) return { aktion: "workshop-neu" };
   if ((m = s.match(/(?:öffne|oeffne|zeig(?:e)?|wechsel(?:e|n)? zu(?:m|r)?|geh(?:e)? zu(?:m|r)?|lade) (?:das |den |die )?(meeting|workshop) (.+)$/))) {
@@ -382,7 +382,7 @@ export function regeln(text: string): Befehl | null {
   if (/archiv/.test(s)) return { aktion: "gehe", ziel: "archiv" };
   if (/admin|einstellungen/.test(s)) return { aktion: "gehe", ziel: "admin" };
   if (/regie/.test(s)) return { aktion: "gehe", ziel: "regie" };
-  if (/start|anfang|auswahl|übersicht|uebersicht/.test(s)) return { aktion: "gehe", ziel: "start" };
+  if (/start|anfang|auswahl|übersicht|uebersicht|hauptfenster|hauptseite|hauptscreen/.test(s)) return { aktion: "gehe", ziel: "start" };
   if (/workshops?( öffnen| oeffnen| wählen)?$/.test(s)) return { aktion: "gehe", ziel: "workshop" };
   if (/meetings?( öffnen| oeffnen| wählen)?$/.test(s)) return { aktion: "gehe", ziel: "meeting" };
   // "Öffne …" mit unbekanntem Namen (z. B. verhört): nachfragen statt raten
