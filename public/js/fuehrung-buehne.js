@@ -166,10 +166,14 @@ export function starteBuehne(navi) {
       $("#buehne-ende").focus({ preventScroll: true }); // Esc soll hier ankommen
     }
     $("#buehne-text").textContent = s.text ?? ""; // nur für Screenreader
-    merlin.dataset.platz = s.bilder?.length ? "links" : "mitte";
+    // Merlin gleitet nach links, sobald die erste Bubble kommt. Kommt sie erst spät, bleibt er bis dahin in der Mitte.
+    const fruehestes = Math.min(...(s.bilder ?? []).map((b) => b.nach ?? 0));
+    const spaet = !!s.bilder?.length && fruehestes > 2500;
+    merlin.dataset.platz = s.bilder?.length && !spaet ? "links" : "mitte";
     if (punkte.children.length !== s.gesamt) punkte.replaceChildren(...Array.from({ length: s.gesamt }, () => document.createElement("li")));
     [...punkte.children].forEach((p, i) => { p.className = i < s.index ? "war" : i === s.index ? "ist" : ""; });
     bubbleWeg();
+    if (spaet) bubbleTimer.push(setTimeout(() => { merlin.dataset.platz = "links"; }, 550 + fruehestes - 500));
     for (const b of s.bilder ?? []) bubbleTimer.push(setTimeout(() => bubbleRein(b), 550 + (b.nach ?? 0))); // Merlin gleitet zuerst, dann kommen die Bubbles
   }
 
