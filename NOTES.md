@@ -27,13 +27,11 @@
 
 ## Offene Punkte / bekannte Bugs
 - **Zuhören mit echtem Mikrofon nicht live getestet** (Einwilligung am Bildschirm nötig). Bitte einmal prüfen: Klick, Frage sprechen, Klick, Antwort; Frage darf nicht im Protokoll/Transkript landen.
-- Offene Frage „Welcher Prozess … 20 Leuten" im Meeting `fddd` stammt aus dem Test vor dem Umbau (18:21). Manuell löschen.
 - Agent-Antwort nennt viele Personennamen (vermutlich aus Wissensdatei/Hintergrundwissen). Prüfen, ob eingereichtes Material enthalten ist; ggf. Namen entfernen oder Rollen-Prompt: „keine Personennamen".
 - **Protokoll-Prompt in Broki:** Regel „NEUES TO-DO" generisch formulieren (kein „Kevin"/„Markus Brendel"). Bitte-mit-Zusage zählt als To-do. Echter Testlauf ergab vorher: 0 To-dos, Kevin-Termin nur als Notiz. Erneuten Test mit angepasster Regel noch nicht gemacht.
 - Navigation rechts/links: Assistent und Pinnwand unverändert links (Rückfrage erledigt: bleibt links).
 - Drittes Agenten-Bild vorhanden (Brille); weitere Agenten gibt es nicht (Limit 3).
 - Zweiter Laptop: `git pull`, `npm.cmd install`, Neustart; `data/einstellungen.json` (nicht in Git) hat dort alte Symbole und den alten Zusammenfassungs-Prompt → in Admin nachziehen.
-- Aufräumen: Test-Workshops `ws-2026-11-19-b05a92` (Meeting `2026-11-19-testlauf-pinnwand-de97`) und `ws-2026-11-19-9149a0` löschen; eigene Daten nicht anfassen.
 - Offen von früher: Schreibweise „Markus Brendel" vs. „Brendemann"; Broki-STT braucht Broki-Admins; `HOST=0.0.0.0` am Workshop-Tag; 30-Min-Testlauf; Idee Whisper-Startknopf (nicht freigegeben).
 - Gespeicherte Archiv-Zusammenfassung ist noch die abgeschnittene → im Archiv neu erzeugen.
 
@@ -79,3 +77,6 @@ Offen: Der User sprach von „zwei weiteren Projekten“, genannt wurde nur dies
 ## Nächster konkreter Schritt
 1. Server neu starten (`npm.cmd start`), Strg+F5, Agenten-Seite mit echtem Mikrofon testen (Klick → sprechen → Klick) und prüfen, dass die Frage nicht im Transkript/Protokoll auftaucht.
 2. Danach: Broki-Prompt-Regel „NEUES TO-DO" generisch einsetzen (Okay des Users) und Testlauf wiederholen.
+
+## ERLEDIGT (21.11.2026): Testdaten aufgeräumt
+Testmeetings und -workshops gelöscht (Backup außerhalb des Repos: `..\BroKI-Backup-data-2026-11-21`). Übrig: der leere Workshop „Sales Agentic Workshop“. Kein Meeting aktiv.
