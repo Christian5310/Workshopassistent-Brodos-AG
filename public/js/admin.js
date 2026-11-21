@@ -514,6 +514,10 @@ try {
 {
   const fenster = $("#technik");
   let geladen = false;
+  $("#technik-inhalt").addEventListener("click", (e) => {
+    const ziel = e.target.closest?.("[data-springe]")?.dataset.springe;
+    if (ziel) $("#technik-inhalt").querySelector(`#${ziel}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   $("#technik-zeile").addEventListener("click", async (e) => {
     e.preventDefault();
     fenster.showModal();

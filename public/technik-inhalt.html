@@ -1,6 +1,12 @@
 <!-- Technische Ausführung (Stand 21.11.2026). Wird im Admin über die Zeile „Technische Ausführung“ in ein Fenster geladen. Stichworte und Tabellen, keine Fließtexte. -->
 <div class="technik">
 
+<nav class="teil-nav" aria-label="Teile">
+  <button type="button" data-springe="teil-a">Teil A · Aufbau (1–16)</button>
+  <button type="button" data-springe="teil-b">Teil B · Kommunikation mit den KI-Modellen (B1–B7)</button>
+</nav>
+<h2 class="teil" id="teil-a">Teil A · Aufbau</h2>
+
 <h3>1 · Überblick</h3>
 <table>
   <tr><th>Merkmal</th><th>Wert</th></tr>
@@ -232,6 +238,116 @@
   <tr><td>Whisper lokal</td><td><code>lokal\start-whisper.cmd</code></td></tr>
   <tr><td>Nach Update</td><td><code>git pull</code> · Server neu starten · Strg+F5</td></tr>
   <tr><td>Browser</td><td>Chrome (Sprachausgabe, Mikrofon nur über localhost oder https)</td></tr>
+</table>
+
+
+<h2 class="teil" id="teil-b">Teil B · Kommunikation mit den KI-Modellen</h2>
+
+<h3>B1 · Wer spricht mit wem</h3>
+<pre>
+Browser (Chrome)                    BroKI-Server (Node, Laptop 1)                 Extern / lokal
+────────────────                    ──────────────────────────────                ───────────────
+Mikrofon ── Audio (webm) ─────────► /api/audio-chunk ──► Transkription ─────────► Voxtral (Cloud)
+Mikrofon ── Satz (wav, Freihand) ─► /api/merlin/zuhoeren ─► Transkription          Whisper (lokal :8001)
+Mikro-Klick ─ Frage (webm) ───────► /api/chat-audio ────► Transkription          Broki Audio (Cloud)
+                                         │
+Tippen / Klick ── JSON ───────────► /api/chat, /api/merlin/befehl
+                                         │
+                                         ▼
+                                    Chronist · Agenten · Merlin ─────────────────► Broki (Open WebUI)
+                                         │                                          /api/chat/completions
+                                         │                                          → Modell (Haiku 5.5 u. a.)
+◄── SSE /api/events (Zustand) ───────────┘
+Sprachausgabe: Web Speech API (lokal im Browser, kein Dienst)
+</pre>
+<table>
+  <tr><th>Von → Nach</th><th>Weg</th><th>Format</th><th>Inhalt</th></tr>
+  <tr><td>Browser → Server</td><td>HTTP POST</td><td>JSON · <code>audio/webm</code> · <code>audio/wav</code></td><td>Befehle, Fragen, Audio, Einstellungen</td></tr>
+  <tr><td>Server → Browser</td><td>SSE <code>/api/events</code></td><td>JSON (Gesamtzustand)</td><td>Protokoll, Status, Chat, Agenda nach jeder Änderung</td></tr>
+  <tr><td>Server → Transkription</td><td>HTTPS POST</td><td><code>multipart/form-data</code></td><td>Audio, Sprache <code>de</code>, Fachbegriffe</td></tr>
+  <tr><td>Server → Sprachmodell</td><td>HTTPS POST</td><td>JSON, OpenAI Chat Completions</td><td><code>model, messages, temperature, max_tokens, response_format</code></td></tr>
+  <tr><td>Browser → KI direkt</td><td colspan="3">nie · Schlüssel nur auf dem Server</td></tr>
+  <tr><td>Merlin → Browser-Stimme</td><td>Web Speech API</td><td>Text</td><td>lokal, kein Netz</td></tr>
+</table>
+
+<h3>B2 · Aufrufe an Sprachmodelle</h3>
+<table>
+  <tr><th>Aufruf</th><th>Auslöser</th><th>Modell (.env)</th><th>Antwort</th><th>max. Tokens</th><th>Zeitlimit</th></tr>
+  <tr><td>Chronist (Protokoll)</td><td>jeder Abschnitt (Takt 30–45 s)</td><td><code>LLM_MODEL_PROTOKOLL</code></td><td>JSON (nur Änderungen)</td><td>8.000</td><td>60 s</td></tr>
+  <tr><td>Agenten (Expertenrunde)</td><td>Frage per Sprache / Tippen / Merlin</td><td><code>LLM_MODEL</code></td><td>JSON: eine Antwort je Rolle</td><td>4.000</td><td>60 s</td></tr>
+  <tr><td>Merlin-Befehl</td><td>nur wenn keine feste Regel greift</td><td><code>LLM_MODEL_MERLIN</code> (leer = <code>LLM_MODEL</code>)</td><td>JSON (1 Aktion)</td><td>120</td><td>6 s</td></tr>
+  <tr><td>To-do verfeinern</td><td>Merlin legt To-do an (live)</td><td>wie Merlin-Befehl</td><td>JSON (Text, Owner, Frist)</td><td>120</td><td>6 s</td></tr>
+  <tr><td>Merlin-Wissen</td><td>Fachfrage zum Material</td><td><code>LLM_MODEL</code></td><td>JSON <code>{text}</code></td><td>700 · mehr: 1.200</td><td>60 s</td></tr>
+  <tr><td>Zusammenfassung</td><td>Archiv, Knopf KI-Zusammenfassung</td><td><code>LLM_MODEL</code></td><td>Markdown (kein JSON)</td><td>16.000 → 32.000</td><td>180 s</td></tr>
+  <tr><td>Pinnwand-Karte</td><td>Material hinzugefügt</td><td><code>LLM_MODEL</code></td><td>JSON <code>{kurz, lang}</code></td><td>2.200</td><td>60 s</td></tr>
+  <tr><td>Verdichten</td><td>Admin/Workshop: Wissen erzeugen</td><td><code>LLM_MODEL</code></td><td>JSON <code>{wissen, begriffe}</code></td><td>6.000</td><td>60 s</td></tr>
+  <tr><td>Einstimmung (Sprechtext)</td><td>Merlin „Eingereichtes“ vorlesen</td><td><code>LLM_MODEL</code></td><td>JSON <code>{text}</code></td><td>600</td><td>60 s</td></tr>
+</table>
+
+<h3>B3 · Aufbau der Nachrichten</h3>
+<table>
+  <tr><th>Aufruf</th><th>System</th><th>Nutzer / Verlauf</th></tr>
+  <tr><td>Chronist mit Broki-Modell</td><td>keine eigene Nachricht (Rolle und Regeln im Broki-Modell)</td><td>1 Nachricht: technische Vorgaben (Format, Sprachbefehle) + Daten</td></tr>
+  <tr><td>Chronist ohne Broki-Modell</td><td><code>promptAssistent</code> (Admin) + Technikteil</td><td>Daten</td></tr>
+  <tr><td>Chronist · Daten</td><td colspan="2"><code>STAND</code> (laufender Agendapunkt voll, Kurzliste anderer offener To-dos) · aktueller Agendapunkt · vorheriger Abschnitt (nur Kontext) · neuer Abschnitt</td></tr>
+  <tr><td>Chronist · Antwort</td><td colspan="2"><code>neu · erledigt · beantwortet · befehle · frage</code> → <code>wendeAenderungenAn</code> → <code>ProtokollSchema</code> → <code>absichern</code></td></tr>
+  <tr><td>Agenten</td><td><code>promptAgenten</code> (Admin) mit Platzhaltern <code>[BRODOS-BRIEFING] [AGENDA] [STAND] [AGENTEN]</code>, je Agent Rolle + <code>&lt;wissen&gt;</code>, JSON-Format</td><td>letzte 20 Chat-Nachrichten · Transkript der letzten 60 Min (≤ 60.000 Zeichen) · Frage</td></tr>
+  <tr><td>Agenten · Fragen an „alle“</td><td colspan="2">1 Anfrage, Wissen aller Agenten, je Rolle 1–3 Sätze · an einen Agenten: nur dessen Wissen, ≤ 6 Sätze</td></tr>
+  <tr><td>Merlin-Befehl</td><td>Aktionsliste (JSON) + Regeln</td><td>Kontext (Bereich, offenes Meeting, Meetings, Workshops, Agenten) + Satz (≤ 500 Zeichen)</td></tr>
+  <tr><td>Merlin-Wissen</td><td>nur aus Material antworten, Namen weglassen</td><td>Frage + Material (≤ 150.000 Zeichen)</td></tr>
+  <tr><td>Zusammenfassung</td><td><code>promptZusammenfassung</code> (Admin) + Markdown-Format</td><td>Protokoll + Transkript</td></tr>
+  <tr><td>Karte · Verdichten · Sprechtext</td><td>feste Prompts in <code>llm.ts</code>, ohne Personennamen</td><td>Material (≤ 60.000 · 150.000 gesamt · 40.000 Zeichen)</td></tr>
+</table>
+
+<h3>B4 · Aufrufe an die Transkription</h3>
+<table>
+  <tr><th>Zweck</th><th>Auslöser</th><th>Weg</th></tr>
+  <tr><td>protokoll</td><td>Aufnahme (Takt)</td><td><code>/api/audio-chunk</code></td></tr>
+  <tr><td>chat</td><td>Mikro-Klick bei Agenten</td><td><code>/api/chat-audio</code></td></tr>
+  <tr><td>befehl</td><td>Merlin (Klick oder Freihand)</td><td><code>/api/merlin/audio</code> · <code>/api/merlin/zuhoeren</code></td></tr>
+</table>
+<table>
+  <tr><th>Anbieter</th><th>Adresse</th><th>Parameter</th><th>Zeitlimit</th></tr>
+  <tr><td>Mistral Voxtral</td><td><code>api.mistral.ai/v1/audio/transcriptions</code></td><td><code>model</code>, <code>language=de</code>, <code>context_bias</code> (≤ 100 Begriffe: Aktivierungswort, Namen, Fachbegriffe), Datei</td><td>30 s</td></tr>
+  <tr><td>Broki Audio</td><td><code>&lt;Broki&gt;/api/v1/audio/transcriptions</code></td><td><code>language=de</code>, Datei · keine Begriffe · Modell stellt Broki ein</td><td>60 s</td></tr>
+  <tr><td>Whisper lokal</td><td><code>127.0.0.1:8001/v1/audio/transcriptions</code></td><td><code>model</code> (large-v3 · turbo), <code>language=de</code>, <code>prompt</code> = Begriffe</td><td>–</td></tr>
+  <tr><td>Alle</td><td colspan="3">Authorization Bearer (Server) · keine Sprechererkennung · Audio nach Antwort verworfen</td></tr>
+</table>
+
+<h3>B5 · Rollen und ihre Verbindungen</h3>
+<table>
+  <tr><th>Rolle</th><th>Redet mit</th><th>Wie</th><th>Sieht</th></tr>
+  <tr><td>Protokollant (Chronist)</td><td>Server, Sprachmodell</td><td>automatisch pro Abschnitt</td><td>Protokollstand, Transkript-Abschnitt</td></tr>
+  <tr><td>Merlin</td><td>Browser, Server, Sprachmodell (nur Fallback)</td><td>Regeln zuerst, dann KI</td><td>Bereich, Meetings, Workshops, Material, Agenten</td></tr>
+  <tr><td>Agenten (3)</td><td>nur Server → Sprachmodell</td><td>auf Frage, 1 Anfrage für alle</td><td>Transkript 60 Min, Protokoll, Briefing, eigenes Wissen</td></tr>
+  <tr><td>Agenten untereinander</td><td colspan="3">kein Austausch · jede Rolle antwortet unabhängig im selben JSON</td></tr>
+  <tr><td>Merlin ↔ Protokollant</td><td colspan="3">getrennt · Merlins Sätze bleiben im Transkript · Mikrofon der Aufnahme stumm, solange Merlin spricht · Namensbefehle im Freihand-Modus nur bei Merlin</td></tr>
+  <tr><td>Merlin → Agenten</td><td colspan="3"><code>frage</code> und <code>frage-dazu</code> (letzte Aussage) laufen über <code>/api/chat</code></td></tr>
+  <tr><td>Mensch → Protokoll</td><td colspan="3">Klick/Stimme jederzeit · Rückgängig (30 Schritte) · Agenda steuert die Moderation, nicht die KI</td></tr>
+</table>
+
+<h3>B6 · Robustheit</h3>
+<table>
+  <tr><th>Fall</th><th>Verhalten</th></tr>
+  <tr><td>Modell lehnt Parameter ab (HTTP 400)</td><td>bis 5 Versuche: ohne <code>temperature</code> · <code>max_completion_tokens</code> · ohne <code>reasoning_effort</code> · ohne <code>response_format</code>; je Modell gemerkt</td></tr>
+  <tr><td>Kein gültiges JSON</td><td>Reparatur (<code>json-reparatur.ts</code>) + 2. Versuch</td></tr>
+  <tr><td>Antwort wegen Länge abgebrochen</td><td>neuer Versuch mit 3-fachem Limit (≤ 32.000), Zeitlimit ≥ 120 s</td></tr>
+  <tr><td>Zeitlimit Merlin (6 s)</td><td>Merlin fragt nach statt zu raten</td></tr>
+  <tr><td>Unsicherer Name (Freihand)</td><td>nur feste Regeln, sonst Rückfrage „Meintest du mich?“</td></tr>
+  <tr><td>Fehler bei Freihand-Erkennung</td><td>still ignoriert</td></tr>
+  <tr><td>Mikrofon/Stimme hängt</td><td>Wächter setzt Sprechzustand zurück</td></tr>
+  <tr><td>Ausfall KI beim To-do</td><td>feste Regel statt Verfeinerung</td></tr>
+  <tr><td>Lokal (Ollama)</td><td><code>format: json</code>, <code>keep_alive 30m</code>, <code>num_ctx</code> je Anfrage (16.384 → 65.536), Zeitlimit ≥ 300 s</td></tr>
+  <tr><td>Ohne Schlüssel</td><td>Mock-Modus: <code>MockSprachmodell</code> + <code>MockTranskriptQuelle</code></td></tr>
+</table>
+
+<h3>B7 · Welche Daten zu welchem Dienst gehen</h3>
+<table>
+  <tr><th>Dienst</th><th>Erhält</th><th>Erhält nicht</th></tr>
+  <tr><td>Transkription</td><td>Audio-Schnipsel (Takt-lang) · Sprache · Fachbegriffe</td><td>Texte, Protokoll, Sprechernamen</td></tr>
+  <tr><td>Sprachmodell (Broki)</td><td>Transkript-Text · Protokollstand · Briefing · Agentenwissen · Material-Text · Agenda</td><td>Audio, Schlüssel anderer Dienste, Sprecherzuordnung</td></tr>
+  <tr><td>Browser-Stimme</td><td>Merlins Text (lokal)</td><td>–</td></tr>
+  <tr><td>Alle</td><td colspan="2">Verbindung nur vom Server aus · keine Speicherung von Audio · Namen aus Material nicht in Briefing und Agenten</td></tr>
 </table>
 
 </div>
