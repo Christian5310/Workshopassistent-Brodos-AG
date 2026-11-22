@@ -2,7 +2,7 @@
 // Prüft Merlins feste Regeln für die Sätze aus dem Workshop (Stand 19.11.2026).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { aufloesen, deuteZuruf, regeln, stichwort, dauerInSekunden, dauerText } from "../src/merlin.ts";
+import { aufloesen, deuteZuruf, findeAgent, regeln, stichwort, dauerInSekunden, dauerText } from "../src/merlin.ts";
 
 const aktion = (satz: string) => regeln(satz)?.aktion ?? null;
 
@@ -181,10 +181,10 @@ test("Timer: Dauer erkennen und ansagen", () => {
 
 test("Was sagt der Agent dazu?", () => {
   assert.deepEqual(regeln("Was sagt der BPM Spezialist dazu?"), { aktion: "frage-dazu", an: "bpm spezialist" });
-  assert.deepEqual(regeln("Was meint der Vertriebsprofi dazu"), { aktion: "frage-dazu", an: "vertriebsprofi" });
+  assert.deepEqual(regeln("Was meint der Vertriebsexperte dazu"), { aktion: "frage-dazu", an: "vertriebsexperte" });
   assert.deepEqual(regeln("Was sagen die Experten dazu"), { aktion: "frage-dazu", an: "experten" });
-  assert.deepEqual(regeln("Frage den Business Consultant dazu"), { aktion: "frage-dazu", an: "business consultant" });
-  assert.equal(regeln("Frage an den Sales Professional: Wie viele Kunden?")?.aktion, "frage");
+  assert.deepEqual(regeln("Frage den KI-Experten dazu"), { aktion: "frage-dazu", an: "ki experten" });
+  assert.equal(regeln("Frage an den Vertriebsexperten: Wie viele Kunden?")?.aktion, "frage");
 });
 
 test("Alternativformulierungen aus der Excel-Liste (Spalte Anmerkung)", () => {
@@ -198,4 +198,18 @@ test("Alternativformulierungen aus der Excel-Liste (Spalte Anmerkung)", () => {
     ["Öffne die Pinnwand", "gehe"],
   ];
   for (const [satz, erwartet] of fall) assert.equal(regeln(satz)?.aktion, erwartet, satz);
+});
+
+test("Agenten per Sprache finden: neue Namen, Kurzformen, alte Namen", () => {
+  const agenten = [
+    { id: "sales", name: "Vertriebsexperte" },
+    { id: "bpm", name: "BPM-Experte" },
+    { id: "consultant", name: "KI- und Automatisierungsexperte" },
+  ];
+  const f = (s: string) => findeAgent(agenten, s)?.id;
+  for (const s of ["Vertriebsexperten", "den Vertriebsexperten", "Vertrieb", "Sales"]) assert.equal(f(s), "sales", s);
+  for (const s of ["BPM-Experten", "BPM", "Prozessexperten", "den BPM Experte"]) assert.equal(f(s), "bpm", s);
+  for (const s of ["KI- und Automatisierungsexperten", "KI-Experten", "den KI Experten", "Automatisierung", "KI"]) assert.equal(f(s), "consultant", s);
+  assert.equal(f("die Runde"), undefined);
+  assert.equal(f("Kinder"), undefined); // "ki" zählt nur als ganzes Wort
 });

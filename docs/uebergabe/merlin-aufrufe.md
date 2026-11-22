@@ -91,11 +91,11 @@ Trage in die letzte Spalte ein: **Behalten**, **Streichen**, **Wichtig** (muss i
 
 | So sagen | Was passiert | Status | Deine Anmerkung |
 |---|---|---|---|
-| „Frage an den Sales Professional: …“ | Frage geht an den Agenten | ✅ | |
+| „Frage an den Vertriebsexperten: …“ | Frage geht an den Agenten | ✅ | |
 | „Frage an alle: …“ / „Frage an die Experten: …“ | Alle Agenten antworten | ✅ | |
 | „Wie sieht der Ist-Prozess aus?“ (Fachfrage zum Material) | Antwort aus den eingereichten Unterlagen | ✅ | |
 | „Öffne das Dokument [Name]“ | Öffnet das Material | ✅ | |
-| „Was sagt der BPM Spezialist dazu?“ | Frage mit der letzten Aussage an einen Agenten | ✅ | |
+| „Was sagt der BPM-Experte dazu?“ | Frage mit der letzten Aussage an einen Agenten | ✅ | |
 | „Fasse den letzten Agendapunkt zusammen“ | Kurzfassung des Punktes | 💡 | |
 
 ## 8. Eigene Wünsche (bitte ergänzen)

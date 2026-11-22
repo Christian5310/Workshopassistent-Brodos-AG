@@ -135,7 +135,7 @@ Regeln:
     agenten: [
       {
         id: "sales",
-        name: "Sales Professional",
+        name: "Vertriebsexperte",
         beschreibung: "20 Jahre B2B-Vertrieb, Handel, Distribution. Denkt vom Kunden und vom Abschluss her, pragmatisch, skeptisch gegenüber Papierprozessen.",
         wissen: "",
         figur: "mann",
@@ -143,7 +143,7 @@ Regeln:
       },
       {
         id: "bpm",
-        name: "BPM Specialist",
+        name: "BPM-Experte",
         beschreibung: "Prozessmanagement und Automatisierung. Achtet auf Übergaben, Medienbrüche, fehlende Verantwortliche, Wartezeiten. Unterscheidet klar: feste Regel (klassische Automatisierung) vs. Urteilsvermögen (KI-Agent).",
         wissen: "",
         figur: "brille",
@@ -151,7 +151,7 @@ Regeln:
       },
       {
         id: "consultant",
-        name: "Business Consultant",
+        name: "KI- und Automatisierungsexperte",
         beschreibung: "Strategie und Umsetzung. Nutzen, Aufwand, Risiko, Reihenfolge, Change Management, erster Pilot mit Wirkung in 4–6 Wochen.",
         wissen: "",
         figur: "frau",

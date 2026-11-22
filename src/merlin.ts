@@ -483,7 +483,22 @@ export const TAGESABLAUF_TEXT =
   "Die KI begleitet euch dabei, so weit es geht: Das Protokoll wird aufgenommen, To-dos werden erkannt, ihr könnt die Agenten befragen, und am Ende gibt es eine saubere Zusammenfassung. Viel Spaß dabei!";
 
 export const HILFE =
-  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Öffne die Pinnwand“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Hake CRM-Export ab“, „Setze beim To-do CRM-Export die Frist auf Montag“, „Lösche das To-do CRM-Export“ (mit Rückfrage), „Wo ändere ich die Lesegeschwindigkeit?“, „Starte Punkt 2“, „Weiter zum nächsten Punkt“, „Rückgängig“, „Notiere eine Entscheidung: …“, „Stell einen Timer auf 10 Minuten“, „Was sagt der BPM Spezialist dazu?“, „Wie ist der Tagesablauf?“, „Erklär uns die App“ (nur ohne geöffnetes Meeting) oder „Frage an den Sales Professional: …“. Löschen kann ich nicht, das geht nur per Klick.";
+  "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Öffne die Pinnwand“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Hake CRM-Export ab“, „Setze beim To-do CRM-Export die Frist auf Montag“, „Lösche das To-do CRM-Export“ (mit Rückfrage), „Wo ändere ich die Lesegeschwindigkeit?“, „Starte Punkt 2“, „Weiter zum nächsten Punkt“, „Rückgängig“, „Notiere eine Entscheidung: …“, „Stell einen Timer auf 10 Minuten“, „Was sagt der BPM Spezialist dazu?“, „Wie ist der Tagesablauf?“, „Erklär uns die App“ (nur ohne geöffnetes Meeting) oder „Frage an den Vertriebsexperten: …“. Löschen kann ich nicht, das geht nur per Klick.";
+
+const AGENT_STOPP = new Set(["und", "der", "die", "das", "den", "dem", "experte", "experten", "spezialist", "spezialisten", "agent", "agenten"]);
+/** Suchwörter für einen Agenten: Wörter des Namens, Wortstämme ("Vertriebsexperte" → "vertrieb") und feste Zusatzbegriffe der Standardagenten. */
+function agentenWoerter(a: { id: string; name: string }): string[] {
+  const woerter = klein(a.name).split(" ").filter((w) => !AGENT_STOPP.has(w));
+  const stamm = woerter.map((w) => w.replace(/experte$/, "").replace(/s$/, "")).filter((w) => w.length >= 5);
+  const zusatz: Record<string, string[]> = { sales: ["vertrieb", "sales", "verkauf"], bpm: ["bpm", "prozess"], consultant: ["automatisierung", "ki", "technik"] };
+  return [...new Set([...woerter, ...stamm, ...(zusatz[a.id] ?? [])])];
+}
+/** "Vertriebsexperte", "den Vertrieb", "KI-Experte", "BPM", "Prozessexperte" → der passende Agent (oder nichts). */
+export function findeAgent<T extends { id: string; name: string }>(agenten: T[], gesucht: string): T | undefined {
+  const g = klein(gesucht);
+  const teile = g.split(" ");
+  return agenten.find((a) => agentenWoerter(a).some((w) => (w.length <= 3 ? teile.includes(w) : g.includes(w))));
+}
 
 /** Prüft den Befehl gegen den Zustand der App und löst Namen in IDs auf. */
 export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
@@ -588,7 +603,7 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
       if (!store.istOffen) return { aktion: "gehe", ziel: "meeting", antwort: "Für Fragen an die Agenten brauche ich ein geöffnetes Meeting. Welches soll ich öffnen?", auswahl: auswahlMeetings() };
       const dabei = agentenFuer(store.daten.agenten);
       const gesucht = klein(b.an);
-      const agent = /^(alle|allen|die experten|die runde|alle agenten)$/.test(gesucht) ? null : dabei.find((a) => klein(a.name).split(" ").some((w) => w.length > 2 && gesucht.includes(w)));
+      const agent = /^(alle|allen|die experten|die runde|alle agenten)$/.test(gesucht) ? null : findeAgent(dabei, gesucht);
       if (!agent && !/alle|experten|runde/.test(gesucht)) return { aktion: "frage", an: "alle", text: b.text, antwort: `„${b.an}“ ist nicht dabei. Ich gebe die Frage an alle Agenten.` };
       return { aktion: "frage", an: agent?.id ?? "alle", text: b.text, antwort: agent ? `Ich frage den ${agent.name}.` : "Ich frage alle Agenten." };
     }
