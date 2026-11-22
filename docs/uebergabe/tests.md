@@ -28,3 +28,17 @@ Ergebnis 17.11. mit Änderungs-Format über Broki: 36/36. Bei Modell- oder Promp
 7. Regie → Diagnose: Dauer je Abschnitt, keine wartenden Abschnitte.
 8. Laptop 2 im Browser `http://<IP>:3000` → Agenten-Ansicht aktualisiert sich live.
 9. Meeting schließen → im Archiv, Download funktioniert, KI-Zusammenfassung erstellen.
+
+## Agententest (Wissen und Prompts der Spezial-Agenten)
+
+```
+npm.cmd run agententest -- --trocken
+npm.cmd run agententest -- --block A2 --parallel 4
+```
+
+- Liest Prompts, Wissensdateien, Briefing und die 125 Testfragen aus `docs/agenten/` (liegt nur lokal, nicht im Git), setzt den Prompt wie die App zusammen und stellt jede Frage einzeln an das Sprachmodell aus der `.env` (`LLM_*`).
+- Optionen: `--trocken` (nur Größen zeigen, kein Aufruf), `--ids A1-01,A2-05`, `--block A2`, `--typ X`, `--anzahl 5`, `--parallel 4`, `--modell …`, `--ordner …`.
+- Automatische Prüfung: keine Personennamen (Liste wird beim Lauf aus `docs/wissen/` Abteilungsverzeichnis und Kontext abgeleitet), Länge, kein Markdown, keine erfundenen Prozent- oder Eurowerte.
+- Bericht mit Platz zum Bewerten: `data/testergebnisse/lauf-<Zeit>.md` (und `.json`). `data/` ist nicht im Git.
+- Der Test liest und ändert keine App-Daten (`data/einstellungen.json`, Meetings).
+- Windows/Git Bash: Beim Setzen von `LLM_CHAT_PATH` vor dem Befehl `MSYS_NO_PATHCONV=1` setzen, sonst wird der Pfad umgewandelt.

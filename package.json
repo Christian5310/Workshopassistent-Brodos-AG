@@ -8,6 +8,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "typecheck": "tsc --noEmit",
+    "agententest": "tsx scripts/agententest.ts",
     "test": "tsx --test \"tests/*.test.ts\""
   },
   "dependencies": {
