@@ -97,10 +97,11 @@ export function zaehleSaetze(text: string): number {
 }
 
 /** Automatische Prüfung einer Antwort. `kontext` ist alles, was das Modell lesen durfte (zum Erkennen erfundener Zahlen). */
-export function pruefeAntwort(o: { text: string; rolle: string; an: string; namen: string[]; kontext: string }): Verstoss[] {
+export function pruefeAntwort(o: { text: string; rolle: string; an: string; namen: string[]; kontext: string; erlaubteNamen?: string }): Verstoss[] {
   const v: Verstoss[] = [];
   const t = o.text;
   for (const n of o.namen) {
+    if (o.erlaubteNamen?.includes(n)) continue; // Namen aus der Organisationsübersicht im Wissen dürfen genannt werden
     if (new RegExp(`(^|[^\\p{L}])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^\\p{L}]|$)`, "u").test(t)) v.push({ regel: "name", text: n });
   }
   const limit = o.an === "alle" ? 3 : 6;

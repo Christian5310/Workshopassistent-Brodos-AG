@@ -66,6 +66,8 @@ test("Prüfung: Namen, Länge, Markdown, erfundene Zahlen", () => {
   const basis = { rolle: "bpm", an: "bpm", namen: ["Maxi Musterfrau", "Musterfrau"], kontext: "Im Wissen steht 30 % und 1.500 Geräte." };
   assert.deepEqual(pruefeAntwort({ ...basis, text: "Das ist sauber. Laut Wissen sind es 30 % und 1.500 Geräte." }), []);
   assert.equal(pruefeAntwort({ ...basis, text: "Frag Musterfrau." })[0]?.regel, "name");
+  // Steht der Name im Wissen (Organisationsübersicht), darf ihn die Antwort nennen
+  assert.equal(pruefeAntwort({ ...basis, erlaubteNamen: "Maxi Musterfrau, Teamlead", text: "Frag Musterfrau." }).filter((x) => x.regel === "name").length, 0);
   assert.equal(pruefeAntwort({ ...basis, text: "Eins. Zwei. Drei. Vier. Fünf. Sechs. Sieben." })[0]?.regel, "laenge");
   assert.equal(pruefeAntwort({ ...basis, an: "alle", text: "Eins. Zwei. Drei. Vier." })[0]?.regel, "laenge");
   assert.equal(pruefeAntwort({ ...basis, text: "- Punkt eins\n- Punkt zwei" })[0]?.regel, "markdown");

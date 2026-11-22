@@ -16,3 +16,8 @@ public/audio/
 # Excel-Sperrdateien und lokale Claude-Einstellungen (launch.json bleibt im Repo)
 ~$*
 .claude/settings.local.json
+
+# Interne Arbeitsunterlagen mit Firmeninterna und Personennamen (Repo ist öffentlich): nicht ins Git, Sicherung über OneDrive
+docs/wissen/
+docs/agenten/
+docs/ideen/

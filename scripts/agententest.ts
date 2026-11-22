@@ -123,7 +123,7 @@ async function lauf(f: Frage): Promise<Ergebnis> {
     const erlaubt = antworten.filter((a) => p.gefragt.some((g) => g.id === a.rolle));
     const verstoesse: Verstoss[] = [];
     if (erlaubt.length !== p.gefragt.length) verstoesse.push({ regel: "format", text: `${erlaubt.length} Antworten, erwartet ${p.gefragt.length}` });
-    for (const a of erlaubt) for (const v of pruefeAntwort({ text: a.text, rolle: a.rolle, an: p.an, namen, kontext })) verstoesse.push({ ...v, text: `${a.rolle}: ${v.text}` });
+    for (const a of erlaubt) for (const v of pruefeAntwort({ text: a.text, rolle: a.rolle, an: p.an, namen, kontext, erlaubteNamen: p.system })) verstoesse.push({ ...v, text: `${a.rolle}: ${v.text}` });
     return { frage: f, an: p.an, antworten: erlaubt, verstoesse, ms: roh.ms };
   } catch (e) {
     return { frage: f, an: p.an, antworten: [], verstoesse: [{ regel: "format", text: "Fehler beim Aufruf" }], ms: 0, fehler: `${(e as Error).message}${(e as { cause?: { code?: string; message?: string } }).cause ? ` (${(e as { cause: { code?: string; message?: string } }).cause.code ?? (e as { cause: { message?: string } }).cause.message})` : ""}` };

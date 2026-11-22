@@ -28,11 +28,11 @@
 ## Offene Punkte / bekannte Bugs
 - **Zuhören mit echtem Mikrofon nicht live getestet** (Einwilligung am Bildschirm nötig). Bitte einmal prüfen: Klick, Frage sprechen, Klick, Antwort; Frage darf nicht im Protokoll/Transkript landen.
 - Agent-Antwort nennt viele Personennamen (vermutlich aus Wissensdatei/Hintergrundwissen). Prüfen, ob eingereichtes Material enthalten ist; ggf. Namen entfernen oder Rollen-Prompt: „keine Personennamen".
-- **Protokoll-Prompt in Broki:** Regel „NEUES TO-DO" generisch formulieren (kein „Kevin"/„Markus Brendel"). Bitte-mit-Zusage zählt als To-do. Echter Testlauf ergab vorher: 0 To-dos, Kevin-Termin nur als Notiz. Erneuten Test mit angepasster Regel noch nicht gemacht.
+- **Protokoll-Prompt in Broki:** Regel „NEUES TO-DO" generisch formulieren (keine Personennamen). Bitte-mit-Zusage zählt als To-do. Echter Testlauf ergab vorher: 0 To-dos, Kevin-Termin nur als Notiz. Erneuten Test mit angepasster Regel noch nicht gemacht.
 - Navigation rechts/links: Assistent und Pinnwand unverändert links (Rückfrage erledigt: bleibt links).
 - Drittes Agenten-Bild vorhanden (Brille); weitere Agenten gibt es nicht (Limit 3).
 - Zweiter Laptop: `git pull`, `npm.cmd install`, Neustart; `data/einstellungen.json` (nicht in Git) hat dort alte Symbole und den alten Zusammenfassungs-Prompt → in Admin nachziehen.
-- Offen von früher: Schreibweise „Markus Brendel" vs. „Brendemann"; Broki-STT braucht Broki-Admins; `HOST=0.0.0.0` am Workshop-Tag; 30-Min-Testlauf; Idee Whisper-Startknopf (nicht freigegeben).
+- Offen von früher: Broki-STT braucht Broki-Admins; `HOST=0.0.0.0` am Workshop-Tag; 30-Min-Testlauf; Idee Whisper-Startknopf (nicht freigegeben).
 - Gespeicherte Archiv-Zusammenfassung ist noch die abgeschnittene → im Archiv neu erzeugen.
 
 ## Relevante Dateien
@@ -51,7 +51,7 @@
 ## Nächstes Thema (neue Session): Wissen für die Agenten im Sales Agentic Workshop
 - Ziel: gemeinsam prüfen, welches Wissen die Agenten (Sales, BPM, Business Consultant) bekommen sollen.
 - Zu klären: Rolle je Agent (was soll er wissen, was nicht); Ablageort (Wissensdatei je Agent, Hintergrundwissen des Workshops, verdichtetes Material); Größe (alles landet bei jeder Frage im Prompt, Wissensdatei nur beim gefragten Agenten).
-- Regel: Keine Namen aus eingereichtem Material bei den Agenten. Auffällig: Der Vertriebsprofi nannte viele Personennamen (Paul Weber, Markus Peske u. a.) → Quelle prüfen (Wissensdatei oder Hintergrundwissen) und bereinigen.
+- Regel: Keine Namen aus eingereichtem Material bei den Agenten. Auffällig: Der Vertriebsprofi nannte viele Personennamen (echte Personennamen) → Quelle prüfen (Wissensdatei oder Hintergrundwissen) und bereinigen.
 - Material des Users in der Workshop-Ansicht unter „Material" oder aus einem Ordner einlesen; Material vorher bereithalten.
 - Start in der neuen Session: „Lies NOTES.md und mach weiter."
 
@@ -60,7 +60,7 @@ Analyse ist gemacht, noch nichts an Dateien geändert. Ergebnis in Kürze:
 - **Drei Schichten:** (1) Workshop-Kontext/Briefing je Meeting (ca. 8–12 k Zeichen, geht bei jeder Frage mit; hier gehört das Vorbereitungsmaterial hin: Ist-Prozess, Problemübersicht, Praxisfälle, Kennzahlen), (2) Wissensdatei je Agent (12–20 k Zeichen, nur beim gefragten Agenten), (3) Nachschlagewerk (Recherche-Datei, Tool-Matrix) nicht laden, sondern auf die Agenten verteilen. Gesamtbudget Wissen ca. 60 k Zeichen.
 - **Agenten-Zuschnitt (Vorschlag, noch offen):** Sales Professional, BPM Specialist, dritter Agent = KI-Berater Technik + Wirtschaft inkl. Rolle „Kritischer Prüfer“ (Agenda nennt Prozessbild / KI-Spezialist / Kritischer Prüfer).
 - **Neu zu schreiben:** Wissensdatei Agent 3 (Technik-Katalog mit Aufwand S/M/L, BWL-Raster Nutzen×Aufwand×Datenreife×Risiko, Prüfliste). **Vom User zu liefern:** Seite „Was enthält Dynamics heute wirklich“ (Antonio/Engineering), Eckzahlen (Verkäufer, Opportunities, Abschlussquote, Zyklus, Stundensatz-Spanne), Vorbereitungsmaterial ohne Namen.
-- **Bereinigen:** Verhaltensregeln aus den Wissensdateien in die Agent-Beschreibung (kollidieren mit dem Prompt: dort 1–3/max. 6 Sätze); `Brodos-Abteilungen-und-Leitung.md` nur als Landkarte ohne Namen (Quelle von Paul Weber, Markus Peske); `01_Kontext` + `Systemlandschaft` zusammenführen, Personentabelle raus; Recherche-Abschnitt 5 (alte Agenda 09:00–17:30) raus; Widerspruch Felix CIO vs. CDO klären.
+- **Bereinigen:** Verhaltensregeln aus den Wissensdateien in die Agent-Beschreibung (kollidieren mit dem Prompt: dort 1–3/max. 6 Sätze); `Brodos-Abteilungen-und-Leitung.md` nur als Landkarte ohne Namen; `01_Kontext` + `Systemlandschaft` zusammenführen, Personentabelle raus; Recherche-Abschnitt 5 (alte Agenda 09:00–17:30) raus; Widerspruch Felix CIO vs. CDO klären.
 - **Test statt Schätzen:** ca. 25 Fragen je Agenda-Block durch die Agenten laufen lassen, Lücken ergänzen, Überflüssiges kürzen, Namen-Check.
 - Offene Entscheidung: Zuschnitt der drei Agenten (siehe oben).
 
