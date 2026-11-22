@@ -4,6 +4,7 @@ import { Aufnahme } from "./aufnahme.js";
 import { sende, verbinde } from "./common.js";
 import { starteMerlin } from "./merlin.js";
 import { starteBuehne } from "./fuehrung-buehne.js";
+import { starteAufwaermen } from "./aufwaermen.js";
 
 const $ = (id) => document.querySelector(id);
 
@@ -100,6 +101,8 @@ merlinNavi = starteMerlin({ gehe: geheZu, bereich: aktuellerBereich, steuerung: 
 window.merlin.navigator = merlinNavi.schnittstelle;
 // Bühne der Führung durch die App (Merlin links, Bubbles rechts, Musik); die Lautstärke der Musik stellt Admin → Erweitert ein
 window.merlin.fuehrungMusik = starteBuehne(merlinNavi.schnittstelle).musik;
+// Aufwärmspiel (6-3-5 mit KI): großes Fenster im Rahmen, Spielstand nur im Browser
+starteAufwaermen(merlinNavi.schnittstelle);
 
 let meetingOffen = false;
 let meetingName = "";

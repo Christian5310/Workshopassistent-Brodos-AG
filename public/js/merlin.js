@@ -39,6 +39,7 @@ export function starteMerlin(rahmen) {
   let naechsteErinnerung = null;
   let erinnerungFuer = null;
   let fuehrung = null; // laufende Führung durch die App: { aus: boolean, weiter: () => void }
+  let aufwaermen = false; // Aufwärmspiel (public/js/aufwaermen.js) ist offen
   let fuehrungStand = null; // aktuelle Station, damit eine neu geladene Startseite mittendrin einsteigen kann
   let zuhoerer = null; // Freihand-Modus: laufendes Zuhören (public/js/freihand.js)
   let freihandStartet = false;
@@ -192,7 +193,7 @@ export function starteMerlin(rahmen) {
   });
 
   /** Aktionen, die woandershin führen: dort zeigt sich das Ergebnis, ein Antwortfenster braucht es nicht */
-  const FUEHRT_WEITER = new Set(["gehe", "einstellung", "meeting-neu", "workshop-neu", "meeting-oeffnen", "workshop-oeffnen", "frage", "dokument", "fuehrung", "gerufen"]);
+  const FUEHRT_WEITER = new Set(["gehe", "einstellung", "meeting-neu", "workshop-neu", "meeting-oeffnen", "workshop-oeffnen", "frage", "dokument", "fuehrung", "aufwaermen", "aufwaermen-weiter", "gerufen"]);
   async function ausfuehren(e, gesprochen) {
     if (e.aktion === "ja" || e.aktion === "nein") {
       const frage = offeneFrage;
@@ -292,6 +293,14 @@ export function starteMerlin(rahmen) {
         break;
       case "fuehrung":
         starteFuehrung(); // läuft für sich weiter, hier nicht warten
+        break;
+      case "aufwaermen":
+        starteAufwaermen();
+        break;
+      case "aufwaermen-weiter":
+        // "Weiter" gilt nur im laufenden Spiel; sonst ist der Satz nichts für Merlin
+        if (aufwaermen) melde("aufwaermen", { weiter: true });
+        else if (!imFreihand) { zeigeAntwort(); sage("Das Aufwärmspiel läuft gerade nicht."); }
         break;
       case "timer":
         starteTimer(e.sekunden);
@@ -751,6 +760,30 @@ export function starteMerlin(rahmen) {
     melde("fuehrung", { aus: true, fertig: false });
   }
 
+  // ── Aufwärmspiel (6-3-5 mit KI): großes Fenster im Rahmen (public/js/aufwaermen.js), ohne zweites Browserfenster. Nichts wird gespeichert. ──
+  function starteAufwaermen() {
+    if (aufwaermen) return;
+    if (stand?.status?.aufnahme) {
+      zeigeAntwort();
+      return void sage("Gerade läuft eine Aufnahme. Pausiere sie, dann starten wir das Aufwärmspiel.");
+    }
+    if (fuehrung) beendeFuehrung();
+    verstumme();
+    hoerAbbrechen();
+    abbrechen();
+    auswahl = [];
+    if (offen) schliesse();
+    aufwaermen = true;
+    melde("aufwaermen", { an: true });
+  }
+  function beendeAufwaermen() {
+    if (!aufwaermen) return;
+    aufwaermen = false;
+    verstumme();
+    letzteSprache = Date.now() + 1500;
+    melde("aufwaermen", { aus: true });
+  }
+
   // ── Freihand-Modus: Merlin hört ohne Klick auf seinen Namen (Admin → Erweitert, je Gerät) ──
   // Das Mikrofon läuft parallel zur Aufnahme des Protokolls. Kurze Sätze gehen an /api/merlin/zuhoeren. Ohne Namen am Satzanfang
   // passiert nichts und das Audio ist sofort weg. Ist der Name nur ähnlich gehört, fragt Merlin nach (src/merlin.ts, deuteZuruf).
@@ -783,7 +816,7 @@ export function starteMerlin(rahmen) {
     }, ms);
   }
 
-  const freihandPausiert = () => hoert || !!fuehrung || knopf.classList.contains("spricht") || Date.now() - letzteSprache < 700;
+  const freihandPausiert = () => hoert || !!fuehrung || aufwaermen || knopf.classList.contains("spricht") || Date.now() - letzteSprache < 700;
   const meldeServer = (an) => sende("/api/merlin/freihand", { an }).catch(() => {});
   let perKlickAus = false; // Merlin ist aktiv eingestellt, wurde aber per Klick ausgeschaltet (Einstellung im Admin bleibt)
   const zeigeLauscht = (an, hinweis = "") => {
@@ -908,6 +941,11 @@ export function starteMerlin(rahmen) {
       if (zuhoerer) b.lauscht?.({ an: true, hinweis: "" });
       return () => beobachter.delete(b);
     },
+    starteAufwaermen: () => starteAufwaermen(),
+    beendeAufwaermen: () => beendeAufwaermen(),
+    /** Merlin spricht für das Aufwärmspiel (nur auf Wunsch der Moderation) */
+    sprich: (text) => sprich(text),
+    verstumme: () => verstumme(),
     starteFuehrung: () => starteFuehrung(),
     beendeFuehrung: () => beendeFuehrung(),
     /** Freihand-Modus an oder aus (Admin → Erweitert). Gilt je Gerät. */
@@ -926,6 +964,7 @@ export function starteMerlin(rahmen) {
     aktualisiere(neu) {
       const tagVorher = stand?.tag?.id;
       stand = neu;
+      if (aufwaermen && neu.status?.aufnahme) beendeAufwaermen(); // das Spiel weicht einer Aufnahme
       if (fuehrung && neu.status?.aufnahme) beendeFuehrung(); // z. B. von einem anderen Gerät aus die Aufnahme gestartet
       if (tagVorher !== stand.tag?.id) { ansagen = null; if (modus === "ansage") sage(begruessungstext()); }
       zeigeLeise();

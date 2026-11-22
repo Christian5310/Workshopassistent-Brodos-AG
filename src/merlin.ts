@@ -55,6 +55,8 @@ export const BefehlSchema = z.discriminatedUnion("aktion", [
   z.object({ aktion: z.literal("hilfe") }),
   z.object({ aktion: z.literal("fuehrung") }),
   z.object({ aktion: z.literal("tagesablauf") }),
+  z.object({ aktion: z.literal("aufwaermen") }),
+  z.object({ aktion: z.literal("aufwaermen-weiter") }),
   z.object({ aktion: z.literal("punkt-wechseln"), ziel: z.string().max(120) }), // "@weiter", "@zurueck" oder Nummer/Titel
   z.object({ aktion: z.literal("rueckgaengig") }),
   z.object({ aktion: z.literal("eintrag-neu"), art: z.enum(["entscheidung", "frage"]), text: z.string().max(300) }),
@@ -136,6 +138,7 @@ export type Ergebnis =
   | { aktion: "nachfrage"; text: string; antwort: string } // Freihand: nicht sicher, ob Merlin gemeint war
   | { aktion: "fuehrung"; antwort: string }
   | { aktion: "tagesablauf"; antwort: string }
+  | { aktion: "aufwaermen" | "aufwaermen-weiter"; antwort: string }
   | { aktion: "punkt-wechseln"; id: string; antwort: string } // wird auf dem Server ausgeführt
   | { aktion: "rueckgaengig"; antwort: string } // wird auf dem Server ausgeführt
   | { aktion: "eintrag-neu"; art: "entscheidung" | "frage"; text: string; agendapunkt: string; antwort: string } // wird auf dem Server ausgeführt
@@ -300,6 +303,11 @@ function findeEinstellung(s: string): keyof typeof EINSTELLUNGEN | null {
 /** "Erklär uns die App", "Führung durch die App", "Rundgang", "Zeig uns die App" */
 const FUEHRUNG = /(f(ü|ue)hrung|rundgang|app ?tour|\btour\b)|((erkl(ä|ae)r|zeig|stell)\w* (uns |mir |euch )?((doch|mal|kurz|bitte) )*(die |diese |unsere |eure |das )?(neue[nr]? )?(broki )?(meeting )?(app|anwendung|programm|tool|oberfl(ä|ae)che))|(wie funktioniert (die|das|unsere|diese) (neue )?(broki )?(meeting )?(app|anwendung|programm|tool))/;
 
+/** "Lass uns ein Warm-up machen", "Aufwärmspiel", "Ideenspiel", "6-3-5" */
+const AUFWAERMEN = /warm[ -]?up|aufw(ä|ae)rm|ideenspiel|ideen ?spiel|(?<![0-9])6[ -]?3[ -]?5(?![0-9])|sechs[ -]drei[ -]f(ü|ue)nf/;
+/** Im Spiel: "Weiter" (nächste Runde) */
+const SPIEL_WEITER = /^(?:ok(?:ay)? )?(?:und )?weiter(?: bitte| geht'?s| gehts)?$|^n(ä|ae)chste runde$/;
+
 /** "Wie sieht der Tagesablauf aus?", "Worum geht es im heutigen Workshop?" */
 const TAGESABLAUF = /tagesablauf|tagesplan|ablauf (des |von |für )?(heute|dem tag|den tag|tages)|(heutige[nrm]?|heutigen) (workshop|ablauf|tag)|(was|wie) (machen|haben|planen|steht) (wir|bei uns) heute|worum geht('s| es) (heute|im workshop|beim workshop)/;
 
@@ -343,6 +351,8 @@ export function regeln(text: string): Befehl | null {
   let m: RegExpMatchArray | null;
 
   if (FUEHRUNG.test(s)) return { aktion: "fuehrung" };
+  if (AUFWAERMEN.test(s)) return { aktion: "aufwaermen" };
+  if (SPIEL_WEITER.test(s)) return { aktion: "aufwaermen-weiter" };
   if (TAGESABLAUF.test(s)) return { aktion: "tagesablauf" };
   // Timer: "Stell einen Timer auf 10 Minuten", "Timer 5 Minuten", "Timer abbrechen"
   if (/timer|stoppuhr|wecker/.test(s)) {
@@ -605,8 +615,13 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
       // Nur ohne laufende Aufnahme. Ein offenes, aber pausiertes Meeting stört nicht: die Führung bleibt auf dem Startscreen.
       if (aufnahmeLaeuft) return { aktion: "hinweis", antwort: "Gerade läuft eine Aufnahme. Pausiere sie, dann zeige ich euch die App." };
       return { aktion: "fuehrung", antwort: "Gern. Ich zeige euch die App." };
-    case "tagesablauf":
-      return { aktion: "tagesablauf", antwort: TAGESABLAUF_TEXT };
+    case "aufwaermen":
+      // Wie die Führung: nicht bei laufender Aufnahme (ein zweites Fenster würde nichts aufnehmen, aber das Meeting nicht stören)
+      if (aufnahmeLaeuft) return { aktion: "hinweis", antwort: "Gerade läuft eine Aufnahme. Pausiere sie, dann starten wir das Aufwärmspiel." };
+      return { aktion: "aufwaermen", antwort: "Gern, wir machen ein Warm-up." };
+    case "aufwaermen-weiter":
+      return { aktion: "aufwaermen-weiter", antwort: "" }; // wirkt nur, wenn das Spiel läuft (public/js/merlin.js)
+    case "tagesablauf":      return { aktion: "tagesablauf", antwort: TAGESABLAUF_TEXT };
     case "timer":
       if (!b.sekunden) return { aktion: "hinweis", antwort: "Wie lange soll der Timer laufen? Sag zum Beispiel: Stell einen Timer auf 10 Minuten." };
       return { aktion: "timer", sekunden: b.sekunden, antwort: `Timer läuft: ${dauerText(b.sekunden)}.` };

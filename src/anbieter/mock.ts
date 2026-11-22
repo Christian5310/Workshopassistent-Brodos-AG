@@ -151,6 +151,16 @@ export class MockSprachmodell implements Sprachmodell {
     return `[Mock] Zu „${frage}“ habe ich ${quellen.length} Quelle(n) gefunden${quellen[1] ? `, vor allem „${quellen[1].titel}“` : ""}. ${mehr ? "Hier stünde die ausführliche Fassung." : "Im Live-Betrieb antwortet hier das Sprachmodell in wenigen Sätzen."}`;
   }
 
+  /** Fake-Ideen für das Aufwärmspiel: hängt je Runde einen festen Zusatz an den letzten Stand. */
+  async ideenrunde(_frage: string, runde: 2 | 3 | 4, ketten: { nr: number; text: string; perspektive?: string }[]) {
+    await warte(900);
+    const zusatz = { 2: "und das gleich im ganzen Team", 3: "aber mit vertauschten Rollen: der Kunde hilft der KI", 4: "gesehen mit den Augen von" } as const;
+    return ketten.map((k) => ({
+      nr: k.nr,
+      text: `[Mock] ${runde === 4 ? `${zusatz[4]} ${k.perspektive ?? "einem Fremden"}: ${k.text.replace(/^\[Mock\] /, "").slice(0, 60)}` : `${k.text.replace(/^\[Mock\] /, "").slice(0, 70)} – ${zusatz[runde]}`}`,
+    }));
+  }
+
   async sprechtext(wissen: string) {
     await warte(500);
     return `[Mock] Zur Vorbereitung liegt Vorwissen im Umfang von ${wissen.length.toLocaleString("de-DE")} Zeichen vor. Die Zusammenfassung dazu formuliert das Sprachmodell im Live-Betrieb.`;

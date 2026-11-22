@@ -1,4 +1,5 @@
 import { arbeitsstand } from "../delta.ts";
+import { ideenAnfrage, ideenPrompt, pruefeIdeenrunde, type Kette } from "../aufwaermen.ts";
 import { z } from "zod";
 import { repariereJson } from "./json-reparatur.ts";
 import { config } from "../config.ts";
@@ -303,6 +304,7 @@ Erlaubte Aktionen:
 {"aktion": "ja"}  /  {"aktion": "nein"}  (Antwort auf eine Rückfrage)
 {"aktion": "hilfe"}
 {"aktion": "fuehrung"}  (die App erklären, Führung bzw. Rundgang durch die App, "Zeig uns die App")
+{"aktion": "aufwaermen"}  (Aufwärmspiel, Warm-up, Ideenspiel, 6-3-5 starten)
 {"aktion": "tagesablauf"}  (Tagesablauf, Ablauf des heutigen Workshops, worum es heute geht)
 {"aktion": "punkt-wechseln", "ziel": "@weiter oder @zurueck oder Nummer/Titel des Agendapunkts"}  ("Weiter zum nächsten Punkt", "Starte Punkt 2")
 {"aktion": "rueckgaengig"}  (den letzten Schritt rückgängig machen)
@@ -340,6 +342,21 @@ Keine Personennamen, keine Firmennamen von Kunden. Erfinde nichts. Deutsch.`,
     );
     const r = z.object({ kurz: z.string().min(1), lang: z.string().catch("") }).parse(antwort);
     return { kurz: r.kurz.trim(), lang: r.lang.trim() };
+  }
+
+  async ideenrunde(frage: string, runde: 2 | 3 | 4, ketten: Kette[]): Promise<{ nr: number; text: string }[]> {
+    const nachrichten: Nachricht[] = [
+      { role: "system", content: ideenPrompt(frage, runde, ketten.length) },
+      { role: "user", content: ideenAnfrage(ketten) },
+    ];
+    const nrs = ketten.map((k) => k.nr);
+    // Ein Wiederholungsversuch, falls die Antwort unvollständig ist (fehlende Kette, kaputtes JSON)
+    try {
+      return pruefeIdeenrunde(await this.#frage(nachrichten, 1500, config.llm.modell, 45_000), nrs);
+    } catch (fehler) {
+      console.warn("Aufwärmspiel: unbrauchbare Antwort, frage noch einmal.", (fehler as Error).message);
+      return pruefeIdeenrunde(await this.#frage(nachrichten, 1500, config.llm.modell, 45_000), nrs);
+    }
   }
 
   async merlinWissen(frage: string, quellen: { titel: string; text: string }[], mehr: boolean): Promise<string> {

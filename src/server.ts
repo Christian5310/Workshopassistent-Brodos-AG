@@ -11,6 +11,7 @@ import * as merlin from "./merlin.ts";
 import { freihandAktiv, meldeFreihand } from "./freihand.ts";
 import * as workshops from "./workshops.ts";
 import * as ansagen from "./ansagen.ts";
+import { RundeAnfrageSchema } from "./aufwaermen.ts";
 import * as dateien from "./dateien.ts";
 import { store } from "./store.ts";
 import { ProtokollSchema, type Adressat, type ChatStatus, type Schnappschuss } from "./types.ts";
@@ -496,6 +497,22 @@ async function merlinWissen(frage: string, mehr: boolean): Promise<merlin.Ergebn
     return { aktion: "hinweis", antwort: "Ich komme gerade nicht an das Sprachmodell. Das Dokument kann ich dir aber öffnen.", auswahl: dokument ? [{ text: dokument.titel, link: dokument.link! }] : [] };
   }
 }
+
+/**
+ * Aufwärmspiel (6-3-5 mit KI): eine Runde, alle Ketten in einer Anfrage. Nichts wird gespeichert oder ins Protokoll geschrieben,
+ * der Spielstand liegt nur im Browser (public/js/aufwaermen.js). Auch zum Neuwürfeln einer einzelnen Zelle (eine Kette).
+ */
+app.post("/api/aufwaermen/runde", async (req, res) => {
+  const anfrage = RundeAnfrageSchema.safeParse(req.body);
+  if (!anfrage.success) return void res.status(400).json({ fehler: "Die Anfrage für die Runde ist unvollständig." });
+  try {
+    const ketten = await anbieter.sprachmodell.ideenrunde(anfrage.data.frage, anfrage.data.runde, anfrage.data.ketten);
+    res.json({ ketten });
+  } catch (fehler) {
+    console.warn("Aufwärmspiel:", (fehler as Error).message);
+    res.status(502).json({ fehler: "Die KI hat gerade nicht geantwortet." });
+  }
+});
 
 /** "Mehr vorlesen": ausführliche Antwort auf dieselbe Frage */
 app.post("/api/merlin/wissen", async (req, res) => {

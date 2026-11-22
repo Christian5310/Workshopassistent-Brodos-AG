@@ -36,5 +36,7 @@ export interface Sprachmodell {
   merlinWissen(frage: string, quellen: { titel: string; text: string }[], mehr: boolean): Promise<string>;
   /** Pinnwand: Kurzfassung (2–3 Sätze) und erweiterte Zusammenfassung mit Zwischenüberschriften (ohne Namen). */
   karte(titel: string, text: string): Promise<{ kurz: string; lang: string }>;
+  /** Aufwärmspiel: je Kette genau ein neuer Vorschlag für die Runde (2 erweitern, 3 umdrehen, 4 Perspektive). Nichts wird gespeichert. */
+  ideenrunde(frage: string, runde: 2 | 3 | 4, ketten: { nr: number; text: string; perspektive?: string }[]): Promise<{ nr: number; text: string }[]>;
   verdichte(material: { titel: string; art: string; text: string }[], kontext: { name: string; agenda: string[] }): Promise<{ wissen: string; begriffe: string }>;
 }

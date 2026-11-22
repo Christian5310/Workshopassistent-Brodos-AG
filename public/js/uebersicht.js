@@ -65,6 +65,7 @@ function starteMerlinMitte() {
   new Image().src = BILD.hoert; // vorladen, damit der Wechsel beim Klick sofort sichtbar ist
   mikro.addEventListener("click", () => navi.hoereLeise());
   $("#fuehrung-start").addEventListener("click", () => navi.starteFuehrung());
+  $("#aufwaermen-start").addEventListener("click", () => navi.starteAufwaermen());
 
   // Führung durch die App: die Bühne liegt im App-Rahmen (public/js/fuehrung-buehne.js). Danach stehen Meeting und Workshop zur Wahl.
   const nachDerFuehrung = (s) => { if (s?.aus && s.fertig) aufgeklappt(true); };
