@@ -121,7 +121,7 @@ async function lauf(f: Frage): Promise<Ergebnis> {
   try {
     let roh = await frageModell(p.system, p.nutzer);
     let antworten: Antwort[];
-    try { antworten = leseAntworten(leseJson(roh.text)); } catch { roh = await frageModell(p.system, p.nutzer); antworten = leseAntworten(leseJson(roh.text)); }
+    try { antworten = leseAntworten(leseJson(roh.text)); } catch { roh = await frageModell(p.system, p.nutzer); try { antworten = leseAntworten(leseJson(roh.text)); } catch (e) { throw new Error(`${(e as Error).message} – Antworttext (${roh.text.length} Zeichen): ${JSON.stringify(roh.text.slice(0, 200))}`); } }
     const kontext = `${p.system}\n${p.nutzer}`;
     const erlaubt = antworten.filter((a) => p.gefragt.some((g) => g.id === a.rolle));
     const verstoesse: Verstoss[] = [];
