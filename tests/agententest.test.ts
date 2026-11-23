@@ -87,3 +87,11 @@ test("Agenda für den Test aus testfragen.md lesen", async () => {
   assert.deepEqual(liesAgenda(md), ["Auftakt (08:00)", "Ist-Analyse", "Neu denken", "Soll-Prozess", "Umsetzung"]);
   assert.deepEqual(liesAgenda("nichts"), []);
 });
+
+test("Ausschnitt einer T-Frage: ausdrücklich genannt oder der des Blocks", async () => {
+  const { ausschnittVon, liesAusschnitte } = await import("../scripts/agententest-kern.ts");
+  assert.equal(ausschnittVon({ frage: "Was fällt auf? (Ausschnitt A2b)", block: "A2" }), "A2b");
+  assert.equal(ausschnittVon({ frage: "Was fällt auf? (Ausschnitt A3)", block: "A3" }), "A3");
+  assert.equal(ausschnittVon({ frage: "Ohne Hinweis", block: "A4" }), "A4");
+  assert.equal(liesAusschnitte('- **Ausschnitt A2b:** "Zweiter Text."').A2b, "Zweiter Text.");
+});

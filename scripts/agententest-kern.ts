@@ -14,10 +14,13 @@ export function liesFragen(md: string): Frage[] {
   return fragen;
 }
 
+/** Der Ausschnitt, den eine T-Frage meint: "(Ausschnitt A2b)" am Ende, sonst der Ausschnitt ihres Blocks. */
+export const ausschnittVon = (f: { frage: string; block: string }): string => f.frage.match(/\(Ausschnitt (A[1-5]b?)\)\s*$/)?.[1] ?? f.block;
+
 /** Gesprächsausschnitte: `- **Ausschnitt A2:** "Text"` → { A2: "Text" }. */
 export function liesAusschnitte(md: string): Record<string, string> {
   const aus: Record<string, string> = {};
-  for (const m of md.matchAll(/^- \*\*Ausschnitt (A[1-5]):\*\*\s*"(.*)"\s*$/gm)) aus[m[1]!] = m[2]!;
+  for (const m of md.matchAll(/^- \*\*Ausschnitt (A[1-5]b?):\*\*\s*"(.*)"\s*$/gm)) aus[m[1]!] = m[2]!;
   return aus;
 }
 

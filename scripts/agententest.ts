@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { config } from "../src/config.ts";
 import {
-  baueSystemPrompt, formatHinweis, frageNachricht, leseAntworten, leseJson, liesAgenda, liesAusschnitte, liesFragen, liesPromptBloecke,
+  ausschnittVon, baueSystemPrompt, formatHinweis, frageNachricht, leseAntworten, leseJson, liesAgenda, liesAusschnitte, liesFragen, liesPromptBloecke,
   pruefeAntwort, sammleNamen, type AgentDef, type Antwort, type Frage, type Verstoss,
 } from "./agententest-kern.ts";
 
@@ -59,8 +59,8 @@ function bauePrompt(f: Frage) {
   const an = adressat(f.an);
   const gefragt = agenten.filter((a) => an === "alle" || a.id === an);
   const system = `${baueSystemPrompt({ gesamt: gesamt!, briefing, agenda, laeuft: f.block, agenten, an })}\n\n${formatHinweis(gefragt, an)}`;
-  const text = f.frage.replace(/\s*\(Ausschnitt A\d\)\s*$/, "");
-  const ausschnitt = f.typ === "T" ? ausschnitte[f.block] : undefined;
+  const text = f.frage.replace(/\s*\(Ausschnitt A\db?\)\s*$/, "");
+  const ausschnitt = f.typ === "T" ? ausschnitte[ausschnittVon(f)] : undefined;
   const nutzer = frageNachricht(text, an, agenten.find((a) => a.id === an)?.name ?? "", ausschnitt);
   return { an, gefragt, system, nutzer };
 }
