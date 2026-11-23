@@ -1,5 +1,5 @@
 // Testlauf für die drei Spezial-Agenten (Wissen, Prompts, Verhalten).
-// Aufruf: npm.cmd run agententest -- [--trocken] [--block A2] [--ids A1-01,A2-05] [--typ X] [--anzahl 5] [--parallel 4] [--modell claude-haiku-5-5] [--ordner docs/agenten]
+// Aufruf: npm.cmd run agententest -- [--trocken] [--ohne-briefing] [--block A2] [--ids A1-01,A2-05] [--typ X] [--anzahl 5] [--parallel 4] [--modell claude-haiku-5-5] [--ordner docs/agenten]
 // Liest Prompts, Wissen, Briefing und Fragen aus dem Ordner (Standard docs/agenten), setzt den Prompt wie die App zusammen,
 // stellt jede Frage einzeln an das Sprachmodell (.env: LLM_*), prüft automatisch und schreibt einen Bericht nach data/testergebnisse/.
 // Es werden keine Daten der App (data/einstellungen.json, Meetings) gelesen oder verändert.
@@ -30,7 +30,8 @@ const lies = (datei: string) => {
 const testfragen = lies("testfragen.md");
 const [gesamt, vBeschr, kBeschr, bBeschr] = liesPromptBloecke(lies("prompts.md"));
 if (!gesamt || !vBeschr || !kBeschr || !bBeschr) throw new Error("prompts.md: erwartet vier Texte zwischen ----- Zeilen (Gesamt, Vertrieb, KI, BPM).");
-const briefing = lies("briefing-workshop.md");
+// --ohne-briefing: wie in der App, wenn das Briefing-Feld des Workshops leer ist (Rahmen steht dann nur im Gesamt-Prompt)
+const briefing = flag("ohne-briefing") ? "" : lies("briefing-workshop.md");
 const agenten: AgentDef[] = [
   { id: "sales", kuerzel: "V", name: "Vertriebsexperte", beschreibung: vBeschr, wissen: lies("wissen-vertrieb.md") },
   { id: "consultant", kuerzel: "K", name: "KI- und Automatisierungsexperte", beschreibung: kBeschr, wissen: lies("wissen-ki-automatisierung.md") },
