@@ -96,7 +96,7 @@ export function sammleNamen(quellen: string[]): string[] {
   return [...namen];
 }
 
-export type Verstoss = { regel: "name" | "laenge" | "markdown" | "zahl" | "format"; text: string };
+export type Verstoss = { regel: "name" | "laenge" | "markdown" | "zahl" | "nummer" | "format"; text: string };
 
 const KUERZEL = /\b(z\. ?B|d\. ?h|u\. ?a|u\. ?U|bzw|ca|evtl|inkl|usw|vgl|Nr|ggf|etc|Abs|Art|Std|Min|Mio|Mrd|s\. ?o|S|M|L)\./g;
 
@@ -119,6 +119,9 @@ export function pruefeAntwort(o: { text: string; rolle: string; an: string; name
   if (saetze > limit) v.push({ regel: "laenge", text: `${saetze} Sätze (erlaubt ${limit})` });
   if (/^\s*([-*•]|\d+[.)])\s/m.test(t) || /\*\*|^#{1,6}\s|```/m.test(t)) v.push({ regel: "markdown", text: "Aufzählung oder Markdown" });
   if (/^\s*(Vertriebsexperte|KI- und Automatisierungsexperte|BPM-Experte)\s*[:\-–]/i.test(t)) v.push({ regel: "markdown", text: "Rollenname im Text" });
+  // Die Runde kennt weder die Ideenpool-Nummern noch die Pain-Point-Kürzel: nur Klartext
+  const nummer = t.match(/\bIdeen?\s*(Nr\.?\s*)?\d+|\bNr\.\s*\d+|\([0-9]{1,2}(,\s*[0-9]{1,2})+\)|\b[BCIG][1-8]\b/);
+  if (nummer) v.push({ regel: "nummer", text: `Nummer oder Kürzel gesprochen: "${nummer[0]}"` });
   for (const m of t.matchAll(/(\d[\d.,]*)\s?(%|Prozent|€|Euro|EUR)/g)) {
     // Die Zahl muss mit derselben Einheit im Wissen, Briefing oder in der Frage stehen (nicht nur irgendwo als Ziffernfolge)
     const zahl = m[1]!.replace(/[.,]$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

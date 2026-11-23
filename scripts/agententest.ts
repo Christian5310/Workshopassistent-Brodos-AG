@@ -162,7 +162,7 @@ const langsam = Math.max(...ergebnisse.map((e) => e.ms));
 const md: string[] = [];
 md.push(`# Agententest ${stempel}`, "", `Modell ${modell} · ${ergebnisse.length} Fragen · ordner \`${path.relative(wurzel, ordner)}\``, "");
 md.push("## Automatische Prüfung", "", `**${sauber} von ${ergebnisse.length} ohne Verstoß.** Muss 100 % sein.`, "");
-md.push("| Regel | Fragen mit Verstoß |", "|---|---|", ...["name", "laenge", "markdown", "zahl", "format"].map((r) => `| ${r} | ${nachRegel(r)} |`), "");
+md.push("| Regel | Fragen mit Verstoß |", "|---|---|", ...["name", "laenge", "markdown", "zahl", "nummer", "format"].map((r) => `| ${r} | ${nachRegel(r)} |`), "");
 md.push(`Antwortzeit je Frage: Mittel ${(mittel / 1000).toFixed(1)} s, längste ${(langsam / 1000).toFixed(1)} s.`, "");
 const schlecht = ergebnisse.filter((e) => e.verstoesse.length);
 if (schlecht.length) {
@@ -184,4 +184,4 @@ const datei = path.join(zielOrdner, `lauf-${stempel}`);
 fs.writeFileSync(`${datei}.md`, md.join("\n"));
 fs.writeFileSync(`${datei}.json`, JSON.stringify({ modell, stempel, ergebnisse: ergebnisse.map((e) => ({ id: e.frage.id, an: e.an, antworten: e.antworten, verstoesse: e.verstoesse, ms: e.ms, fehler: e.fehler })) }, null, 2));
 console.log(`Bericht: ${path.relative(wurzel, datei)}.md`);
-console.log(`Ohne Verstoß: ${sauber}/${ergebnisse.length} · Namen: ${nachRegel("name")} · Länge: ${nachRegel("laenge")} · Markdown: ${nachRegel("markdown")} · Zahlen: ${nachRegel("zahl")} · Format/Fehler: ${nachRegel("format")}`);
+console.log(`Ohne Verstoß: ${sauber}/${ergebnisse.length} · Namen: ${nachRegel("name")} · Länge: ${nachRegel("laenge")} · Markdown: ${nachRegel("markdown")} · Zahlen: ${nachRegel("zahl")} · Nummern/Kürzel: ${nachRegel("nummer")} · Format/Fehler: ${nachRegel("format")}`);

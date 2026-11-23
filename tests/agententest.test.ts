@@ -95,3 +95,12 @@ test("Ausschnitt einer T-Frage: ausdrücklich genannt oder der des Blocks", asyn
   assert.equal(ausschnittVon({ frage: "Ohne Hinweis", block: "A4" }), "A4");
   assert.equal(liesAusschnitte('- **Ausschnitt A2b:** "Zweiter Text."').A2b, "Zweiter Text.");
 });
+
+test("Prüfung: Ideenpool-Nummern und Pain-Point-Kürzel dürfen nicht gesprochen werden", () => {
+  const basis = { rolle: "consultant", an: "consultant", namen: [], kontext: "" };
+  assert.deepEqual(pruefeAntwort({ ...basis, text: "Hier hilft die Wiedervorlage für Angebote bei B2B Sales und Business Class." }), []);
+  assert.equal(pruefeAntwort({ ...basis, text: "Dafür passt Idee 20." })[0]?.regel, "nummer");
+  assert.equal(pruefeAntwort({ ...basis, text: "Das ist Pain Point B6." })[0]?.regel, "nummer");
+  assert.equal(pruefeAntwort({ ...basis, text: "Passende Lösungen (20, 54) gibt es." })[0]?.regel, "nummer");
+  assert.equal(pruefeAntwort({ ...basis, text: "Nach 8 bis 12 Wochen (Q4) prüfen wir das." }).filter((x) => x.regel === "nummer").length, 0);
+});
