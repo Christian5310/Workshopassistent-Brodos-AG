@@ -53,7 +53,7 @@ export function baueSystemPrompt(o: { gesamt: string; briefing: string; agenda: 
 }
 
 export const frageNachricht = (frage: string, an: string, anName: string, ausschnitt?: string) =>
-  `${ausschnitt ? `Im Raum gesagt, letzte 60 Minuten (Transkript, ohne Sprecher):\n${ausschnitt}\n\n` : ""}Frage${an === "alle" ? "" : ` an ${anName}`}: ${frage}`;
+  `${ausschnitt ? `Im Raum gesagt, letzte 30 Minuten (Transkript, ohne Sprecher):\n${ausschnitt}\n\n` : ""}Frage${an === "alle" ? "" : ` an ${anName}`}: ${frage}`;
 
 /**
  * Wörter, die als Name gelten: aus den Quelldateien abgeleitet.

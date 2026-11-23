@@ -10,7 +10,7 @@
 - **Aufnahme währenddessen stumm** (`merlin().aufnahme.stumm`), damit die Frage nicht ins Protokoll kommt. Audio wird nach Transkription verworfen (Projektregel).
 - **Ein Agent zugleich** zuhörend; Klick auf anderen Agenten wechselt.
 - **Textfeld-Frage** geht an den zuhörenden Agenten, sonst an alle.
-- **Kontext der Agenten: letzte 60 Min Transkript** (max. ca. 60.000 Zeichen), dazu Protokoll, Agenda, Hintergrundwissen, eigene Wissensdatei, letzte 20 Chat-Nachrichten. **Keine Websuche** (bewusst nicht eingebaut; Datenschutz und Broki-Freigabe unklar).
+- **Kontext der Agenten: letzte 30 Min Transkript** (max. ca. 30.000 Zeichen), dazu Protokoll, Agenda, Hintergrundwissen, eigene Wissensdatei, letzte 20 Chat-Nachrichten. **Keine Websuche** (bewusst nicht eingebaut; Datenschutz und Broki-Freigabe unklar).
 - **Max. 3 Agenten** (`MAX_AGENTEN` in `src/server.ts`; Admin blendet „Neuer Agent" bei 3 aus).
 - **Fotos als `figur`-Werte** `frau`, `mann`, `brille` (Standard: Sales→mann, BPM→brille, Consultant→frau).
 - **Navigation bleibt links** (Rückmeldung: rechts war verwirrend).

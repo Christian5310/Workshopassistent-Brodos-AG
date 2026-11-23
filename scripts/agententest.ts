@@ -40,7 +40,7 @@ const agenten: AgentDef[] = [
 // Agenda: aus testfragen.md ("- A1: Titel"), sonst die Standard-Agenda der App (config/agenda.json)
 const agenda: string[] = liesAgenda(testfragen).length === 5 ? liesAgenda(testfragen) : (JSON.parse(fs.readFileSync(path.join(wurzel, "config", "agenda.json"), "utf8")) as { titel: string }[]).map((a) => a.titel);
 const ausschnitte = liesAusschnitte(testfragen);
-// --langes-transkript 60000: hängt so viele Zeichen Füll-Transkript an (Lasttest: in der App gehen bis zu 60.000 Zeichen der letzten 60 Minuten mit)
+// --langes-transkript 30000: hängt so viele Zeichen Füll-Transkript an (Lasttest: in der App gehen bis zu 30.000 Zeichen der letzten 30 Minuten mit)
 const langesTranskript = Number(wert("langes-transkript") ?? 0);
 const fuelltext = () => { const teile = Object.values(ausschnitte); let t = ""; while (t.length < langesTranskript) t += teile[(t.length / 7) % teile.length | 0] + " "; return t.slice(0, langesTranskript); };
 

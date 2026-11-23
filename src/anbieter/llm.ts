@@ -212,10 +212,10 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
     const an = uebersichtsAdressat(gefragtAn, teilnehmer.map((a) => a.id), uebersicht);
     const gefragt = teilnehmer.filter((a) => an === "alle" || a.id === an);
     const name = (id: string) => einstellungen.agenten.find((a) => a.id === id)?.name ?? "Agent";
-    // Kontext: alles aus den letzten 60 Minuten (höchstens etwa 60.000 Zeichen, das Neueste bleibt erhalten)
-    const seit = Date.now() - 60 * 60_000;
+    // Kontext: alles aus den letzten 30 Minuten (höchstens etwa 30.000 Zeichen, das Neueste bleibt erhalten)
+    const seit = Date.now() - 30 * 60_000;
     let letzteMinuten = store.daten.transkript.filter((t) => t.zeit >= seit).map((t) => t.text).join("\n");
-    if (letzteMinuten.length > 60_000) letzteMinuten = "[… früher …]\n" + letzteMinuten.slice(-60_000);
+    if (letzteMinuten.length > 30_000) letzteMinuten = "[… früher …]\n" + letzteMinuten.slice(-30_000);
     const format = formatHinweis(gefragt, an, uebersicht);
 
     const nachrichten: Nachricht[] = [{ role: "system", content: `${promptAgentenFertig(store.daten, an)}\n\n${format}` }];
@@ -224,7 +224,7 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
     }
     nachrichten.push({
       role: "user",
-      content: `${letzteMinuten ? `Im Raum gesagt, letzte 60 Minuten (Transkript, ohne Sprecher):\n${letzteMinuten}\n\n` : ""}Frage${an === "alle" ? "" : ` an ${name(an)}`}: ${frage}`,
+      content: `${letzteMinuten ? `Im Raum gesagt, letzte 30 Minuten (Transkript, ohne Sprecher):\n${letzteMinuten}\n\n` : ""}Frage${an === "alle" ? "" : ` an ${name(an)}`}: ${frage}`,
     });
 
     const geprueft = AntwortSchema.parse(await this.#frage(nachrichten, 4000));
