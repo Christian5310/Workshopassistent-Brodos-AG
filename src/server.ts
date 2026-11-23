@@ -1089,7 +1089,7 @@ app.post("/api/workshops/:id/datei", express.raw({ type: () => true, limit: date
   if (!w) return;
   const name = decodeURIComponent(String(req.headers["x-dateiname"] ?? "")).trim().slice(0, 200);
   const endung = name.split(".").pop()?.toLowerCase() ?? "";
-  if (!dateien.istEndung(endung)) return void res.status(400).json({ fehler: `„${name}“: Dieses Format geht nicht. Möglich sind PDF, Word (.docx), Excel (.xlsx), .md und .txt.` });
+  if (!dateien.istEndung(endung)) return void res.status(400).json({ fehler: `„${name}“: Dieses Format geht nicht. Möglich sind PDF, Word (.docx), Excel (.xlsx), HTML, .md und .txt.` });
   const inhalt = req.body as Buffer;
   if (!Buffer.isBuffer(inhalt) || !inhalt.length) return void res.status(400).json({ fehler: `„${name}“ ist leer.` });
   let text = "";
@@ -1099,7 +1099,7 @@ app.post("/api/workshops/:id/datei", express.raw({ type: () => true, limit: date
     console.warn(`Text aus „${name}“ nicht lesbar:`, (fehler as Error).message);
   }
   const person = decodeURIComponent(String(req.headers["x-person"] ?? "")).trim().slice(0, 60);
-  const neu: workshops.Material = { id: randomUUID().slice(0, 8), zeit: Date.now(), titel: name.replace(/\.[^.]+$/, "").slice(0, 120) || "Datei", art: "Dokument", person, text, datei: { name, endung, groesse: inhalt.length } };
+  const neu: workshops.Material = { id: randomUUID().slice(0, 8), zeit: Date.now(), titel: name.replace(/\.[^.]+$/, "").slice(0, 120) || "Datei", art: "Dokument", person, text, datei: { name, endung, groesse: inhalt.length }, ...(dateien.ENDUNGEN[endung].art === "HTML" ? { pin: true } : {}) }; // HTML-Seiten hängen gleich an der Pinnwand
   dateien.speichere(w.id, neu.id, endung, inhalt);
   workshops.aendere(w.id, (x) => x.material.push(neu));
   bereiteKartenVor(w.id);
@@ -1113,7 +1113,11 @@ app.get("/api/workshops/:id/material/:mid/datei", (req, res) => {
   const m = w.material.find((x) => x.id === req.params.mid);
   const ziel = m?.datei ? dateien.pfad(w.id, m.id, m.datei.endung) : null;
   if (!m?.datei || !ziel || !fs.existsSync(ziel)) return void res.status(404).json({ fehler: "Datei nicht gefunden." });
-  const imBrowser = m.datei.endung === "pdf" || dateien.ENDUNGEN[m.datei.endung].art === "Text";
+  const art = dateien.ENDUNGEN[m.datei.endung].art;
+  const imBrowser = m.datei.endung === "pdf" || art === "Text" || art === "HTML";
+  // Hochgeladene HTML-Seiten laufen in einer Sandbox: Skripte der Seite dürfen laufen, kommen aber nicht an die App, ihre Daten oder die Schlüssel.
+  if (art === "HTML") res.setHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.type(dateien.ENDUNGEN[m.datei.endung].mime);
   res.setHeader("Content-Disposition", `${imBrowser ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(m.datei.name)}`);
   res.sendFile(ziel);
@@ -1131,7 +1135,8 @@ app.get("/api/workshops/:id/pinnwand", (req, res) => {
       .map((m) => ({
         id: m.id,
         titel: m.titel,
-        format: m.datei ? dateien.ENDUNGEN[m.datei.endung].art : "Text",
+        format: m.notiz ? "Notiz" : m.datei ? dateien.ENDUNGEN[m.datei.endung].art : "Text",
+        notiz: m.notiz === true,
         kurz: m.karte?.kurz ?? "",
         lang: m.karte?.lang ?? "",
         wartet: !m.karte?.lang,
@@ -1142,6 +1147,36 @@ app.get("/api/workshops/:id/pinnwand", (req, res) => {
 });
 
 /** Material an die Pinnwand heften oder abnehmen ("Pin" in der Material-Liste). Beim Anheften schreibt Merlin die Notiz. */
+/** Notiz von Hand auf der Pinnwand: kein Upload, keine KI nötig (Kurzfassung = Anfang des Textes). */
+const NotizSchema = z.object({ titel: z.string().trim().min(1).max(120), text: z.string().trim().min(1).max(20_000) });
+const notizKarte = (text: string) => {
+  const flach = text.replace(/^#{1,4}\s+/gm, "").replace(/^[-•*]\s+/gm, "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+  const kurz = flach.length > 220 ? `${flach.slice(0, 217).replace(/\s+\S*$/, "")} …` : flach;
+  return { kurz, lang: text };
+};
+app.post("/api/workshops/:id/notiz", (req, res) => {
+  const e = NotizSchema.safeParse(req.body);
+  if (!e.success) return void res.status(400).json({ fehler: "Bitte Titel (bis 120 Zeichen) und Text (bis 20.000 Zeichen) eintragen." });
+  const neu: workshops.Material = { id: randomUUID().slice(0, 8), zeit: Date.now(), titel: e.data.titel, art: "Sonstiges", person: "", text: e.data.text, pin: true, notiz: true, karte: notizKarte(e.data.text) };
+  if (!workshops.aendere(req.params.id, (x) => x.material.push(neu))) return void res.status(404).json({ fehler: "Workshop nicht gefunden." });
+  res.json({ ok: true, id: neu.id });
+});
+app.patch("/api/workshops/:id/notiz/:mid", (req, res) => {
+  const e = NotizSchema.safeParse(req.body);
+  if (!e.success) return void res.status(400).json({ fehler: "Bitte Titel (bis 120 Zeichen) und Text (bis 20.000 Zeichen) eintragen." });
+  let gefunden = false;
+  const w = workshops.aendere(req.params.id, (x) => {
+    const m = x.material.find((y) => y.id === req.params.mid && y.notiz);
+    if (!m) return;
+    gefunden = true;
+    m.titel = e.data.titel;
+    m.text = e.data.text;
+    m.karte = notizKarte(e.data.text);
+  });
+  if (!w || !gefunden) return void res.status(404).json({ fehler: "Notiz nicht gefunden." });
+  res.json({ ok: true });
+});
+
 app.patch("/api/workshops/:id/material/:mid/pin", (req, res) => {
   const pin = req.body?.pin === true;
   let gefunden = false;
@@ -1196,7 +1231,10 @@ function bereiteKartenVor(workshopId: string): void {
       const m = workshops.hole(workshopId)?.material.find((x) => x.pin && !x.karte?.lang && !fehlgeschlagen.has(x.id));
       if (!m) break;
       let karte: NonNullable<workshops.Material["karte"]>;
-      if (!m.text.trim()) {
+      if (!m.text.trim() && m.datei && dateien.ENDUNGEN[m.datei.endung].art === "HTML") {
+        const hinweis = "HTML-Seite. Ein Klick öffnet sie in einem eigenen Fenster.";
+        karte = { kurz: hinweis, lang: hinweis };
+      } else if (!m.text.trim()) {
         const hinweis = "Aus dieser Datei ließ sich kein Text lesen (zum Beispiel ein gescanntes PDF). Öffne das Original, um sie anzusehen.";
         karte = { kurz: hinweis, lang: hinweis };
       }

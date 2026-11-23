@@ -13,10 +13,24 @@
         <h1>Pinnwand</h1>
         <p id="unterzeile" class="unterzeile" role="status"></p>
       </div>
+      <button type="button" id="notiz-neu" hidden></button>
     </div>
     <div id="leer" class="pw-leer" hidden></div>
     <div id="wand" class="pw-wand"></div>
   </main>
+  <dialog id="notiz-dialog" class="breit">
+    <form id="notiz-formular" method="dialog">
+      <h2>Neue Notiz</h2>
+      <p class="klein-text gedaempft">Erscheint sofort auf der Pinnwand und zählt als Material für Merlin und die Agenten. Bitte ohne Namen schreiben.</p>
+      <div class="feld"><label for="notiz-titel">Titel</label><input id="notiz-titel" type="text" maxlength="120" required placeholder="z. B. Idee: Wiedervorlage für Angebote"></div>
+      <div class="feld">
+        <div class="reihe"><label for="notiz-text">Text</label><span id="notiz-zaehler" class="zaehler klein-text gedaempft">leer</span></div>
+        <textarea id="notiz-text" rows="10" maxlength="20000" required placeholder="Notiz schreiben. Mit „## Überschrift“ und „- Stichpunkt“ lässt sich der Text gliedern."></textarea>
+      </div>
+      <p id="notiz-meldung" class="meldung" role="status"></p>
+      <div class="reihe"><button type="submit" id="notiz-speichern">Auf die Pinnwand</button><button type="button" id="notiz-abbrechen" class="zweit">Abbrechen</button></div>
+    </form>
+  </dialog>
   <script type="module" src="/js/pinnwand.js"></script>
 </body>
 </html>

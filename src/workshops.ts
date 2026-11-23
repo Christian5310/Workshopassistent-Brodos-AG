@@ -34,6 +34,8 @@ export interface Material extends z.infer<typeof MaterialEingabeSchema> {
   datei?: { name: string; endung: Endung; groesse: number };
   /** Beim Material angehakt ("Pin"): erscheint als Notiz auf der Pinnwand */
   pin?: boolean;
+  /** Von Hand auf der Pinnwand geschrieben (keine Datei, keine KI-Zusammenfassung nötig) */
+  notiz?: boolean;
   /** Notiz für die Pinnwand, von der KI einmal geschrieben (ohne Namen): Kurzfassung und erweiterte Zusammenfassung */
   karte?: { kurz: string; lang?: string };
 }

@@ -12,6 +12,9 @@ $("#pin-zu").append(icon("x"), "Schließen");
 $("#pin-zu").addEventListener("click", () => window.close());
 $("#pin-mikro").append(icon("mic"));
 $("#pin-original").append(icon("text"), "Original öffnen");
+$("#pin-bearbeiten").append(icon("text"), "Bearbeiten");
+$("#pin-loeschen").append(icon("trash"), "Löschen");
+let notiz = null; // die gerade angezeigte eigene Notiz (oder null)
 
 async function lade() {
   clearTimeout(nachladen);
@@ -30,7 +33,10 @@ async function lade() {
     $("#pin-format").textContent = k.format;
     $("#pin-format").className = `pw-format format-${k.format.toLowerCase()}`;
     $("#pin-original").href = k.link;
-    $("#pin-original").hidden = false;
+    $("#pin-original").hidden = !!k.notiz;
+    notiz = k.notiz ? k : null;
+    $("#pin-bearbeiten").hidden = $("#pin-loeschen").hidden = !k.notiz;
+    $("#pin-edit").hidden = $("#pin-edit").hidden || !k.notiz;
     $("#pin-kurz").textContent = k.kurz || "Merlin fasst das Material zusammen …";
     if (k.wartet) {
       $("#pin-lang").replaceChildren(el("p", "pin-wartet", "Merlin schreibt die erweiterte Zusammenfassung …"));
@@ -59,6 +65,39 @@ function zeigeLang(text) {
   }
   $("#pin-lang").replaceChildren(...teile);
 }
+
+// ── Eigene Notiz bearbeiten oder löschen ──
+const ws = encodeURIComponent(workshopId ?? "");
+$("#pin-bearbeiten").addEventListener("click", () => {
+  if (!notiz) return;
+  clearTimeout(nachladen);
+  $("#pin-edit-titel").value = notiz.titel;
+  $("#pin-edit-text").value = notiz.lang;
+  $("#pin-edit-meldung").textContent = "";
+  $("#pin-edit").hidden = false;
+  $("#pin-edit-titel").focus();
+});
+$("#pin-edit-abbruch").addEventListener("click", () => { $("#pin-edit").hidden = true; });
+$("#pin-edit").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await sende(`/api/workshops/${ws}/notiz/${encodeURIComponent(materialId)}`, { titel: $("#pin-edit-titel").value, text: $("#pin-edit-text").value }, "PATCH");
+    $("#pin-edit").hidden = true;
+    await lade();
+  } catch (fehler) {
+    $("#pin-edit-meldung").textContent = fehler.message;
+  }
+});
+$("#pin-loeschen").addEventListener("click", async () => {
+  if (!notiz || !confirm(`Die Notiz „${notiz.titel}“ wirklich löschen?`)) return;
+  try {
+    await sende(`/api/workshops/${ws}/material/${encodeURIComponent(materialId)}`, {}, "DELETE");
+    window.close();
+  } catch (fehler) {
+    $("#pin-edit-meldung").textContent = fehler.message;
+    $("#pin-edit").hidden = false;
+  }
+});
 
 // ── Merlin zu genau diesem Material fragen; der Verlauf sammelt sich darunter ──
 $("#pin-form").addEventListener("submit", async (e) => {

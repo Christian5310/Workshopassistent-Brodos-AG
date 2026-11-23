@@ -10,10 +10,18 @@
     </div>
     <div class="pin-kopf-knoepfe">
       <a id="pin-original" class="btn zweit" target="_blank" rel="noopener" hidden></a>
+      <button type="button" id="pin-bearbeiten" class="zweit" hidden></button>
+      <button type="button" id="pin-loeschen" class="zweit" hidden></button>
       <button type="button" id="pin-zu" class="zweit"></button>
     </div>
   </header>
   <main class="pin-inhalt">
+    <form id="pin-edit" class="pin-edit" hidden>
+      <div class="feld"><label for="pin-edit-titel">Titel</label><input id="pin-edit-titel" type="text" maxlength="120" required></div>
+      <div class="feld"><label for="pin-edit-text">Text</label><textarea id="pin-edit-text" rows="12" maxlength="20000" required></textarea></div>
+      <p id="pin-edit-meldung" class="meldung" role="status"></p>
+      <div class="reihe"><button type="submit">Speichern</button><button type="button" id="pin-edit-abbruch" class="zweit">Abbrechen</button></div>
+    </form>
     <section class="pin-kurz" aria-labelledby="pin-kurz-titel">
       <h2 id="pin-kurz-titel" class="pin-etikett">Kurzfassung</h2>
       <p id="pin-kurz"></p>

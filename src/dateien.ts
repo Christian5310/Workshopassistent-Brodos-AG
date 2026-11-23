@@ -14,6 +14,8 @@ export const ENDUNGEN = {
   md: { mime: "text/markdown; charset=utf-8", art: "Text" },
   markdown: { mime: "text/markdown; charset=utf-8", art: "Text" },
   txt: { mime: "text/plain; charset=utf-8", art: "Text" },
+  html: { mime: "text/html; charset=utf-8", art: "HTML" },
+  htm: { mime: "text/html; charset=utf-8", art: "HTML" },
 } as const;
 export type Endung = keyof typeof ENDUNGEN;
 export const istEndung = (e: string): e is Endung => e in ENDUNGEN;
@@ -75,7 +77,32 @@ export async function textAus(inhalt: Buffer, endung: Endung): Promise<string> {
     });
     return teile.join("\n\n");
   }
+  if (endung === "html" || endung === "htm") return htmlText(inhalt.toString("utf8"));
   return aufraeumen(inhalt.toString("utf8"));
+}
+
+const HTML_ZEICHEN: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", auml: "ä", ouml: "ö", uuml: "ü", Auml: "Ä", Ouml: "Ö", Uuml: "Ü", szlig: "ß", euro: "€", ndash: "–", mdash: "—", bdquo: "„", ldquo: "“", rdquo: "”" };
+
+const dekodiere = (t: string) =>
+  t.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, e: string) => {
+    if (e[0] === "#") {
+      const n = e[1]?.toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : " ";
+    }
+    return HTML_ZEICHEN[e] ?? m;
+  });
+
+/** Sichtbarer Text einer HTML-Seite (ohne Skripte, Stile und Tags), mit Seitentitel vorweg. Das Original bleibt unverändert liegen. */
+export function htmlText(html: string): string {
+  const titel = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim();
+  const text = dekodiere(
+    html
+      .replace(/<!--[\s\S]*?-->/g, " ")
+      .replace(/<(script|style|noscript|svg|head|template)\b[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<(br|hr)\b[^>]*>|<\/(p|div|li|tr|h[1-6]|section|article|table|ul|ol)>/gi, "\n")
+      .replace(/<[^>]+>/g, " "),
+  );
+  return aufraeumen(`${titel ? `${dekodiere(titel).replace(/\s+/g, " ")}\n\n` : ""}${text.replace(/[ \t]+/g, " ")}`);
 }
 
 function zelltext(z: unknown): string {

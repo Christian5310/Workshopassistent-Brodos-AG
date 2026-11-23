@@ -297,7 +297,7 @@ $("#mat-laden").addEventListener("click", () => $("#mat-datei").click());
 // Dateien: jede wird ein eigener Eintrag, der Dateiname wird zum Titel.
 async function ladeHoch(dateien) {
   try {
-  const passend = dateien.filter((d) => /\.(pdf|docx|xlsx|md|txt|markdown)$/i.test(d.name) && d.size <= 25 * 1024 * 1024);
+  const passend = dateien.filter((d) => /\.(pdf|docx|xlsx|html?|md|txt|markdown)$/i.test(d.name) && d.size <= 25 * 1024 * 1024);
   const ausgelassen = dateien.length - passend.length;
   const hinweise = [];
   let nr = 0;
@@ -307,7 +307,7 @@ async function ladeHoch(dateien) {
       await sende(`/api/workshops/${aktuell.id}/material`, { titel: d.name.replace(/\.(md|txt|markdown)$/i, ""), person: $("#mat-person").value, text: await d.text() });
       continue;
     }
-    // PDF, Word, Excel: Original hochladen, der Server liest den Text heraus
+    // PDF, Word, Excel, HTML: Original hochladen, der Server liest den Text heraus
     const antwort = await fetch(`/api/workshops/${aktuell.id}/datei`, {
       method: "POST",
       headers: { "Content-Type": "application/octet-stream", "X-Dateiname": encodeURIComponent(d.name), "X-Person": encodeURIComponent($("#mat-person").value) },
@@ -321,7 +321,7 @@ async function ladeHoch(dateien) {
   await lade(aktuell.id);
   $("#mat-meldung").textContent = [
     passend.length ? `${passend.length} Datei${passend.length === 1 ? "" : "en"} gespeichert.` : "",
-    ausgelassen ? `${ausgelassen} Datei${ausgelassen === 1 ? "" : "en"} übersprungen: möglich sind PDF, Word (.docx), Excel (.xlsx), .md und .txt bis 25 MB.` : "",
+    ausgelassen ? `${ausgelassen} Datei${ausgelassen === 1 ? "" : "en"} übersprungen: möglich sind PDF, Word (.docx), Excel (.xlsx), HTML, .md und .txt bis 25 MB.` : "",
     ...hinweise,
   ].filter(Boolean).join(" ");
   } catch (fehler) {

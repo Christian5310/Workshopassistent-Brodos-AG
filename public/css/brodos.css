@@ -689,6 +689,8 @@ details.einklappen[open] > summary { margin-bottom: var(--space-2); }
 .pw-format.format-pdf { color: #b3261e; border-color: #f0c6c3; }
 .pw-format.format-word { color: #1f5bb5; border-color: #c6d6ef; }
 .pw-format.format-excel { color: #1e7a45; border-color: #bfe0cc; }
+.pw-format.format-html { color: #8a4b00; border-color: #efd5ae; }
+.pw-format.format-notiz { color: #5b3a8c; border-color: #d9cdee; }
 /* Material-Liste: Häkchen "Pin" */
 .pin-haken { width: 1.25rem; height: 1.25rem; accent-color: var(--brand); cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .pw-karte, .pw-karte:hover { transform: none; transition: none; } .pw-karte.wartet .pw-kurz, .pin-wartet { animation: none; } }
@@ -872,3 +874,8 @@ dialog.technik-fenster { width: min(72rem, 94vw); max-height: 92vh; }
 @keyframes spielrein { from { opacity: 0; transform: scale(0.9) translateY(0.6rem); } to { opacity: 1; transform: none; } }
 @keyframes spieldenkt { from { opacity: 0.55; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .spiel, .spiel-tabelle td.neu, .spiel-tabelle td.denkt, .spiel-merlin.denkt img { animation: none; transition: none; } }
+
+/* Pinnwand: eigene Notizen */
+#notiz-neu { margin-left: auto; align-self: flex-start; }
+.pin-edit { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.pin-edit[hidden] { display: none; }

@@ -156,10 +156,12 @@
 <h3>10 · Workshop-Material</h3>
 <table>
   <tr><th>Merkmal</th><th>Wert</th></tr>
-  <tr><td>Dateitypen</td><td>PDF (unpdf) · Word (mammoth) · Excel (exceljs) · Markdown · Text</td></tr>
+  <tr><td>Dateitypen</td><td>PDF (unpdf) · Word (mammoth) · Excel (exceljs) · HTML · Markdown · Text</td></tr>
   <tr><td>Größe</td><td>≤ 25 MB je Datei · ≤ 400.000 Zeichen Text je Eintrag</td></tr>
   <tr><td>Ablage Original</td><td><code>data/workshops/dateien/&lt;workshop&gt;/&lt;material&gt;.&lt;endung&gt;</code></td></tr>
   <tr><td>Verwendung</td><td>Pinnwand · Merlin-Antworten · Agenten · Zusammenfassung</td></tr>
+  <tr><td>HTML-Seiten</td><td>Upload unter Einrichten → Material, hängen automatisch an der Pinnwand, Klick öffnet die Seite in eigenem Fenster. Auslieferung mit <code>Content-Security-Policy: sandbox</code> (Skripte laufen, aber kein Zugriff auf App, Daten, Schlüssel)</td></tr>
+  <tr><td>Eigene Notizen</td><td>Pinnwand → „Notiz hinzufügen“ (<code>POST /api/workshops/:id/notiz</code>), ändern per <code>PATCH …/notiz/:mid</code>, Kurzfassung ohne KI</td></tr>
   <tr><td>Verdichten</td><td>KI-Kurzfassung je Eintrag (<code>/api/workshops/:id/verdichten</code>)</td></tr>
 </table>
 

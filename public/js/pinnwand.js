@@ -1,7 +1,7 @@
 // Pinnwand: je angepinntem Material ("Pin" in der Material-Liste) eine Notiz mit Überschrift und Kurzfassung.
 // Ein Klick öffnet die Notiz groß im eigenen Browserfenster (public/pin.html): erweiterte Zusammenfassung,
 // Original öffnen, Merlin zu diesem Material fragen. Namen ("Von wem") erscheinen hier bewusst nicht (Beamer).
-import { el, gehe, icon, imRahmen, verbinde, zeigeAbhalten } from "./common.js";
+import { el, gehe, icon, imRahmen, sende, verbinde, zeigeAbhalten } from "./common.js";
 
 imRahmen("pinnwand");
 const $ = (s) => document.querySelector(s);
@@ -44,7 +44,7 @@ function zeige() {
     hin.type = "button";
     hin.append(icon("text"), "Zum Material");
     hin.addEventListener("click", zumMaterial);
-    leer.replaceChildren(el("p", "", "Noch nichts angepinnt. Hake beim Material „Pin“ an, dann erscheint es hier als Notiz."), hin);
+    leer.replaceChildren(el("p", "", "Noch nichts angepinnt. Hake beim Material „Pin“ an, lade eine HTML-Seite hoch oder schreibe oben rechts eine eigene Notiz."), hin);
   }
   $("#wand").replaceChildren(...[...karten].sort((a, b) => a.zeit - b.zeit).map(notiz));
 }
@@ -62,15 +62,46 @@ function notiz(k, i) {
 
 /** Eigenes, großes Browserfenster: lässt sich auf den zweiten Bildschirm schieben, die App läuft weiter. */
 function oeffne(k) {
+  // HTML-Seiten öffnen sich direkt (gesichert über die Sandbox des Servers), alles andere als Notiz mit Zusammenfassung
+  const adresse = k.format === "HTML" ? k.link : `/pin.html?ws=${encodeURIComponent(workshopId)}&m=${encodeURIComponent(k.id)}`;
   const breite = Math.min(1100, screen.availWidth - 80);
   const hoehe = Math.min(900, screen.availHeight - 80);
-  const fenster = window.open(`/pin.html?ws=${encodeURIComponent(workshopId)}&m=${encodeURIComponent(k.id)}`, `pin-${k.id}`, `popup,width=${breite},height=${hoehe},left=${Math.max(0, (screen.availWidth - breite) / 2)},top=40`);
+  const fenster = window.open(adresse, `pin-${k.id}`, `popup,width=${breite},height=${hoehe},left=${Math.max(0, (screen.availWidth - breite) / 2)},top=40`);
   fenster?.focus();
 }
+
+// ── Eigene Notiz schreiben (Titel und Text, erscheint sofort auf der Pinnwand) ──
+const dialog = $("#notiz-dialog");
+$("#notiz-neu").append(icon("plus"), "Notiz hinzufügen");
+const zaehle = () => ($("#notiz-zaehler").textContent = $("#notiz-text").value.length ? `${$("#notiz-text").value.length.toLocaleString("de-DE")} Zeichen` : "leer");
+$("#notiz-text").addEventListener("input", zaehle);
+$("#notiz-neu").addEventListener("click", () => {
+  $("#notiz-meldung").textContent = "";
+  dialog.showModal();
+  $("#notiz-titel").focus();
+});
+$("#notiz-abbrechen").addEventListener("click", () => dialog.close());
+$("#notiz-formular").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!workshopId) return;
+  $("#notiz-speichern").disabled = true;
+  try {
+    await sende(`/api/workshops/${workshopId}/notiz`, { titel: $("#notiz-titel").value, text: $("#notiz-text").value });
+    $("#notiz-titel").value = $("#notiz-text").value = "";
+    zaehle();
+    dialog.close();
+    await lade();
+  } catch (fehler) {
+    $("#notiz-meldung").textContent = fehler.message;
+  } finally {
+    $("#notiz-speichern").disabled = false;
+  }
+});
 
 verbinde((daten) => {
   $("#ws-name").textContent = daten.workshop?.name ?? "Kein Workshop geöffnet";
   $("#abhalten").hidden = !daten.tag;
+  $("#notiz-neu").hidden = !daten.workshop;
   if (daten.tag) zeigeAbhalten($("#abhalten"), "pinnwand", daten);
   const neu = daten.workshop?.id ?? null;
   if (neu !== workshopId) {
