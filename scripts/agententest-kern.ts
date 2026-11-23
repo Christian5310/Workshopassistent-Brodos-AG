@@ -21,6 +21,13 @@ export function liesAusschnitte(md: string): Record<string, string> {
   return aus;
 }
 
+/** Agenda für den Test: Zeilen `- A1: Titel` (A1 bis A5) in testfragen.md. Leer, wenn keine Agenda dort steht. */
+export function liesAgenda(md: string): string[] {
+  const titel: Record<string, string> = {};
+  for (const m of md.matchAll(/^- (A[1-5]): (.+?)\s*$/gm)) titel[m[1]!] = m[2]!;
+  return ["A1", "A2", "A3", "A4", "A5"].map((k) => titel[k]).filter((t): t is string => !!t);
+}
+
 /** Die Texte zwischen den Zeilen `-----` in prompts.md: Gesamt-Prompt, dann die drei Rollen (Vertrieb, KI, BPM). */
 export function liesPromptBloecke(md: string): string[] {
   return [...md.matchAll(/\r?\n-----\r?\n([\s\S]*?)\r?\n-----\r?\n/g)].map((m) => m[1]!.trim());

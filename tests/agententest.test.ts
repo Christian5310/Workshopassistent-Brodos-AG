@@ -80,3 +80,10 @@ test("Modellantwort lesen, auch im Code-Block", () => {
   assert.deepEqual(leseAntworten(json), [{ rolle: "sales", text: "Hallo." }]);
   assert.throws(() => leseAntworten({}));
 });
+
+test("Agenda für den Test aus testfragen.md lesen", async () => {
+  const { liesAgenda } = await import("../scripts/agententest-kern.ts");
+  const md = "- A1: Auftakt (08:00)\n- A2: Ist-Analyse\n- A3: Neu denken\n- A4: Soll-Prozess\n- A5: Umsetzung\n- Sonstiges: nicht dabei";
+  assert.deepEqual(liesAgenda(md), ["Auftakt (08:00)", "Ist-Analyse", "Neu denken", "Soll-Prozess", "Umsetzung"]);
+  assert.deepEqual(liesAgenda("nichts"), []);
+});

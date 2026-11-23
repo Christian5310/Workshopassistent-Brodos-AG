@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { config } from "../src/config.ts";
 import {
-  baueSystemPrompt, formatHinweis, frageNachricht, leseAntworten, leseJson, liesAusschnitte, liesFragen, liesPromptBloecke,
+  baueSystemPrompt, formatHinweis, frageNachricht, leseAntworten, leseJson, liesAgenda, liesAusschnitte, liesFragen, liesPromptBloecke,
   pruefeAntwort, sammleNamen, type AgentDef, type Antwort, type Frage, type Verstoss,
 } from "./agententest-kern.ts";
 
@@ -36,7 +36,8 @@ const agenten: AgentDef[] = [
   { id: "consultant", kuerzel: "K", name: "KI- und Automatisierungsexperte", beschreibung: kBeschr, wissen: lies("wissen-ki-automatisierung.md") },
   { id: "bpm", kuerzel: "B", name: "BPM-Experte", beschreibung: bBeschr, wissen: lies("wissen-bpm.md") },
 ];
-const agenda: string[] = (JSON.parse(fs.readFileSync(path.join(wurzel, "config", "agenda.json"), "utf8")) as { titel: string }[]).map((a) => a.titel);
+// Agenda: aus testfragen.md ("- A1: Titel"), sonst die Standard-Agenda der App (config/agenda.json)
+const agenda: string[] = liesAgenda(testfragen).length === 5 ? liesAgenda(testfragen) : (JSON.parse(fs.readFileSync(path.join(wurzel, "config", "agenda.json"), "utf8")) as { titel: string }[]).map((a) => a.titel);
 const ausschnitte = liesAusschnitte(testfragen);
 
 // Namensliste aus den Quelldateien (nur lokal gelesen, nichts davon wird ausgegeben oder gespeichert)
@@ -104,7 +105,9 @@ async function frageModell(system: string, nutzer: string, maxTokens = 4000): Pr
     }
     if (res.status === 429 || res.status >= 500) { await new Promise((r) => setTimeout(r, 2000 * (versuch + 1))); continue; }
     if (!res.ok) throw new Error(`Sprachmodell: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
-    const daten = (await res.json()) as { choices?: { message?: { content?: string }; finish_reason?: string }[] };
+    // Broki liefert gelegentlich einen leeren oder abgebrochenen Antworttext (HTTP 200): dann noch einmal fragen
+    let daten: { choices?: { message?: { content?: string }; finish_reason?: string }[] };
+    try { daten = JSON.parse(await res.text()); } catch { await new Promise((r) => setTimeout(r, 1000)); continue; }
     if (daten.choices?.[0]?.finish_reason === "length" && maxTokens < 24_000) { maxTokens *= 3; continue; }
     return { text: daten.choices?.[0]?.message?.content ?? "", ms: Date.now() - start };
   }
