@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { config } from "../src/config.ts";
 import {
-  ausschnittVon, baueSystemPrompt, formatHinweis, frageNachricht, leseAntworten, leseJson, liesAgenda, liesAusschnitte, liesFragen, liesPromptBloecke,
+  ausschnittVon, baueSystemPrompt, formatHinweis, istUebersichtsfrage, uebersichtsAdressat, frageNachricht, leseAntworten, leseJson, liesAgenda, liesAusschnitte, liesFragen, liesPromptBloecke,
   pruefeAntwort, sammleNamen, type AgentDef, type Antwort, type Frage, type Verstoss,
 } from "./agententest-kern.ts";
 
@@ -40,6 +40,9 @@ const agenten: AgentDef[] = [
 // Agenda: aus testfragen.md ("- A1: Titel"), sonst die Standard-Agenda der App (config/agenda.json)
 const agenda: string[] = liesAgenda(testfragen).length === 5 ? liesAgenda(testfragen) : (JSON.parse(fs.readFileSync(path.join(wurzel, "config", "agenda.json"), "utf8")) as { titel: string }[]).map((a) => a.titel);
 const ausschnitte = liesAusschnitte(testfragen);
+// --langes-transkript 60000: hängt so viele Zeichen Füll-Transkript an (Lasttest: in der App gehen bis zu 60.000 Zeichen der letzten 60 Minuten mit)
+const langesTranskript = Number(wert("langes-transkript") ?? 0);
+const fuelltext = () => { const teile = Object.values(ausschnitte); let t = ""; while (t.length < langesTranskript) t += teile[(t.length / 7) % teile.length | 0] + " "; return t.slice(0, langesTranskript); };
 
 // Namensliste aus den Quelldateien (nur lokal gelesen, nichts davon wird ausgegeben oder gespeichert)
 const quellOrdner = [path.join(wurzel, "docs", "wissen"), process.env.AGENTENTEST_NAMEN_ORDNER ?? ""].filter((o) => o && fs.existsSync(o));
@@ -57,13 +60,15 @@ if (!fragen.length) throw new Error("Keine Fragen ausgewählt.");
 const adressat = (an: Frage["an"]) => (an === "A" ? "alle" : agenten.find((a) => a.kuerzel === an)!.id);
 
 function bauePrompt(f: Frage) {
-  const an = adressat(f.an);
-  const gefragt = agenten.filter((a) => an === "alle" || a.id === an);
-  const system = `${baueSystemPrompt({ gesamt: gesamt!, briefing, agenda, laeuft: f.block, agenten, an })}\n\n${formatHinweis(gefragt, an)}`;
   const text = f.frage.replace(/\s*\(Ausschnitt A\db?\)\s*$/, "");
-  const ausschnitt = f.typ === "T" ? ausschnitte[ausschnittVon(f)] : undefined;
+  const uebersicht = istUebersichtsfrage(text);
+  // Wie in der App: Bei einer Übersichtsfrage an "alle" antwortet nur ein Agent (bevorzugt der Vertriebsexperte)
+  const an = uebersichtsAdressat(adressat(f.an), agenten.map((a) => a.id), uebersicht);
+  const gefragt = agenten.filter((a) => an === "alle" || a.id === an);
+  const system = `${baueSystemPrompt({ gesamt: gesamt!, briefing, agenda, laeuft: f.block, agenten, an })}\n\n${formatHinweis(gefragt, an, uebersicht)}`;
+  const ausschnitt = langesTranskript ? fuelltext() : f.typ === "T" ? ausschnitte[ausschnittVon(f)] : undefined;
   const nutzer = frageNachricht(text, an, agenten.find((a) => a.id === an)?.name ?? "", ausschnitt);
-  return { an, gefragt, system, nutzer };
+  return { an, gefragt, system, nutzer, uebersicht };
 }
 
 // ── Trockenlauf: nur Größen zeigen ──
@@ -127,7 +132,7 @@ async function lauf(f: Frage): Promise<Ergebnis> {
     const erlaubt = antworten.filter((a) => p.gefragt.some((g) => g.id === a.rolle));
     const verstoesse: Verstoss[] = [];
     if (erlaubt.length !== p.gefragt.length) verstoesse.push({ regel: "format", text: `${erlaubt.length} Antworten, erwartet ${p.gefragt.length}` });
-    for (const a of erlaubt) for (const v of pruefeAntwort({ text: a.text, rolle: a.rolle, an: p.an, namen, kontext, erlaubteNamen: p.system })) verstoesse.push({ ...v, text: `${a.rolle}: ${v.text}` });
+    for (const a of erlaubt) for (const v of pruefeAntwort({ text: a.text, rolle: a.rolle, an: p.an, namen, kontext, erlaubteNamen: p.system, uebersicht: p.uebersicht })) verstoesse.push({ ...v, text: `${a.rolle}: ${v.text}` });
     return { frage: f, an: p.an, antworten: erlaubt, verstoesse, ms: roh.ms };
   } catch (e) {
     return { frage: f, an: p.an, antworten: [], verstoesse: [{ regel: "format", text: "Fehler beim Aufruf" }], ms: 0, fehler: `${(e as Error).message}${(e as { cause?: { code?: string; message?: string } }).cause ? ` (${(e as { cause: { code?: string; message?: string } }).cause.code ?? (e as { cause: { message?: string } }).cause.message})` : ""}` };

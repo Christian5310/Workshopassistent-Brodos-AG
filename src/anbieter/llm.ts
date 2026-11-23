@@ -6,6 +6,7 @@ import { config } from "../config.ts";
 import { agentenFuer, einstellungen, promptAgentenFertig } from "../einstellungen.ts";
 import { store } from "../store.ts";
 import { freihandAktiv } from "../freihand.ts";
+import { formatHinweis, istUebersichtsfrage, uebersichtsAdressat } from "../uebersicht.ts";
 import type { Protokoll } from "../types.ts";
 import type { ChatKontext, Sprachmodell } from "./schnittstellen.ts";
 
@@ -204,18 +205,18 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
     );
   }
 
-  async expertenrunde({ frage, an, verlauf }: ChatKontext): Promise<{ von: string; text: string }[]> {
-    const gefragt = agentenFuer(store.daten.agenten).filter((a) => an === "alle" || a.id === an);
+  async expertenrunde({ frage, an: gefragtAn, verlauf }: ChatKontext): Promise<{ von: string; text: string }[]> {
+    // Übersichtsfrage ("Stichpunktliste …"): nur ein Agent antwortet, in Stichpunkten (siehe src/uebersicht.ts)
+    const uebersicht = istUebersichtsfrage(frage);
+    const teilnehmer = agentenFuer(store.daten.agenten);
+    const an = uebersichtsAdressat(gefragtAn, teilnehmer.map((a) => a.id), uebersicht);
+    const gefragt = teilnehmer.filter((a) => an === "alle" || a.id === an);
     const name = (id: string) => einstellungen.agenten.find((a) => a.id === id)?.name ?? "Agent";
     // Kontext: alles aus den letzten 60 Minuten (höchstens etwa 60.000 Zeichen, das Neueste bleibt erhalten)
     const seit = Date.now() - 60 * 60_000;
     let letzteMinuten = store.daten.transkript.filter((t) => t.zeit >= seit).map((t) => t.text).join("\n");
     if (letzteMinuten.length > 60_000) letzteMinuten = "[… früher …]\n" + letzteMinuten.slice(-60_000);
-    const format =
-      `Antworte ausschließlich als JSON: {"antworten": [{"rolle": "…", "text": "…"}]}. ` +
-      `Erlaubte Werte für "rolle": ${gefragt.map((a) => `"${a.id}" (${a.name})`).join(", ")}. ` +
-      (an === "alle" ? "Genau eine Antwort pro Rolle, je 1–3 Sätze." : "Genau eine Antwort, höchstens 6 Sätze.") +
-      ` Im "text" kein Rollenname und kein Markdown.`;
+    const format = formatHinweis(gefragt, an, uebersicht);
 
     const nachrichten: Nachricht[] = [{ role: "system", content: `${promptAgentenFertig(store.daten, an)}\n\n${format}` }];
     for (const n of verlauf.slice(-20)) {

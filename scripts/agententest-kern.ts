@@ -36,15 +36,8 @@ export function liesPromptBloecke(md: string): string[] {
   return [...md.matchAll(/\r?\n-----\r?\n([\s\S]*?)\r?\n-----\r?\n/g)].map((m) => m[1]!.trim());
 }
 
-/** Dasselbe Format wie expertenrunde() in src/anbieter/llm.ts. */
-export function formatHinweis(gefragt: { id: string; name: string }[], an: string): string {
-  return (
-    `Antworte ausschließlich als JSON: {"antworten": [{"rolle": "…", "text": "…"}]}. ` +
-    `Erlaubte Werte für "rolle": ${gefragt.map((a) => `"${a.id}" (${a.name})`).join(", ")}. ` +
-    (an === "alle" ? "Genau eine Antwort pro Rolle, je 1–3 Sätze." : "Genau eine Antwort, höchstens 6 Sätze.") +
-    ` Im "text" kein Rollenname und kein Markdown.`
-  );
-}
+// Das Format kommt aus der App selbst (src/uebersicht.ts), damit Test und App dasselbe schicken.
+export { formatHinweis, istUebersichtsfrage, uebersichtsAdressat, UEBERSICHT_MAX_ZEILEN } from "../src/uebersicht.ts";
 
 /** Setzt die Platzhalter wie promptAgentenFertig() in src/einstellungen.ts ein (Wissen nur bei den gefragten Agenten). */
 export function baueSystemPrompt(o: { gesamt: string; briefing: string; agenda: string[]; laeuft: string; agenten: AgentDef[]; an: string }): string {
@@ -107,17 +100,25 @@ export function zaehleSaetze(text: string): number {
 }
 
 /** Automatische Prüfung einer Antwort. `kontext` ist alles, was das Modell lesen durfte (zum Erkennen erfundener Zahlen). */
-export function pruefeAntwort(o: { text: string; rolle: string; an: string; namen: string[]; kontext: string; erlaubteNamen?: string }): Verstoss[] {
+export function pruefeAntwort(o: { text: string; rolle: string; an: string; namen: string[]; kontext: string; erlaubteNamen?: string; uebersicht?: boolean }): Verstoss[] {
   const v: Verstoss[] = [];
   const t = o.text;
   for (const n of o.namen) {
     if (o.erlaubteNamen?.includes(n)) continue; // Namen aus der Organisationsübersicht im Wissen dürfen genannt werden
     if (new RegExp(`(^|[^\\p{L}])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^\\p{L}]|$)`, "u").test(t)) v.push({ regel: "name", text: n });
   }
-  const limit = o.an === "alle" ? 3 : 6;
-  const saetze = zaehleSaetze(t);
-  if (saetze > limit) v.push({ regel: "laenge", text: `${saetze} Sätze (erlaubt ${limit})` });
-  if (/^\s*([-*•]|\d+[.)])\s/m.test(t) || /\*\*|^#{1,6}\s|```/m.test(t)) v.push({ regel: "markdown", text: "Aufzählung oder Markdown" });
+  if (o.uebersicht) {
+    // Übersicht: Stichpunkte mit "• " sind erwünscht, begrenzt auf UEBERSICHT_MAX_ZEILEN + Einleitung
+    const zeilen = t.split("\n").filter((z) => z.trim()).length;
+    if (zeilen > 15) v.push({ regel: "laenge", text: `${zeilen} Zeilen (erlaubt 15)` });
+    if (/\*\*|^#{1,6}\s|```|^\s*\|.*\|\s*$/m.test(t)) v.push({ regel: "markdown", text: "Markdown in der Übersicht" });
+    if (!/^\s*•\s/m.test(t)) v.push({ regel: "format", text: "Übersicht ohne Stichpunkte" });
+  } else {
+    const limit = o.an === "alle" ? 3 : 6;
+    const saetze = zaehleSaetze(t);
+    if (saetze > limit) v.push({ regel: "laenge", text: `${saetze} Sätze (erlaubt ${limit})` });
+    if (/^\s*([-*•]|\d+[.)])\s/m.test(t) || /\*\*|^#{1,6}\s|```/m.test(t)) v.push({ regel: "markdown", text: "Aufzählung oder Markdown" });
+  }
   if (/^\s*(Vertriebsexperte|KI- und Automatisierungsexperte|BPM-Experte)\s*[:\-–]/i.test(t)) v.push({ regel: "markdown", text: "Rollenname im Text" });
   // Die Runde kennt weder die Ideenpool-Nummern noch die Pain-Point-Kürzel: nur Klartext
   const nummer = t.match(/\bIdeen?\s*(Nr\.?\s*)?\d+|\bNr\.\s*\d+|\([0-9]{1,2}(,\s*[0-9]{1,2})+\)|\b[BCIG][1-8]\b/);
