@@ -136,7 +136,15 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
       console.log(`Sprachmodell ${modell}: Parameter angepasst (${JSON.stringify(anpassung)}).`);
     }
     if (!antwort!.ok) throw new Error(`Sprachmodell: HTTP ${antwort!.status} ${(await antwort!.text()).slice(0, 300)}`);
-    const daten = (await antwort!.json()) as { choices?: { message?: { content?: string }; finish_reason?: string }[] };
+    // Broki liefert gelegentlich einen leeren oder abgebrochenen Antworttext (HTTP 200): einmal noch fragen, dann ein klarer Fehler
+    let daten: { choices?: { message?: { content?: string }; finish_reason?: string }[] };
+    try {
+      daten = JSON.parse(await antwort!.text());
+    } catch {
+      if (!nochmal) throw new Error("Das Sprachmodell hat eine leere oder unvollständige Antwort geliefert.");
+      console.warn(`Sprachmodell ${modell}: leere oder unvollständige Antwort, frage ein zweites Mal.`);
+      return this.#frage(nachrichten, maxTokens, modell, zeitlimitMs, false, alsText);
+    }
     if (alsText) {
       // Freier Text (Zusammenfassung): kein JSON, damit Anführungszeichen im Text nichts abschneiden. Abbruch wegen Länge ist ein Fehler.
       if (daten.choices?.[0]?.finish_reason === "length") throw new AbgebrochenWegenLaenge();
