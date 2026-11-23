@@ -45,6 +45,7 @@ export const BefehlSchema = z.discriminatedUnion("aktion", [
   z.object({ aktion: z.literal("material"), text: z.string().max(500) }),
   z.object({ aktion: z.literal("wissen"), frage: z.string().min(1).max(500) }),
   z.object({ aktion: z.literal("uhrzeit") }),
+  z.object({ aktion: z.literal("agenten-rolle"), wer: z.enum(["sales", "bpm", "consultant", "alle"]) }),
   z.object({ aktion: z.literal("todo-neu"), text: z.string().max(300), owner: z.string().max(60).optional(), frist: z.string().max(60).optional() }),
   z.object({ aktion: z.literal("todo-verschieben"), todo: z.string().max(300), ziel: z.string().max(120) }),
   z.object({ aktion: z.literal("todo-erledigt"), todo: z.string().max(300) }),
@@ -370,6 +371,15 @@ export function regeln(text: string): Befehl | null {
     const roh = text.replace(/^.*?(entscheidung|offene frage|frage)\s*(?:hinzu|auf|ein)?\s*[:,\-–]?\s*/i, "");
     return { aktion: "eintrag-neu", art: m[1] === "entscheidung" ? "entscheidung" : "frage", text: roh.replace(/^[\s:,\-–]+|[\s]+$/g, "") };
   }
+  // "Was kann/macht der Vertriebsexperte?" → feste Kurzantwort zur Rolle des Agenten
+  if ((m = s.match(/^(?:was|wie|wozu) (?:kann|können|koennen|macht|machen|tut|tun|leistet|leisten|ist|sind|hilft|helfen)\w* (?:denn |eigentlich )?(?:der |die |das |unser |unsere |ein |eine )?(.+?)(?: eigentlich| denn| so| genau)?(?: (?:alles|noch|bei uns))?$/))) {
+    const w = m[1]!;
+    if (/(agenten|experten|spezialisten|drei)/.test(w) && !/(vertrieb|sales|bpm|prozess|\bki\b|ki-|automatisier)/.test(w)) return { aktion: "agenten-rolle", wer: "alle" };
+    if (/^(?:ki|k i)[ -]?agenten$/.test(w)) return { aktion: "agenten-rolle", wer: "alle" };
+    if (/vertrieb|sales|verkauf/.test(w)) return { aktion: "agenten-rolle", wer: "sales" };
+    if (/bpm|prozess/.test(w)) return { aktion: "agenten-rolle", wer: "bpm" };
+    if (/\bki\b|ki-|k i |automatisier/.test(w) && /(experte|expert|spezialist|berater|consultant|automatisier)/.test(w)) return { aktion: "agenten-rolle", wer: "consultant" };
+  }
   // "Was sagt der BPM Spezialist dazu?" → Frage zur letzten Aussage im Meeting
   if ((m = s.match(/^(?:was|wie) (?:sagt|meint|denkt|findet|sieht)\w* (?:denn )?(?:der |die |das |unser |unsere )?(.+?) (?:dazu|dazu jetzt|zu dem|zu dieser aussage|zu dem punkt)$/)) || (m = s.match(/^frage (?:den |die |das )?(.+?) dazu$/)) || (m = s.match(/^(?:was )?(?:meinen|sagen) (?:die |unsere )?(experten|agenten|spezialisten|alle) dazu$/))) return { aktion: "frage-dazu", an: m[1]! };
   if (/frage an /.test(s)) {
@@ -485,7 +495,15 @@ export const TAGESABLAUF_TEXT =
 export const HILFE =
   "Du kannst mich zum Beispiel bitten: „Neues Meeting“, „Öffne den Workshop …“, „Zeig die letzten Meetings“, „Zurück zum Meeting“, „Aufnahme starten“, „Pause“, „Zu den Agenten“, „Lies die Agenda vor“, „Begrüße alle“, „Was haben wir an Material?“, „Wie sieht der Ist-Prozess aus?“, „Öffne das Dokument …“, „Öffne die Pinnwand“, „Wie spät ist es?“, „Schließe den Workshop“, „Neues To-do für Anna: CRM-Export bis Freitag“, „Verschiebe das To-do CRM-Export zu Punkt 3“, „Hake CRM-Export ab“, „Setze beim To-do CRM-Export die Frist auf Montag“, „Lösche das To-do CRM-Export“ (mit Rückfrage), „Wo ändere ich die Lesegeschwindigkeit?“, „Starte Punkt 2“, „Weiter zum nächsten Punkt“, „Rückgängig“, „Notiere eine Entscheidung: …“, „Stell einen Timer auf 10 Minuten“, „Was sagt der BPM Spezialist dazu?“, „Wie ist der Tagesablauf?“, „Erklär uns die App“ (nur ohne geöffnetes Meeting) oder „Frage an den Vertriebsexperten: …“. Löschen kann ich nicht, das geht nur per Klick.";
 
-const AGENT_STOPP = new Set(["und", "der", "die", "das", "den", "dem", "experte", "experten", "spezialist", "spezialisten", "agent", "agenten"]);
+/** Feste Antworten auf „Was kann der …?“ (vom Workshop-Team vorgegeben, Merlin liest sie unverändert vor). */
+export const ROLLEN = {
+  sales: "Der Vertriebsexperte kennt die Pain Points und erkennt Chancen.",
+  bpm: "Der BPM-Experte vergleicht die Prozesse. Er schlägt Prozessverbesserungen für einzelne Bereiche vor und, wo es möglich ist, auch für alle Bereiche gemeinsam.",
+  consultant: "Der KI-Experte leitet Lösungen ab und schaut, wo er sie verknüpfen kann. Außerdem gibt er weitere Impulse zum KI-Einsatz.",
+  alle: "Wir haben drei Agenten. Der Vertriebsexperte kennt die Pain Points und erkennt Chancen. Der BPM-Experte vergleicht die Prozesse und schlägt Verbesserungen vor, für einzelne Bereiche und wo möglich für alle gemeinsam. Der KI-Experte leitet Lösungen ab, verknüpft sie und gibt weitere Impulse zum KI-Einsatz.",
+} as const;
+
+const AGENT_STOPP =new Set(["und", "der", "die", "das", "den", "dem", "experte", "experten", "spezialist", "spezialisten", "agent", "agenten"]);
 /** Suchwörter für einen Agenten: Wörter des Namens, Wortstämme ("Vertriebsexperte" → "vertrieb") und feste Zusatzbegriffe der Standardagenten. */
 function agentenWoerter(a: { id: string; name: string }): string[] {
   const woerter = klein(a.name).split(" ").filter((w) => !AGENT_STOPP.has(w));
@@ -592,6 +610,8 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
     }
     case "uhrzeit":
       return { aktion: "hinweis", antwort: `Es ist ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" })} Uhr.` };
+    case "agenten-rolle":
+      return { aktion: "hinweis", antwort: ROLLEN[b.wer] };
     case "ja":
     case "nein":
       return { aktion: b.aktion, antwort: "" };

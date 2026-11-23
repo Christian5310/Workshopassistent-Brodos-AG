@@ -304,6 +304,7 @@ Erlaubte Aktionen:
 {"aktion": "material", "text": "der Satz"}  (hinterlegte Dokumente/Material eines Workshops finden oder öffnen)
 {"aktion": "wissen", "frage": "die Frage"}  (inhaltliche Frage, die aus dem eingereichten Workshop-Material beantwortet werden kann, z. B. "Wie sieht der Ist-Prozess aus?")
 {"aktion": "uhrzeit"}
+{"aktion": "agenten-rolle", "wer": "sales|bpm|consultant|alle"}  ("Was kann/macht der Vertriebsexperte / BPM-Experte / KI-Experte / was können die Agenten?": sales = Vertrieb, bpm = BPM, consultant = KI und Automatisierung, alle = die drei Agenten allgemein)
 {"aktion": "todo-neu", "text": "kurze Aufgabe ohne Owner und Frist", "owner": "Name oder weglassen", "frist": "z. B. Freitag oder weglassen"}  (neues To-do notieren; Owner und Frist auch mitten im Satz erkennen: "Tom übernimmt bis Ende November die Preisliste" → {"aktion": "todo-neu", "text": "Preisliste übernehmen", "owner": "Tom", "frist": "Ende November"}; Zeitangaben ohne "bis" wie "morgen" oder "nächste Woche" sind ebenfalls die Frist)
 {"aktion": "todo-verschieben", "todo": "Stichwort aus dem To-do", "ziel": "Nummer oder Titel des Agendapunkts"}
 {"aktion": "todo-erledigt", "todo": "Stichwort aus dem To-do"}  (To-do abhaken: "hake die Preisliste ab")

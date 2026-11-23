@@ -40,6 +40,21 @@ test("Uhrzeit", () => {
   assert.match(e.antwort, /^Es ist \d{2}:\d{2} Uhr\.$/);
 });
 
+test("Was können die Agenten: feste Antworten zur Rolle", () => {
+  const wer = (satz: string) => {
+    const b = regeln(satz);
+    return b?.aktion === "agenten-rolle" ? b.wer : null;
+  };
+  assert.equal(wer("Merlin, was kann der Vertriebsexperte?"), "sales");
+  assert.equal(wer("Merlin, was macht der Vertriebsexpert?"), "sales");
+  assert.equal(wer("Merlin, was macht der BPM Experte?"), "bpm");
+  assert.equal(wer("Merlin, was kann der KI Experte?"), "consultant");
+  assert.equal(wer("Merlin, was können die KI Agenten?"), "alle");
+  assert.equal(wer("Was können die Agenten?"), "alle");
+  assert.match(aufloesen({ aktion: "agenten-rolle", wer: "sales" }, false).antwort, /Pain Points/);
+  assert.match(aufloesen({ aktion: "agenten-rolle", wer: "consultant" }, false).antwort, /Impulse/);
+});
+
 test("Ja und Nein nur als kurze Antwort", () => {
   assert.equal(aktion("Ja"), "ja");
   assert.equal(aktion("Ja, bitte"), "ja");
