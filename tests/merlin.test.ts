@@ -246,3 +246,9 @@ test("Workshop einrichten und Zurück zum Workshop gehen ohne Sprachmodell", () 
   assert.equal(aktion("Neuen Workshop einrichten"), "workshop-neu");
   assert.equal(aktion("Merlin, bring mich zurück in den Workshop."), "zurueck");
 });
+
+test("To-do mit Einleitung: „ein neues To-do, und zwar …“ geht nicht zur Meeting-Auswahl", () => {
+  assert.deepEqual(regeln("Merlin, ein neues To-do, und zwar großes Teammeeting am Montag im Raum Cloud."), { aktion: "todo-neu", text: "großes Teammeeting am Montag im Raum Cloud", owner: undefined, frist: undefined });
+  assert.equal(aktion("Merlin, wir haben ein neues To-do: Preisliste"), "todo-neu");
+  assert.equal(aktion("Merlin, neues To-do Preisliste"), "todo-neu");
+});
