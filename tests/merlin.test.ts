@@ -236,3 +236,7 @@ test("Hören, aktueller Workshop, Aufnahme ohne offenes Meeting", () => {
   for (const satz of ["Merlin, bring mich zum letzten Workshop", "Öffne den aktuellen Workshop", "Geh zum neuesten Workshop"]) assert.equal(aktion(satz), "workshop-aktuell", satz);
   assert.equal(aktion("Zeig die letzten Workshops"), "liste");
 });
+
+test("Hörfehler „startet die Aufnahme“ wird wie „starte“ behandelt", () => {
+  for (const satz of ["Startet die Aufnahme.", "Starten die Aufnahme", "Starte die Aufnahme"]) assert.equal(aktion(satz), "aufnahme-start", satz);
+});
