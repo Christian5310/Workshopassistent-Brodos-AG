@@ -127,7 +127,8 @@ export function pruefeAntwort(o: { text: string; rolle: string; an: string; name
     // Die Zahl muss mit derselben Einheit im Wissen, Briefing oder in der Frage stehen (nicht nur irgendwo als Ziffernfolge)
     const zahl = m[1]!.replace(/[.,]$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const einheit = /%|Prozent/.test(m[2]!) ? "(%|Prozent)" : "(€|Euro|EUR)";
-    if (!new RegExp(`${zahl}\\s?${einheit}`).test(o.kontext)) v.push({ regel: "zahl", text: `${m[0]} steht nicht im Wissen` });
+    // Gerundet ist erlaubt: 33 % für 33,3 %
+    if (!new RegExp(`${zahl}(?:[.,]\\d+)?\\s?${einheit}`).test(o.kontext)) v.push({ regel: "zahl", text: `${m[0]} steht nicht im Wissen` });
   }
   return v;
 }

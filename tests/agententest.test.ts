@@ -104,3 +104,9 @@ test("Prüfung: Ideenpool-Nummern und Pain-Point-Kürzel dürfen nicht gesproche
   assert.equal(pruefeAntwort({ ...basis, text: "Passende Lösungen (20, 54) gibt es." })[0]?.regel, "nummer");
   assert.equal(pruefeAntwort({ ...basis, text: "Nach 8 bis 12 Wochen (Q4) prüfen wir das." }).filter((x) => x.regel === "nummer").length, 0);
 });
+
+test("Prüfung: gerundete Prozentwerte aus dem Wissen sind erlaubt", () => {
+  const basis = { rolle: "sales", an: "sales", namen: [], kontext: "Zielerreichung 33,3 % und 20,2 % laut CRM." };
+  assert.deepEqual(pruefeAntwort({ ...basis, text: "Es sind nur etwa 33 % und 20 % des Ziels." }), []);
+  assert.equal(pruefeAntwort({ ...basis, text: "Das spart 45 % Zeit." })[0]?.regel, "zahl");
+});
