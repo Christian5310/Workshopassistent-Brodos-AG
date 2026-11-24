@@ -31,7 +31,8 @@ const testfragen = lies("testfragen.md");
 const [gesamt, vBeschr, kBeschr, bBeschr] = liesPromptBloecke(lies("prompts.md"));
 if (!gesamt || !vBeschr || !kBeschr || !bBeschr) throw new Error("prompts.md: erwartet vier Texte zwischen ----- Zeilen (Gesamt, Vertrieb, KI, BPM).");
 // --ohne-briefing: wie in der App, wenn das Briefing-Feld des Workshops leer ist (Rahmen steht dann nur im Gesamt-Prompt)
-const briefing = flag("ohne-briefing") ? "" : lies("briefing-workshop.md");
+// Standard: die Originale der drei Bereiche, wie sie im Briefing-Feld des Workshops stehen (--briefing-datei <Name> für eine andere Datei)
+const briefing = flag("ohne-briefing") ? "" : lies(wert("briefing-datei") ?? "briefing-originale.md");
 const agenten: AgentDef[] = [
   { id: "sales", kuerzel: "V", name: "Vertriebsexperte", beschreibung: vBeschr, wissen: lies("wissen-vertrieb.md") },
   { id: "consultant", kuerzel: "K", name: "KI- und Automatisierungsexperte", beschreibung: kBeschr, wissen: lies("wissen-ki-automatisierung.md") },
