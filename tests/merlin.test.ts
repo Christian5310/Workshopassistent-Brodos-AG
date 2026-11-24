@@ -240,3 +240,9 @@ test("Hören, aktueller Workshop, Aufnahme ohne offenes Meeting", () => {
 test("Hörfehler „startet die Aufnahme“ wird wie „starte“ behandelt", () => {
   for (const satz of ["Startet die Aufnahme.", "Starten die Aufnahme", "Starte die Aufnahme"]) assert.equal(aktion(satz), "aufnahme-start", satz);
 });
+
+test("Workshop einrichten und Zurück zum Workshop gehen ohne Sprachmodell", () => {
+  assert.deepEqual(regeln("Lass uns den Workshop einrichten."), { aktion: "gehe", ziel: "workshop" });
+  assert.equal(aktion("Neuen Workshop einrichten"), "workshop-neu");
+  assert.equal(aktion("Merlin, bring mich zurück in den Workshop."), "zurueck");
+});

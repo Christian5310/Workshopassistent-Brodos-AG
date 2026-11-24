@@ -201,6 +201,9 @@ function aehnlich(a: string, b: string): number {
  * Bestes Meeting bzw. besten Workshop zu einem gesprochenen Satz finden.
  * Gezählt wird, wie viele Wörter des Namens im Satz (ungefähr) vorkommen.
  */
+/** Allgemeine Wörter wie "Workshop" oder "Meeting" weglassen, sonst passt jeder Workshop-Name, der sie enthält. */
+const ohneAllgemeines = (satz: string) => satz.replace(/(workshop|meeting|besprechung|assistent|sitzung)w*/g, " ").replace(/s+/g, " ").trim();
+
 function finde<T extends { name: string }>(liste: T[], satz: string, schwelle = 0.6): T | null {
   const gesagt = inhaltsworte(satz);
   if (!gesagt.length) return null;
@@ -418,7 +421,7 @@ export function regeln(text: string): Befehl | null {
   }
   if (/^(ignorier\w*|schon gut|vergiss das|vergiss es)( |$)/.test(s)) return { aktion: "nein" };
   // "Zurück zum Meeting", "Bring mich zurück ins Meeting", "Ich will wieder ins Meeting", "Zurück zum laufenden Workshop"
-  if (/^(zurück|zurueck)$/.test(s) || (/(zurück|zurueck|wieder)/.test(s) && /(meeting|workshop|besprechung|assistent)/.test(s) && !/(auswahl|start|übersicht|uebersicht|neue[nsr]?)/.test(s) && !finde(meetings(), s, 0.6) && !finde(workshops.liste(), s, 0.6)))
+  if (/^(zurück|zurueck)$/.test(s) || (/(zurück|zurueck|wieder)/.test(s) && /(meeting|workshop|besprechung|assistent)/.test(s) && !/(auswahl|start|übersicht|uebersicht|neue[nsr]?)/.test(s) && !finde(meetings(), ohneAllgemeines(s), 0.6) && !finde(workshops.liste(), ohneAllgemeines(s), 0.6)))
     return { aktion: "zurueck" };
   if (/(dokument|unterlage|datei|material|interview|einreichung)/.test(s) && /(zeig|öffne|oeffne|finde|such|wo |welche|liste|anzeigen|ansehen|gibt es|hol)/.test(s) && !/zusammenfass/.test(s)) return { aktion: "material", text };
   if ((m = s.match(/(letzte[nm]?|neueste[nm]?|meine[nm]?|alle[nm]?|unsere[nm]?|bisherige[nm]?|welche) (meetings|workshops|besprechungen)( und (meetings|workshops))?/)) || (m = s.match(/zeig.* (meetings|workshops)( und (meetings|workshops))?$/))) {
@@ -455,6 +458,8 @@ export function regeln(text: string): Befehl | null {
     return { aktion: "meeting-neu", name: name.replace(/[.!?]+$/, "").replace(/^(anlegen|einrichten|erstellen|bitte|an|ein|auf)$/i, "").trim() };
   }
   if (/neue[nrs]? workshop/.test(s)) return { aktion: "workshop-neu" };
+  // "Lass uns den Workshop einrichten" → die Workshop-Seite (Einrichten) mit der Auswahl, ohne Umweg über das Sprachmodell
+  if (/(einricht|vorbereit|aufsetz)/.test(s) && /workshop/.test(s) && !/(material|dokument|datei|agent|einstell)/.test(s)) return { aktion: "gehe", ziel: "workshop" };
   if ((m = s.match(/(?:öffne|oeffne|zeig(?:e)?|wechsel(?:e|n)? zu(?:m|r)?|geh(?:e)? zu(?:m|r)?|lade) (?:das |den |die )?(meeting|workshop) (.+)$/))) {
     return m[1] === "workshop" ? { aktion: "workshop-oeffnen", name: m[2]! } : { aktion: "meeting-oeffnen", name: m[2]! };
   }
