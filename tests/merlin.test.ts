@@ -228,3 +228,11 @@ test("Agenten per Sprache finden: neue Namen, Kurzformen, alte Namen", () => {
   assert.equal(f("die Runde"), undefined);
   assert.equal(f("Kinder"), undefined); // "ki" zählt nur als ganzes Wort
 });
+
+test("Hören, aktueller Workshop, Aufnahme ohne offenes Meeting", () => {
+  assert.equal(aktion("Merlin, kannst du mich hören?"), "hoeren");
+  assert.equal(aktion("Merlin, hörst du mich?"), "hoeren");
+  assert.equal(aufloesen({ aktion: "hoeren" }, false).antwort, "Ja, ich bin aktiv.");
+  for (const satz of ["Merlin, bring mich zum letzten Workshop", "Öffne den aktuellen Workshop", "Geh zum neuesten Workshop"]) assert.equal(aktion(satz), "workshop-aktuell", satz);
+  assert.equal(aktion("Zeig die letzten Workshops"), "liste");
+});

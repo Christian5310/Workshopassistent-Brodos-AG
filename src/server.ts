@@ -927,6 +927,12 @@ app.get("/api/tage/:id/ki-zusammenfassung.md", (req, res) => {
 app.get("/api/tage/:id/ansagen", async (req, res) => {
   const tag = holeTag(req.params.id, res);
   if (!tag) return;
+  // ?schnell: Begrüßung, Regeln und Agenda brauchen kein Sprachmodell. Ohne gespeicherte Texte gibt es sofort die Vorlage (nicht gespeichert, Material noch leer).
+  if (!tag.ansagen && req.query.schnell !== undefined && req.query.neu === undefined) {
+    const ws = workshopVon(tag.id);
+    bereiteAnsagenVor(tag.id);
+    return void res.json({ ...ansagen.vorlage(tag, ws ? workshops.hole(ws.id) : null, ansagen.OHNE_MATERIAL), agenda: ansagen.agendaText(tag.protokoll.agenda.map((a) => a.titel)), schnell: true });
+  }
   if (!tag.ansagen || req.query.neu !== undefined) store.setzeAnsagen(tag.id, await entwerfeAnsagen(tag));
   const gespeichert = store.hole(tag.id)?.ansagen ?? {};
   // Die Agenda immer frisch vorlesen: sie kann sich nach dem Entwurf der Texte noch geändert haben

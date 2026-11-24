@@ -45,6 +45,8 @@ export const BefehlSchema = z.discriminatedUnion("aktion", [
   z.object({ aktion: z.literal("material"), text: z.string().max(500) }),
   z.object({ aktion: z.literal("wissen"), frage: z.string().min(1).max(500) }),
   z.object({ aktion: z.literal("uhrzeit") }),
+  z.object({ aktion: z.literal("hoeren") }),
+  z.object({ aktion: z.literal("workshop-aktuell") }),
   z.object({ aktion: z.literal("agenten-rolle"), wer: z.enum(["sales", "bpm", "consultant", "alle"]) }),
   z.object({ aktion: z.literal("todo-neu"), text: z.string().max(300), owner: z.string().max(60).optional(), frist: z.string().max(60).optional() }),
   z.object({ aktion: z.literal("todo-verschieben"), todo: z.string().max(300), ziel: z.string().max(120) }),
@@ -111,6 +113,15 @@ function auswahlMeetings(): Auswahl[] {
     .slice(0, 5)
     .map((t) => ({ text: t.name, befehl: `öffne das Meeting ${t.name}` }));
 }
+/** Der Workshop, dessen Datum dem heutigen am nächsten liegt (bei Gleichstand der jüngere). */
+function aktuellerWorkshop() {
+  const heute = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+  const tage = (d: string) => Date.parse(`${d}T00:00:00Z`) / 86_400_000;
+  return workshops.liste().reduce<ReturnType<typeof workshops.liste>[number] | undefined>(
+    (beste, w) => (!beste || Math.abs(tage(w.datum) - tage(heute)) < Math.abs(tage(beste.datum) - tage(heute)) ? w : beste),
+    undefined,
+  );
+}
 function auswahlWorkshops(): Auswahl[] {
   return workshops.liste().slice(0, 5).map((w) => ({ text: w.name, befehl: `öffne den Workshop ${w.name}` }));
 }
@@ -121,7 +132,7 @@ export type Ergebnis =
   | { aktion: "meeting-neu"; name: string; antwort: string }
   | { aktion: "workshop-neu"; antwort: string }
   | { aktion: "meeting-oeffnen"; id: string; antwort: string }
-  | { aktion: "workshop-oeffnen"; id: string; antwort: string }
+  | { aktion: "workshop-oeffnen"; id: string; antwort: string; danach?: "aufnahme-start" }
   | { aktion: "aufnahme-start" | "aufnahme-pause" | "meeting-schliessen"; antwort: string }
   | { aktion: "ansage"; station: (typeof STATIONEN)[number]; antwort: string }
   | { aktion: "frage"; an: string; text: string; antwort: string }
@@ -371,6 +382,10 @@ export function regeln(text: string): Befehl | null {
     const roh = text.replace(/^.*?(entscheidung|offene frage|frage)\s*(?:hinzu|auf|ein)?\s*[:,\-–]?\s*/i, "");
     return { aktion: "eintrag-neu", art: m[1] === "entscheidung" ? "entscheidung" : "frage", text: roh.replace(/^[\s:,\-–]+|[\s]+$/g, "") };
   }
+  // "Kannst du mich hören?" → kurze Bestätigung (bereinige entfernt ein führendes "kannst du")
+  if (/(mich h(ö|oe)ren|h(ö|oe)rst du mich|bist du (noch |gerade )?(da|aktiv|wach|online))/.test(s) && s.split(" ").length <= 8) return { aktion: "hoeren" };
+  // "Bring mich zum letzten / aktuellen Workshop" → der Workshop, dessen Datum heute am nächsten liegt
+  if (/(letzte[nrm]?|aktuelle[nrm]?|neueste[nrm]?|heutige[nrm]?) workshop( |$)/.test(s) && /(bring|geh|führ|fuehr|öffne|oeffne|wechsel|zeig|spring|nimm)/.test(s)) return { aktion: "workshop-aktuell" };
   // "Was kann/macht der Vertriebsexperte?" → feste Kurzantwort zur Rolle des Agenten
   if ((m = s.match(/^(?:was|wie|wozu) (?:kann|können|koennen|macht|machen|tut|tun|leistet|leisten|ist|sind|hilft|helfen)\w* (?:denn |eigentlich )?(?:der |die |das |unser |unsere |ein |eine )?(.+?)(?: eigentlich| denn| so| genau)?(?: (?:alles|noch|bei uns))?$/))) {
     const w = m[1]!;
@@ -558,7 +573,20 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
       if (aufnahmeLaeuft && store.daten.id !== w.meetingId) return { aktion: "hinweis", antwort: "Gerade läuft eine Aufnahme in einem anderen Meeting. Bitte erst pausieren." };
       return { aktion: "workshop-oeffnen", id: w.id, antwort: `Ich öffne den Workshop „${w.name}“.` };
     }
+    case "hoeren":
+      return { aktion: "hinweis", antwort: "Ja, ich bin aktiv." };
+    case "workshop-aktuell": {
+      const w = aktuellerWorkshop();
+      if (!w) return { aktion: "gehe", ziel: "workshop", antwort: "Es gibt noch keinen Workshop. Richte hier einen neuen ein." };
+      if (aufnahmeLaeuft && store.daten.id !== w.meetingId) return { aktion: "hinweis", antwort: "Gerade läuft eine Aufnahme in einem anderen Meeting. Bitte erst pausieren." };
+      return { aktion: "workshop-oeffnen", id: w.id, antwort: `Ich öffne den Workshop „${w.name}“ vom ${w.datum.split("-").reverse().join(".")}.` };
+    }
     case "aufnahme-start":
+      if (!store.istOffen) {
+        // Nichts geöffnet: der aktuelle Workshop (Datum am nächsten an heute) wird geöffnet und die Aufnahme gleich gestartet
+        const w = aktuellerWorkshop();
+        if (w) return { aktion: "workshop-oeffnen", id: w.id, antwort: `Ich öffne den Workshop „${w.name}“ und starte die Aufnahme.`, danach: "aufnahme-start" };
+      }
       if (!store.istOffen) return { aktion: "gehe", ziel: "meeting", antwort: "Dafür brauche ich zuerst ein Meeting. Welches soll ich öffnen?", auswahl: auswahlMeetings() };
       if (aufnahmeLaeuft) return { aktion: "hinweis", antwort: "Die Aufnahme läuft schon." };
       return { aktion: "aufnahme-start", antwort: "Ich starte die Aufnahme." };

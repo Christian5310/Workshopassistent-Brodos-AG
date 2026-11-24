@@ -264,6 +264,13 @@ export function starteMerlin(rahmen) {
         try { sessionStorage.setItem("broki-ws", e.id); } catch {}
         antworte();
         rahmen.gehe("assistent", true);
+        // "Starte die Aufnahme" ohne offenes Meeting: nach dem Öffnen gleich weiter (im Raum wie immer mit Rückfrage)
+        if (e.danach === "aufnahme-start")
+          setTimeout(() => {
+            const starte = async () => { await rahmen.steuerung.starten(); sage("Die Aufnahme läuft. Ich bin jetzt leise."); };
+            if (imFreihand) rueckfrage("Soll ich die Aufnahme starten?", true, "Ja, starten", starte);
+            else starte().catch((f) => sage(f.message));
+          }, 1500);
         break;
       case "aufnahme-start": {
         const starte = async () => {
@@ -623,14 +630,14 @@ export function starteMerlin(rahmen) {
   const beschrifte = (k, iconName, text) => k.replaceChildren(icon(iconName), text);
 
   // ── Einstimmung: vier Stationen mit Texten je Meeting ──
-  async function ladeAnsagen(neu = false) {
+  async function ladeAnsagen(neu = false, schnell = false) {
     const id = stand?.tag?.id;
     if (!id) throw new Error("Dafür brauche ich ein geöffnetes Meeting.");
-    if (!neu && ansagen?.__tag === id) return;
+    if (!neu && ansagen?.__tag === id && !(ansagen.schnell && !schnell)) return;
     info("Merlin bereitet die Texte vor …");
     zustand("denkt");
     try {
-      const antwort = await fetch(`/api/tage/${id}/ansagen${neu ? "?neu" : ""}`);
+      const antwort = await fetch(`/api/tage/${id}/ansagen${neu ? "?neu" : schnell ? "?schnell" : ""}`);
       if (!antwort.ok) throw new Error((await antwort.json().catch(() => ({}))).fehler ?? `Fehler ${antwort.status}`);
       ansagen = { ...(await antwort.json()), __tag: id };
     } finally {
@@ -640,7 +647,7 @@ export function starteMerlin(rahmen) {
   }
   async function zeigeAnsage(index, vorlesen) {
     if (!offen) oeffne({ fokus: false });
-    await ladeAnsagen();
+    await ladeAnsagen(false, STATIONEN[Math.max(0, index)]?.[0] !== "eingereicht"); // nur "Eingereicht" braucht das Sprachmodell
     modus = "ansage";
     station = Math.max(0, index);
     bearbeitet = false;
@@ -661,7 +668,13 @@ export function starteMerlin(rahmen) {
         k.type = "button";
         k.setAttribute("role", "tab");
         k.setAttribute("aria-selected", String(i === station));
-        k.addEventListener("click", () => { verstumme(); station = i; bearbeitet = false; zeigeAnsageLeiste(); });
+        k.addEventListener("click", async () => {
+          verstumme();
+          station = i;
+          bearbeitet = false;
+          if (ansagen?.schnell && STATIONEN[i][0] === "eingereicht") try { await ladeAnsagen(); } catch (f) { info(f.message); }
+          zeigeAnsageLeiste();
+        });
         return k;
       }),
     );
@@ -674,7 +687,13 @@ export function starteMerlin(rahmen) {
     $("#merlin-weiter").hidden = station === STATIONEN.length - 1;
   }
   $("#merlin-sprechen").addEventListener("click", () => (knopf.classList.contains("spricht") ? verstumme() : sprich(blase.textContent)));
-  $("#merlin-weiter").addEventListener("click", () => { verstumme(); station = Math.min(station + 1, STATIONEN.length - 1); zeigeAnsageLeiste(); sprich(blase.textContent); });
+  $("#merlin-weiter").addEventListener("click", async () => {
+    verstumme();
+    station = Math.min(station + 1, STATIONEN.length - 1);
+    if (ansagen?.schnell && STATIONEN[station][0] === "eingereicht") try { await ladeAnsagen(); } catch (f) { info(f.message); }
+    zeigeAnsageLeiste();
+    sprich(blase.textContent);
+  });
   $("#merlin-bearbeiten").addEventListener("click", async () => {
     try {
       if (bearbeitet) {
