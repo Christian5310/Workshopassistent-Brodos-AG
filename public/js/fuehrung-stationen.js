@@ -45,6 +45,10 @@ export const FUEHRUNG = [
     ],
   },
   {
+    text: "Und hier noch ein paar Fun Facts zur KI Arbeit: Mein Code besteht aus rund zwölftausend Zeilen. Das wären über zweihundert Seiten zum Ausdrucken.",
+    bilder: [{ datei: "f.jpg", titel: "Zweihundert Seiten Code zum Ausdrucken", x: 68, y: 47, groesse: 52, von: "rechts", fokus: "50% 45%", nach: 6500 }],
+  },
+  {
     text: "Auf geht's! Viel Spaß heute, und seid kreativ!",
   },
 ];
