@@ -595,7 +595,8 @@ export function aufloesen(b: Befehl, aufnahmeLaeuft: boolean): Ergebnis {
       }
       if (!store.istOffen) return { aktion: "gehe", ziel: "meeting", antwort: "Dafür brauche ich zuerst ein Meeting. Welches soll ich öffnen?", auswahl: auswahlMeetings() };
       if (aufnahmeLaeuft) return { aktion: "hinweis", antwort: "Die Aufnahme läuft schon." };
-      return { aktion: "aufnahme-start", antwort: "Ich starte die Aufnahme." };
+      // Pausiertes Meeting (es gibt schon Transkript): dieselbe Aktion, Merlin sagt nur, dass er fortsetzt
+      return { aktion: "aufnahme-start", antwort: store.daten.transkript.length ? "Ich setze die Aufnahme fort." : "Ich starte die Aufnahme." };
     case "aufnahme-pause":
       if (!aufnahmeLaeuft) return { aktion: "hinweis", antwort: "Gerade läuft keine Aufnahme." };
       return { aktion: "aufnahme-pause", antwort: "Ich pausiere die Aufnahme." };
