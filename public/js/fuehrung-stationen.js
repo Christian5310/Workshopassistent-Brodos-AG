@@ -30,7 +30,7 @@ export const FUEHRUNG = [
     ],
   },
   {
-    text: "Ihr könnt mich jederzeit mit meinem Namen ansprechen. Sagt einfach „Merlin“ und dann, was ihr braucht, zum Beispiel einen Bereich öffnen, ein Tu-Du anlegen oder abhaken. Ich führe es für euch aus.",
+    text: "Ihr könnt mich jederzeit mit meinem Namen ansprechen. Sagt einfach „Merlin“ und ich helfe euch bei der Navigation innerhalb der App.",
     bilder: [{ datei: "e.webp", titel: "Merlin, der Zauberer", x: 68, y: 47, groesse: 52, von: "rechts", zoom: 0.92, nach: 3000 }],
   },
   {
@@ -38,10 +38,10 @@ export const FUEHRUNG = [
     bilder: [{ datei: "4.png", titel: "Pinnwand mit Notizen", x: 66, y: 46, groesse: 60, von: "links", passt: true, fokus: "50% 42%", zoom: 0.88, nach: 600 }],
   },
   {
-    text: "Aber bitte habt Geduld mit mir. Christian und ich haben die App erst vor ein paar Tagen gebaut und müssen uns alle erst einmal gemeinsam einspielen und gemeinsam wachsen.",
+    text: "Aber bitte habt Geduld mit mir. Wir haben die App erst vor ein paar Tagen gebaut und müssen uns alle erst einmal gemeinsam einspielen und gemeinsam wachsen.",
     bilder: [
       { datei: "c.webp", titel: "Merlin bittet um Geduld", x: 68, y: 47, groesse: 52, von: "rechts", nach: 500 },
-      { datei: "d.webp", titel: "Gemeinsam wachsen", x: 68, y: 47, groesse: 52, von: "rechts", nach: 7000 },
+      { datei: "g.png", titel: "Gemeinsam abheben", x: 68, y: 47, groesse: 46, von: "rechts", nach: 7000 },
     ],
   },
   {
@@ -51,6 +51,8 @@ export const FUEHRUNG = [
   {
     // "[2s]" = zwei Sekunden Pause vor dem nächsten Satz (Zeit zum Raten)
     text: "Und was glaubt ihr: Wie hoch ist der Anteil von KI-Arbeit im Vergleich zu klassischem Code in dieser App? [2s] Achtzig Prozent sind Code, zwanzig Prozent sind KI. KI ist nur ein Teil der Lösung. Aber ein wichtiger Hebel.",
+    // h.jpg erscheint ungefähr bei "Aber ein wichtiger Hebel"
+    bilder: [{ datei: "h.jpg", titel: "KI Champions League", x: 66, y: 46, groesse: 60, von: "rechts", passt: true, nach: 15000 }],
   },
   {
     text: "Auf geht's! Viel Spaß heute, und seid kreativ!",
