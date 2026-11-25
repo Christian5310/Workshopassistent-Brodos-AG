@@ -497,7 +497,7 @@ try {
 try {
   const musik = window.parent?.merlin?.fuehrungMusik;
   const speicher = () => { try { return localStorage.getItem("broki-fuehrung-musik"); } catch { return null; } };
-  $("#musik").value = speicher() ?? 30;
+  $("#musik").value = speicher() ?? 40;
   const zeigeMusik = () => ($("#musik-wert").textContent = Number($("#musik").value) === 0 ? "aus" : `${$("#musik").value} %`);
   zeigeMusik();
   $("#musik-probe").replaceChildren(icon("play"), "Musik anhören");

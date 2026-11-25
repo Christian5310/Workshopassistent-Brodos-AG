@@ -1,5 +1,5 @@
 // Drehbuch der Führung durch die App (Merlin, Startscreen). Hier Texte und Bilder ändern.
-// - text:   was Merlin sagt (nur Sprachausgabe, steht nicht auf dem Bildschirm). "Broki" so schreiben, wie es gesprochen wird.
+// - text:   was Merlin sagt (nur Sprachausgabe, steht nicht auf dem Bildschirm). "Broki" so schreiben, wie es gesprochen wird (auch "Tu-Du", "Fan Fäkts" für Fun Facts: die deutsche Stimme liest "Facts" sonst mit falschem "a").
 //           In ganzen Sätzen schreiben: das Vorlesen läuft satzweise.
 // - bilder: Bubbles (Kreise) rechts neben Merlin. Ohne Bilder bleibt Merlin allein in der Mitte.
 //     datei:  Datei in public/img/fuehrung/ (mit Endung, z. B. "2b.png"). Ideal: quadratig, das Wichtige in der Mitte.
@@ -45,14 +45,13 @@ export const FUEHRUNG = [
     ],
   },
   {
-    text: "Und hier noch ein paar Fun Facts zur KI Arbeit: Mein Code besteht aus rund zwölftausend Zeilen. Das wären über zweihundert Seiten zum Ausdrucken.",
+    text: "Und hier noch ein paar Fan Fäkts zur KI Arbeit: Mein Code besteht aus rund zwölftausend Zeilen. Das wären über zweihundert Seiten zum Ausdrucken.",
     bilder: [{ datei: "f.jpg", titel: "Zweihundert Seiten Code zum Ausdrucken", x: 68, y: 47, groesse: 52, von: "rechts", fokus: "50% 45%", nach: 6500 }],
   },
   {
     // "[2s]" = zwei Sekunden Pause vor dem nächsten Satz (Zeit zum Raten)
-    text: "Und was glaubt ihr: Wie hoch ist der Anteil von KI-Arbeit im Vergleich zu klassischem Code in dieser App? [2s] Achtzig Prozent sind Code, zwanzig Prozent sind KI. KI ist nur ein Teil der Lösung. Aber ein wichtiger Hebel.",
-    // h.jpg erscheint ungefähr bei "Aber ein wichtiger Hebel"
-    bilder: [{ datei: "h.jpg", titel: "KI Champions League", x: 66, y: 46, groesse: 60, von: "rechts", passt: true, nach: 15000 }],
+    text: "Und was glaubt ihr: Wie hoch ist der Anteil von KI-Arbeit im Vergleich zu klassischem Code in dieser App? [2s] Achtzig Prozent sind Code, zwanzig Prozent sind KI. KI ist nur ein Teil der Lösung. Aber ein wichtiger Hebel für eure zukünftige Arbeit.",
+    // h.jpg erscheint ungefähr bei "Aber ein wichtiger Hebel"    bilder: [{ datei: "h.jpg", titel: "KI Champions League", x: 66, y: 46, groesse: 60, von: "rechts", passt: true, nach: 15000 }],
   },
   {
     text: "Auf geht's! Viel Spaß heute, und seid kreativ!",

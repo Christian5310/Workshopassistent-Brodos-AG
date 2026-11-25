@@ -12,8 +12,8 @@ function erstelleMusik() {
   let rampe = null;
   let duckTimer = null;
   let ducke = false;
-  const basis = () => (Math.max(0, Math.min(100, Number(ablage(MUSIK_KEY) ?? 30))) / 100) * 0.5; // höchstens halbe Lautstärke
-  const ziel = () => basis() * (ducke ? 0.45 : 1);
+  const basis = () => (Math.max(0, Math.min(100, Number(ablage(MUSIK_KEY) ?? 40))) / 100) * 0.5; // höchstens halbe Lautstärke
+  const ziel = () => basis() * (ducke ? 0.6 : 1);
   function blendeZu(wert, ms, danach) {
     clearInterval(rampe);
     if (!audio) return;
