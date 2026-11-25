@@ -8,7 +8,7 @@ import path from "node:path";
 import { config } from "../src/config.ts";
 import {
   ausschnittVon, baueSystemPrompt, formatHinweis, istUebersichtsfrage, uebersichtsAdressat, frageNachricht, leseAntworten, leseJson, liesAgenda, liesAusschnitte, liesFragen, liesPromptBloecke,
-  pruefeAntwort, sammleNamen, type AgentDef, type Antwort, type Frage, type Verstoss,
+  pruefeAntwort, sammleNamen, type AgentDef, type Antwort, type Frage, type IdeenNamen, type Verstoss,
 } from "./agententest-kern.ts";
 
 const wurzel = path.resolve(import.meta.dirname, "..");
@@ -41,6 +41,8 @@ const agenten: AgentDef[] = [
 // Agenda: aus testfragen.md ("- A1: Titel"), sonst die Standard-Agenda der App (config/agenda.json)
 const agenda: string[] = liesAgenda(testfragen).length === 5 ? liesAgenda(testfragen) : (JSON.parse(fs.readFileSync(path.join(wurzel, "config", "agenda.json"), "utf8")) as { titel: string }[]).map((a) => a.titel);
 const ausschnitte = liesAusschnitte(testfragen);
+// Namen der Ideenliste (docs/agenten/ideen-namen.json): erkennt Einzelnamen statt Bündelname und erfundene Ideennamen
+const ideenNamen = fs.existsSync(path.join(ordner, "ideen-namen.json")) ? (JSON.parse(fs.readFileSync(path.join(ordner, "ideen-namen.json"), "utf8")) as IdeenNamen) : undefined;
 // --langes-transkript 30000: hängt so viele Zeichen Füll-Transkript an (Lasttest: in der App gehen bis zu 30.000 Zeichen der letzten 30 Minuten mit)
 const langesTranskript = Number(wert("langes-transkript") ?? 0);
 const fuelltext = () => { const teile = Object.values(ausschnitte); let t = ""; while (t.length < langesTranskript) t += teile[(t.length / 7) % teile.length | 0] + " "; return t.slice(0, langesTranskript); };
@@ -133,7 +135,7 @@ async function lauf(f: Frage): Promise<Ergebnis> {
     const erlaubt = antworten.filter((a) => p.gefragt.some((g) => g.id === a.rolle));
     const verstoesse: Verstoss[] = [];
     if (erlaubt.length !== p.gefragt.length) verstoesse.push({ regel: "format", text: `${erlaubt.length} Antworten, erwartet ${p.gefragt.length}` });
-    for (const a of erlaubt) for (const v of pruefeAntwort({ text: a.text, rolle: a.rolle, an: p.an, namen, kontext, erlaubteNamen: p.system, uebersicht: p.uebersicht })) verstoesse.push({ ...v, text: `${a.rolle}: ${v.text}` });
+    for (const a of erlaubt) for (const v of pruefeAntwort({ text: a.text, rolle: a.rolle, an: p.an, namen, kontext, erlaubteNamen: p.system, uebersicht: p.uebersicht, frage: f.frage, ideen: ideenNamen })) verstoesse.push({ ...v, text: `${a.rolle}: ${v.text}` });
     return { frage: f, an: p.an, antworten: erlaubt, verstoesse, ms: roh.ms };
   } catch (e) {
     return { frage: f, an: p.an, antworten: [], verstoesse: [{ regel: "format", text: "Fehler beim Aufruf" }], ms: 0, fehler: `${(e as Error).message}${(e as { cause?: { code?: string; message?: string } }).cause ? ` (${(e as { cause: { code?: string; message?: string } }).cause.code ?? (e as { cause: { message?: string } }).cause.message})` : ""}` };
@@ -168,7 +170,7 @@ const langsam = Math.max(...ergebnisse.map((e) => e.ms));
 const md: string[] = [];
 md.push(`# Agententest ${stempel}`, "", `Modell ${modell} · ${ergebnisse.length} Fragen · ordner \`${path.relative(wurzel, ordner)}\``, "");
 md.push("## Automatische Prüfung", "", `**${sauber} von ${ergebnisse.length} ohne Verstoß.** Muss 100 % sein.`, "");
-md.push("| Regel | Fragen mit Verstoß |", "|---|---|", ...["name", "laenge", "markdown", "zahl", "nummer", "format"].map((r) => `| ${r} | ${nachRegel(r)} |`), "");
+md.push("| Regel | Fragen mit Verstoß |", "|---|---|", ...["name", "laenge", "markdown", "zahl", "nummer", "ideenname", "format"].map((r) => `| ${r} | ${nachRegel(r)} |`), "");
 md.push(`Antwortzeit je Frage: Mittel ${(mittel / 1000).toFixed(1)} s, längste ${(langsam / 1000).toFixed(1)} s.`, "");
 const schlecht = ergebnisse.filter((e) => e.verstoesse.length);
 if (schlecht.length) {
@@ -190,4 +192,4 @@ const datei = path.join(zielOrdner, `lauf-${stempel}`);
 fs.writeFileSync(`${datei}.md`, md.join("\n"));
 fs.writeFileSync(`${datei}.json`, JSON.stringify({ modell, stempel, ergebnisse: ergebnisse.map((e) => ({ id: e.frage.id, an: e.an, antworten: e.antworten, verstoesse: e.verstoesse, ms: e.ms, fehler: e.fehler })) }, null, 2));
 console.log(`Bericht: ${path.relative(wurzel, datei)}.md`);
-console.log(`Ohne Verstoß: ${sauber}/${ergebnisse.length} · Namen: ${nachRegel("name")} · Länge: ${nachRegel("laenge")} · Markdown: ${nachRegel("markdown")} · Zahlen: ${nachRegel("zahl")} · Nummern/Kürzel: ${nachRegel("nummer")} · Format/Fehler: ${nachRegel("format")}`);
+console.log(`Ohne Verstoß: ${sauber}/${ergebnisse.length} · Namen: ${nachRegel("name")} · Länge: ${nachRegel("laenge")} · Markdown: ${nachRegel("markdown")} · Zahlen: ${nachRegel("zahl")} · Nummern/Kürzel/Ränge: ${nachRegel("nummer")} · Ideennamen: ${nachRegel("ideenname")} · Format/Fehler: ${nachRegel("format")}`);

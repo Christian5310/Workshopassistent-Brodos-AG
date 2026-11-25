@@ -12,6 +12,8 @@ test("Übersichtsfragen werden erkannt", () => {
     "Liste die Lösungen für Business Class auf.",
     "Mach eine Tabelle mit Pain Point und Lösung.",
     "Stelle die Auswertung je Bereich dar.",
+    "Fasse die Lösungen für alle drei Bereiche in einer Liste zusammen.",
+    "Gib mir bitte eine Liste der Pain Points.",
   ]) assert.equal(istUebersichtsfrage(frage), true, frage);
 });
 
@@ -21,6 +23,10 @@ test("Normale Fragen sind keine Übersichtsfragen", () => {
     "Wie lange dauert eine DaaS-Anfrage heute?",
     "Wir haben eine Ideenliste gesammelt, was haltet ihr davon?",
     "Welche Lösung passt zu versandeten Angeboten?",
+    "Gibt es einen Margen-Wächter in der Liste?",
+    "Welche Ideen aus der Ideenliste passen zu Business Class?",
+    "Steht der Deal-Coach auf der Liste?",
+    "Was macht der Margen-Wächter aus der Liste?",
   ]) assert.equal(istUebersichtsfrage(frage), false, frage);
 });
 

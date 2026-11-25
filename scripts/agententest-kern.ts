@@ -89,7 +89,7 @@ export function sammleNamen(quellen: string[]): string[] {
   return [...namen];
 }
 
-export type Verstoss = { regel: "name" | "laenge" | "markdown" | "zahl" | "nummer" | "format"; text: string };
+export type Verstoss = { regel: "name" | "laenge" | "markdown" | "zahl" | "nummer" | "ideenname" | "format"; text: string };
 
 const KUERZEL = /\b(z\. ?B|d\. ?h|u\. ?a|u\. ?U|bzw|ca|evtl|inkl|usw|vgl|Nr|ggf|etc|Abs|Art|Std|Min|Mio|Mrd|s\. ?o|S|M|L)\./g;
 
@@ -100,7 +100,7 @@ export function zaehleSaetze(text: string): number {
 }
 
 /** Automatische Prüfung einer Antwort. `kontext` ist alles, was das Modell lesen durfte (zum Erkennen erfundener Zahlen). */
-export function pruefeAntwort(o: { text: string; rolle: string; an: string; namen: string[]; kontext: string; erlaubteNamen?: string; uebersicht?: boolean }): Verstoss[] {
+export function pruefeAntwort(o: { text: string; rolle: string; an: string; namen: string[]; kontext: string; erlaubteNamen?: string; uebersicht?: boolean; frage?: string; ideen?: IdeenNamen }): Verstoss[] {
   const v: Verstoss[] = [];
   const t = o.text;
   for (const n of o.namen) {
@@ -121,8 +121,9 @@ export function pruefeAntwort(o: { text: string; rolle: string; an: string; name
   }
   if (/^\s*(Vertriebsexperte|KI- und Automatisierungsexperte|BPM-Experte)\s*[:\-–]/i.test(t)) v.push({ regel: "markdown", text: "Rollenname im Text" });
   // Die Runde kennt weder die Ideenpool-Nummern noch die Pain-Point-Kürzel: nur Klartext
-  const nummer = t.match(/\bIdeen?\s*(Nr\.?\s*)?\d+|\bNr\.\s*\d+|\([0-9]{1,2}(,\s*[0-9]{1,2})+\)|\b[BCIG][1-8]\b/);
+  const nummer = t.match(/\bRang\s*\d+|\bPlatz\s*\d+|\bIdeen?\s*(Nr\.?\s*)?\d+|\bNr\.\s*\d+|\([0-9]{1,2}(,\s*[0-9]{1,2})+\)|\b[BCIG][1-8]\b/);
   if (nummer) v.push({ regel: "nummer", text: `Nummer oder Kürzel gesprochen: "${nummer[0]}"` });
+  if (o.ideen) v.push(...pruefeIdeennamen(t, o.frage ?? "", o.ideen));
   for (const m of t.matchAll(/(\d[\d.,]*)\s?(%|Prozent|€|Euro|EUR)/g)) {
     // Die Zahl muss mit derselben Einheit im Wissen, Briefing oder in der Frage stehen (nicht nur irgendwo als Ziffernfolge)
     const zahl = m[1]!.replace(/[.,]$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -153,4 +154,28 @@ export function leseAntworten(json: unknown): Antwort[] {
   const liste = (json as { antworten?: unknown })?.antworten;
   if (!Array.isArray(liste)) throw new Error('Antwort ohne "antworten"-Liste');
   return liste.flatMap((a) => (a && typeof a.rolle === "string" && typeof a.text === "string" && a.text.trim() ? [{ rolle: a.rolle, text: a.text.trim() }] : []));
+}
+
+export type IdeenNamen = { top25: string[]; weitere: string[]; einzelnamen: string[]; buendel?: Record<string, string[]> };
+
+const IDEEN_ENDUNG = "Bot|Radar|Agent|Scanner|Matcher|Wächter|Melder|Texter|Coach|Prüfer|Workflow|Begleiter|Analyst|Dashboard|Chatbot|App|Optimierer|Erfasser|Füller|Generator|Erinnerer|Cockpit|Berater|Abwickler|Protokollant|Lernschleife|Autopilot|Arbeitsoberfläche|Spezialist|Fabrik|Score|Auslöser|Mitschreiber";
+const IDEEN_MUSTER = new RegExp(`(?<![\\p{L}-])[A-ZÄÖÜ][\\p{L}]*(?:-[A-ZÄÖÜ]?[\\p{L}]+)*-(?:${IDEEN_ENDUNG})(?![\\p{L}])`, "gu");
+
+/** Ideennamen in einer Antwort: Einzelnamen (gehören zu einem Bündel) und Namen, die in der Ideenliste nicht vorkommen. */
+export function pruefeIdeennamen(text: string, frage: string, ideen: IdeenNamen): Verstoss[] {
+  const v: Verstoss[] = [];
+  const klein = (x: string) => x.toLowerCase();
+  const bekannt = new Set([...ideen.top25, ...ideen.weitere, ...ideen.einzelnamen].map(klein));
+  const frageKlein = klein(frage);
+  for (const name of ideen.einzelnamen) {
+    // Der Einzelname darf vorkommen, wenn die Frage ihn selbst nennt (dann ordnet die Antwort ihn zu); sonst nie
+    if (klein(text).includes(klein(name)) && !frageKlein.includes(klein(name))) v.push({ regel: "ideenname", text: `Einzelname statt Bündelname: ${name}` });
+  }
+  // Ein eigener, gekennzeichneter Vorschlag darf einen neuen Namen tragen; allgemeine Wörter und bekannte Bausteine der Bereiche sind erlaubt
+  const gekennzeichnet = /Annahme|[Ee]igene[rn]? (Idee|Vorschlag|Gedanke)|gibt es .{0,40}nicht|nicht in der (Ideenliste|Liste)/.test(text);
+  const allgemein = new Set(["handy-app", "web-app", "teamlead-cockpit", "ki-vertriebsmaschine", "deal-review-coach", "loss-review-coach", "kunden-chatbot", "messenger-bot", "telegram-bot"]);
+  for (const treffer of new Set(text.match(IDEEN_MUSTER) ?? [])) {
+    if (!bekannt.has(klein(treffer)) && !allgemein.has(klein(treffer)) && !gekennzeichnet && !frageKlein.includes(klein(treffer))) v.push({ regel: "ideenname", text: `Name nicht in der Ideenliste: ${treffer}` });
+  }
+  return v;
 }

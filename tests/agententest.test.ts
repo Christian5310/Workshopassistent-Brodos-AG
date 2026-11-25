@@ -110,3 +110,14 @@ test("Prüfung: gerundete Prozentwerte aus dem Wissen sind erlaubt", () => {
   assert.deepEqual(pruefeAntwort({ ...basis, text: "Es sind nur etwa 33 % und 20 % des Ziels." }), []);
   assert.equal(pruefeAntwort({ ...basis, text: "Das spart 45 % Zeit." })[0]?.regel, "zahl");
 });
+
+test("Ideennamen: Einzelname statt Bündelname, unbekannte Namen und Ränge werden erkannt", async () => {
+  const { pruefeIdeennamen } = await import("../scripts/agententest-kern.ts");
+  const ideen = { top25: ["DaaS-Anfrage-Abwickler", "Angebots-Nachfass-Bot"], weitere: ["Forecast-Erklärer"], einzelnamen: ["Margen-Wächter", "Nachfass-Texter"] };
+  assert.deepEqual(pruefeIdeennamen("Dafür passt der DaaS-Anfrage-Abwickler und als weitere Idee der Forecast-Erklärer.", "Was hilft?", ideen), []);
+  assert.equal(pruefeIdeennamen("Der Margen-Wächter prüft die Marge.", "Was hilft bei der Marge?", ideen)[0]?.regel, "ideenname");
+  assert.deepEqual(pruefeIdeennamen("Der Margen-Wächter gehört zum DaaS-Anfrage-Abwickler.", "Gibt es einen Margen-Wächter?", ideen), []);
+  assert.match(pruefeIdeennamen("Hier hilft der Preis-Optimierer-Bot.", "Was hilft?", ideen)[0]?.text ?? "", /nicht in der Ideenliste/);
+  const { pruefeAntwort } = await import("../scripts/agententest-kern.ts");
+  assert.equal(pruefeAntwort({ rolle: "consultant", an: "consultant", namen: [], kontext: "", text: "Das ist Rang 4 der Liste." }).some((x) => x.regel === "nummer"), true);
+});

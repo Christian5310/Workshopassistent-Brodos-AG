@@ -4,9 +4,19 @@
 /** Höchstzahl der Stichpunkte einer Übersicht. */
 export const UEBERSICHT_MAX_ZEILEN = 14;
 
-const SCHLUESSELWOERTER = /(?<!\p{L})(stichpunkt|stichwort|aufzähl|aufzaehl|liste|übersicht|uebersicht|überblick|ueberblick|zusammenfass|auswertung|tabelle)\p{L}*(?!\p{L})/iu;
+const SCHLUESSELWOERTER = new RegExp(
+  [
+    // eindeutige Wörter: Stichpunkte, Übersicht, Zusammenfassung, Auswertung, Tabelle, Auflistung
+    "(?<!\\p{L})(stichpunkt|stichwort|aufzähl|aufzaehl|auflist|übersicht|uebersicht|überblick|ueberblick|zusammenfass|auswertung|tabelle)\\p{L}*(?!\\p{L})",
+    // "eine Liste", "als Liste", "in einer kurzen Liste" (nicht: "in der Liste", "aus der Ideenliste")
+    "(?<!\\p{L})(eine|einer|als|kurze|kurzen|knappe|knappen)\\s+(\\p{L}+\\s+)?liste(?!\\p{L})",
+    // Aufforderung: "Liste die Lösungen auf."
+    "(?:^|[.!?]\\s+|bitte\\s+|mal\\s+)liste\\p{L}*\\s.{0,80}?\\bauf\\b",
+  ].join("|"),
+  "iu",
+);
 
-/** Verlangt die Frage eine Liste oder Übersicht? ("Ideenliste" zählt nicht, nur das eigenständige Wort.) */
+/** Verlangt die Frage eine Liste oder Übersicht? Nur dann, nicht schon beim Wort "Liste" ("in der Liste", "Ideenliste" zählen nicht). */
 export function istUebersichtsfrage(frage: string): boolean {
   return SCHLUESSELWOERTER.test(frage);
 }
