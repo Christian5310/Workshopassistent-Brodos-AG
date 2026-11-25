@@ -50,7 +50,7 @@ export const FUEHRUNG = [
   },
   {
     // "[2s]" = zwei Sekunden Pause vor dem nächsten Satz (Zeit zum Raten)
-    text: "Und was glaubt ihr: Wie hoch ist der Anteil von KI-Arbeit im Vergleich zu klassischem Code in dieser App? [2s] Achtzig Prozent sind Code, zwanzig Prozent sind KI.",
+    text: "Und was glaubt ihr: Wie hoch ist der Anteil von KI-Arbeit im Vergleich zu klassischem Code in dieser App? [2s] Achtzig Prozent sind Code, zwanzig Prozent sind KI. KI ist nur ein Teil der Lösung. Aber ein wichtiger Hebel.",
   },
   {
     text: "Auf geht's! Viel Spaß heute, und seid kreativ!",
