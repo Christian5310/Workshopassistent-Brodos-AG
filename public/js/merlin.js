@@ -717,8 +717,16 @@ export function starteMerlin(rahmen) {
   /** Liest einen Text satzweise vor und wartet bis zum Ende. Satzweise, weil manche Browser-Stimmen bei langen Texten abbrechen. */
   async function sprichBis(text, lauf) {
     const tempo = stand?.vorlesen?.tempo ?? 0.98;
-    for (const satz of text.split(/(?<=[.!?])\s+/).filter(Boolean)) {
+    for (let satz of text.split(/(?<=[.!?])\s+/).filter(Boolean)) {
       if (lauf.aus) return;
+      // Pause im Drehbuch: "[2s]" vor einem Satz wartet so viele Sekunden (z. B. nach einer Frage an die Runde)
+      const pause = satz.match(/^\[(\d+(?:[.,]\d+)?)s\]\s*/);
+      if (pause) {
+        satz = satz.slice(pause[0].length);
+        await warte(Number(pause[1].replace(",", ".")) * 1000);
+        if (lauf.aus) return;
+        if (!satz) continue;
+      }
       const geschaetzt = Math.max(1200, (satz.length * 65) / tempo);
       const start = Date.now();
       await new Promise((fertig) => {
@@ -754,7 +762,7 @@ export function starteMerlin(rahmen) {
     for (const [i, s] of FUEHRUNG.entries()) {
       if (lauf.aus) return;
       // Die Bühne (public/js/fuehrung-buehne.js) zeigt Merlin und die Bubbles. Text gibt es nur als Sprache, hier für Screenreader.
-      fuehrungStand = { index: i, gesamt: FUEHRUNG.length, bilder: s.bilder ?? [], text: s.text };
+      fuehrungStand = { index: i, gesamt: FUEHRUNG.length, bilder: s.bilder ?? [], text: s.text.replace(/\[\d+(?:[.,]\d+)?s\]\s*/g, "") };
       melde("fuehrung", fuehrungStand);
       await sprichBis(s.text, lauf);
       if (lauf.aus) return;

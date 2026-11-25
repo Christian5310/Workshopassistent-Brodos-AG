@@ -49,6 +49,10 @@ export const FUEHRUNG = [
     bilder: [{ datei: "f.jpg", titel: "Zweihundert Seiten Code zum Ausdrucken", x: 68, y: 47, groesse: 52, von: "rechts", fokus: "50% 45%", nach: 6500 }],
   },
   {
+    // "[2s]" = zwei Sekunden Pause vor dem nächsten Satz (Zeit zum Raten)
+    text: "Und was glaubt ihr: Wie hoch ist der Anteil von KI-Arbeit im Vergleich zu klassischem Code in dieser App? [2s] Achtzig Prozent sind Code, zwanzig Prozent sind KI.",
+  },
+  {
     text: "Auf geht's! Viel Spaß heute, und seid kreativ!",
   },
 ];
