@@ -440,7 +440,7 @@ export function regeln(text: string): Befehl | null {
   if (new RegExp(`${art} (schliessen|abschliessen|beenden|zumachen)|(schliesse|schliess|beende|mach) (das |den |die )?(aktuelle[n]? |laufende[n]? |offene[n]? )?${art}( zu)?$`).test(s) && !/aufnahme|transkription/.test(s)) return { aktion: "meeting-schliessen" };
   // Pausieren: nur die Aufnahme hält an, Meeting bzw. Workshop bleibt offen
   if (new RegExp(`(pausiere|unterbrich|unterbreche|halte|stoppe|stoppen|stopp) (das |den |die )?(aktuelle[n]? |laufende[n]? )?${art}|${art} (pausieren|unterbrechen|anhalten)`).test(s)) return { aktion: "aufnahme-pause" };
-  if (/((aufnahme|transkription|aufzeichnung|mitschrift)\w* (starten|start|beginnen|fortsetzen|los))|((start(e|et|en)?|beginne|setz\w*) (die |mit der )?(aufnahme|transkription|aufzeichnung|mitschrift))|^(mitschreiben|nimm auf|aufnehmen)/.test(s))
+  if (/((aufnahme|transkription|aufzeichnung|mitschrift)\w* (starten|start|beginnen|fortsetzen|los))|((start(e|et|en)?|beginne|setz\w*) (die |mit der )?(aufnahme|ausnahme|transkription|aufzeichnung|mitschrift))|^(mitschreiben|nimm auf|aufnehmen)/.test(s))
     return { aktion: "aufnahme-start" };
   if (/((aufnahme|transkription|aufzeichnung|mitschrift)\w* (stoppen|stopp|stop|pausieren|pause|beenden|anhalten))|((stoppe|pausiere|beende|halte) (die )?(aufnahme|transkription|aufzeichnung|mitschrift))|^(pause|stopp|stop|pausieren)$|machen (eine |kurz )?pause|kaffeepause/.test(s))
     return { aktion: "aufnahme-pause" };

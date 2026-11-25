@@ -252,3 +252,8 @@ test("To-do mit Einleitung: „ein neues To-do, und zwar …“ geht nicht zur M
   assert.equal(aktion("Merlin, wir haben ein neues To-do: Preisliste"), "todo-neu");
   assert.equal(aktion("Merlin, neues To-do Preisliste"), "todo-neu");
 });
+
+test("Hörfehler „startet die Ausnahme“ startet die Aufnahme", () => {
+  assert.equal(aktion("Und jetzt startet die Ausnahme."), "aufnahme-start");
+  assert.equal(aktion("Aufnahme starten."), "aufnahme-start");
+});

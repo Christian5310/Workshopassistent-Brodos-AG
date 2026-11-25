@@ -268,8 +268,7 @@ export function starteMerlin(rahmen) {
         if (e.danach === "aufnahme-start")
           setTimeout(() => {
             const starte = async () => { await rahmen.steuerung.starten(); sage("Die Aufnahme läuft. Ich bin jetzt leise."); };
-            if (imFreihand) rueckfrage("Soll ich die Aufnahme starten?", true, "Ja, starten", starte);
-            else starte().catch((f) => sage(f.message));
+            starte().catch((f) => sage(f.message));
           }, 1500);
         break;
       case "aufnahme-start": {
@@ -278,9 +277,8 @@ export function starteMerlin(rahmen) {
           sage("Die Aufnahme läuft. Ich bin jetzt leise.");
           if (rahmen.bereich() !== "assistent" && rahmen.bereich() !== "agenten") rahmen.gehe("assistent");
         };
-        // Per Klick: kurz Zeit zum Abbrechen. Aus dem Raum gesagt: lieber einmal nachfragen, ein Abbrechen-Knopf hilft dort nicht.
-        if (imFreihand) rueckfrage("Soll ich die Aufnahme starten?", true, "Ja, starten", starte);
-        else mitAbbruch(e.antwort, gesprochen, starte);
+        // Merlin wurde mit Namen angesprochen: er startet gleich (nach 2,5 s, in denen ein Klick auf "Abbrechen" noch stoppt). Keine Rückfrage mit Ja/Nein-Knöpfen.
+        mitAbbruch(e.antwort, gesprochen, starte);
         break;
       }
       case "aufnahme-pause":
