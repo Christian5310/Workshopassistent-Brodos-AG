@@ -65,7 +65,14 @@ const modellAnpassungen: Record<string, { ohneTemperatur: boolean; maxCompletion
  * oder einen Satz davor schreibt (kommt über Broki/Open WebUI je nach Modell vor).
  */
 /** Das Modell hat geantwortet, aber kein brauchbares JSON geliefert (dann lohnt eine zweite Anfrage). */
-export class UngueltigesJson extends Error {}
+export class UngueltigesJson extends Error {
+  /** Die rohe Antwort des Modells (für den Notfall: Klartext statt JSON bei nur einem gefragten Agenten). */
+  roh: string;
+  constructor(meldung: string, roh = "") {
+    super(meldung);
+    this.roh = roh;
+  }
+}
 
 class AbgebrochenWegenLaenge extends Error {
   constructor() {
@@ -88,7 +95,7 @@ export function leseJson(text: string): unknown {
       try {
         return JSON.parse(repariereJson(kandidat));
       } catch {
-        throw new UngueltigesJson(`Antwort ist kein gültiges JSON (${roh.length} Zeichen): ${roh.slice(0, 120)}`);
+        throw new UngueltigesJson(`Antwort ist kein gültiges JSON (${roh.length} Zeichen): ${roh.slice(0, 120)}`, roh);
       }
     }
   }
@@ -227,7 +234,19 @@ export class OpenAiKompatiblesSprachmodell implements Sprachmodell {
       content: `${letzteMinuten ? `Im Raum gesagt, letzte 30 Minuten (Transkript, ohne Sprecher):\n${letzteMinuten}\n\n` : ""}Frage${an === "alle" ? "" : ` an ${name(an)}`}: ${frage}`,
     });
 
-    const geprueft = AntwortSchema.parse(await this.#frage(nachrichten, 4000));
+    let antwort: unknown;
+    try {
+      antwort = await this.#frage(nachrichten, 4000);
+    } catch (fehler) {
+      // Notfall: Hat das Modell (auch beim zweiten Versuch) nur Klartext statt JSON geliefert und wurde genau ein Agent gefragt, ist der Klartext seine Antwort.
+      const klartext = fehler instanceof UngueltigesJson ? fehler.roh.trim() : "";
+      if (gefragt.length === 1 && klartext && !/[{}]|```/.test(klartext) && klartext.length <= 2000) {
+        console.warn(`Agent ${gefragt[0]!.id}: Modell lieferte Klartext statt JSON, nehme den Text als Antwort.`);
+        return [{ von: gefragt[0]!.id, text: klartext }];
+      }
+      throw fehler;
+    }
+    const geprueft = AntwortSchema.parse(antwort);
     return geprueft.antworten.filter((a) => gefragt.some((g) => g.id === a.rolle)).map((a) => ({ von: a.rolle, text: a.text.trim() }));
   }
 

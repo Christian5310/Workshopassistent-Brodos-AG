@@ -121,3 +121,14 @@ test("Ideennamen: Einzelname statt Bündelname, unbekannte Namen und Ränge werd
   const { pruefeAntwort } = await import("../scripts/agententest-kern.ts");
   assert.equal(pruefeAntwort({ rolle: "consultant", an: "consultant", namen: [], kontext: "", text: "Das ist Rang 4 der Liste." }).some((x) => x.regel === "nummer"), true);
 });
+
+test("Klartext statt JSON: der Fehler trägt die rohe Antwort (Grundlage für den Notfall-Fallback bei einem Agenten)", async () => {
+  const { leseJson, UngueltigesJson } = await import("../src/anbieter/llm.ts");
+  try {
+    leseJson("Der Verlängerungs-Radar schaut wöchentlich auf die Vertragsenden.");
+    assert.fail("hätte einen Fehler werfen müssen");
+  } catch (fehler) {
+    assert.ok(fehler instanceof UngueltigesJson);
+    assert.equal((fehler as InstanceType<typeof UngueltigesJson>).roh, "Der Verlängerungs-Radar schaut wöchentlich auf die Vertragsenden.");
+  }
+});
